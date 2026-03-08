@@ -71,6 +71,29 @@ export default function MusicFeed() {
 
     const GENRES = ["All", "Pop", "Rock", "Lo-Fi", "Jazz", "Electronic", "Classical", "Hip Hop", "R&B", "Podcast", "Audiobook", "AI Music"];
 
+    // Push playlist to global context once tracks are loaded
+    useEffect(() => {
+        if (tracks.length > 0) {
+            const globalPlaylist = tracks.map(t => ({
+                id: t.id,
+                title: t.title,
+                artist: t.description || t.creatorBitDomain || 'Unknown',
+                coverUrl: t.posterUrl,
+                audioUrl: t.cdnUrl,
+            }));
+            globalMusic.setPlaylist(globalPlaylist);
+        }
+    }, [tracks]);
+
+    // Sync isPlaying and currentTime from global context
+    useEffect(() => {
+        setIsPlaying(globalMusic.isPlaying);
+    }, [globalMusic.isPlaying]);
+
+    useEffect(() => {
+        setCurrentTime(globalMusic.currentTime);
+    }, [globalMusic.currentTime]);
+
     // Initialize
     useEffect(() => {
         const jwt = typeof window !== "undefined" ? sessionStorage.getItem("vp.jwt") : null;
@@ -562,12 +585,12 @@ export default function MusicFeed() {
                                     <div className="h-1 bg-white/10 rounded-full overflow-hidden relative">
                                         <div
                                             className="h-full bg-gradient-to-r from-nexusPurple to-nexusPink rounded-full shadow-[0_0_15px_rgba(168,85,247,1)] transition-all"
-                                            style={{ width: `${audioRef.current?.duration ? (currentTime / audioRef.current.duration) * 100 : 0}%` }}
+                                            style={{ width: `${globalMusic.duration ? (currentTime / globalMusic.duration) * 100 : 0}%` }}
                                         />
                                     </div>
                                     <div className="flex justify-between mt-1 text-[10px] text-gray-500 font-mono">
                                         <span>{Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, '0')}</span>
-                                        <span>{audioRef.current?.duration ? `${Math.floor(audioRef.current.duration / 60)}:${String(Math.floor(audioRef.current.duration % 60)).padStart(2, '0')}` : '--:--'}</span>
+                                        <span>{globalMusic.duration ? `${Math.floor(globalMusic.duration / 60)}:${String(Math.floor(globalMusic.duration % 60)).padStart(2, '0')}` : '--:--'}</span>
                                     </div>
                                 </div>
 
@@ -579,11 +602,21 @@ export default function MusicFeed() {
                                     <button
                                         onClick={() => {
                                             if (isPlaying) {
-                                                setIsPlaying(false);
-                                                audioRef.current?.pause();
+                                                globalMusic.togglePlay();
                                             } else {
-                                                setIsPlaying(true);
-                                                audioRef.current?.play();
+                                                // If global player has no track, push current one
+                                                if (!globalMusic.currentTrack && currentTrack) {
+                                                    const globalTrack = {
+                                                        id: currentTrack.id,
+                                                        title: currentTrack.title,
+                                                        artist: currentTrack.description || currentTrack.creatorBitDomain || 'Unknown',
+                                                        coverUrl: currentTrack.posterUrl,
+                                                        audioUrl: currentTrack.cdnUrl,
+                                                    };
+                                                    globalMusic.playTrack(globalTrack);
+                                                } else {
+                                                    globalMusic.togglePlay();
+                                                }
                                             }
                                         }}
                                         className="w-14 h-14 bg-white text-black hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors shadow-[0_0_15px_rgba(255,255,255,0.2)]"
@@ -744,72 +777,9 @@ export default function MusicFeed() {
                 )}
             </div>
 
-            {/* Hidden Audio Element */}
-            <audio
-                ref={audioRef}
-                onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime || 0)}
-                onEnded={nextTrack}
-            />
+            {/* Hidden Audio Element — no longer needed, using global player */}
 
-            {/* Floating Mini Player - matches concept exactly */}
-            {currentTrack && view === 'shelf' && (
-                <div
-                    className="fixed bottom-6 right-6 w-[400px] h-20 border border-white/10 rounded-2xl flex items-center pr-6 z-50 overflow-hidden group hover:border-nexusPurple/50 glass-panel bg-black/80 transition-colors shadow-2xl"
-                >
-                    {/* Progress line at top */}
-                    <div className="absolute top-0 left-0 h-[2px] bg-white/10 w-full">
-                        <div
-                            className="h-full bg-nexusPurple shadow-[0_0_15px_rgba(168,85,247,1)] relative"
-                            style={{ width: `${audioRef.current?.duration ? (currentTime / audioRef.current.duration) * 100 : 0}%` }}
-                        >
-                            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-[0_0_10px_white] scale-0 group-hover:scale-100 transition-transform" />
-                        </div>
-                    </div>
-
-                    {/* Spinning Vinyl */}
-                    <div className="w-20 h-20 bg-black flex-shrink-0 relative overflow-hidden">
-                        <div
-                            className={`absolute inset-0 rounded-full scale-[1.3] -translate-x-2 flex items-center justify-center bg-zinc-900 border-2 border-zinc-800 ${isPlaying ? 'animate-[spin_4s_linear_infinite]' : ''}`}
-                            style={{ backgroundImage: 'repeating-radial-gradient(#222 0, #222 2px, #111 3px, #111 4px)' }}
-                        >
-                            <img
-                                src={currentTrack.posterUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80'}
-                                alt="Cover"
-                                className="w-8 h-8 rounded-full border border-black/50"
-                            />
-                            <div className="absolute w-2 h-2 bg-black rounded-full shadow-inner" />
-                        </div>
-                    </div>
-
-                    <div className="flex-1 px-4 truncate">
-                        <h4 className="text-white font-bold text-[13px] truncate drop-shadow-md">{currentTrack.title}</h4>
-                        <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] text-nexusPurple font-bold uppercase tracking-widest">
-                                {isPlaying ? 'Playing' : 'Paused'}
-                            </span>
-                            {isPlaying && <span className="w-1.5 h-1.5 rounded-full bg-nexusPurple shadow-[0_0_5px_rgba(168,85,247,0.8)] animate-pulse" />}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <button onClick={prevTrack} className="text-gray-400 hover:text-white transition-colors">
-                            <SkipBack size={16} />
-                        </button>
-                        <button
-                            onClick={() => {
-                                if (isPlaying) { setIsPlaying(false); audioRef.current?.pause(); }
-                                else { setIsPlaying(true); audioRef.current?.play(); }
-                            }}
-                            className="w-9 h-9 bg-white text-black hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-                        >
-                            {isPlaying ? <Pause size={16} /> : <Play size={16} className="ml-0.5" fill="currentColor" />}
-                        </button>
-                        <button onClick={nextTrack} className="text-gray-400 hover:text-white transition-colors">
-                            <SkipForward size={16} />
-                        </button>
-                    </div>
-                </div>
-            )}
+            {/* Global mini player bar is rendered in RootLayout, no need for local mini-player */}
 
             {/* Payment Choice Modal (Unified PaymentModeSelector) */}
             {renderPaymentChoiceModal()}
