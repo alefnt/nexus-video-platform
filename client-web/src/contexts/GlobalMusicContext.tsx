@@ -2,9 +2,13 @@
 /**
  * GlobalMusicContext — Provides persistent music playback across pages.
  * 
- * This context holds a shared audio element and playlist state that survives
- * page navigation, so users can listen to music while reading articles,
- * browsing videos, or doing anything else in the app.
+ * Business Logic:
+ * 1. Mini-player only appears AFTER user explicitly presses Play
+ * 2. Mini-player is hidden on the /music page (which has its own full player UI)
+ * 3. loadTrack() prepares a track without starting playback
+ * 4. playTrack() starts playback AND shows the mini-player
+ * 5. close() stops playback and hides the mini-player
+ * 6. Music persists across page navigation (articles, explore, etc.)
  */
 
 import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
@@ -18,7 +22,7 @@ export interface GlobalTrack {
 }
 
 interface GlobalMusicState {
-    /** Currently playing track, or null */
+    /** Currently loaded track, or null */
     currentTrack: GlobalTrack | null;
     /** Full playlist */
     playlist: GlobalTrack[];
@@ -28,17 +32,22 @@ interface GlobalMusicState {
     currentTime: number;
     /** Total duration (seconds) */
     duration: number;
-    /** Is the mini-player visible */
-    visible: boolean;
+    /** Has the user explicitly activated the player (played at least once)? */
+    activated: boolean;
 
     // Actions
-    playTrack: (track: GlobalTrack, playlist?: GlobalTrack[]) => void;
+    /** Load a track into the player WITHOUT starting playback */
+    loadTrack: (track: GlobalTrack, playlist?: GlobalTrack[]) => void;
+    /** Start playback of the current track (or load + play a new one) */
+    playTrack: (track?: GlobalTrack, playlist?: GlobalTrack[]) => void;
+    /** Toggle play/pause */
     togglePlay: () => void;
     nextTrack: () => void;
     prevTrack: () => void;
     seekTo: (time: number) => void;
+    /** Stop playback and hide the mini-player */
     close: () => void;
-    /** Set playlist without starting playback */
+    /** Set playlist without affecting playback */
     setPlaylist: (tracks: GlobalTrack[]) => void;
 }
 
@@ -49,7 +58,8 @@ const GlobalMusicContext = createContext<GlobalMusicState>({
     isPlaying: false,
     currentTime: 0,
     duration: 0,
-    visible: false,
+    activated: false,
+    loadTrack: noop,
     playTrack: noop,
     togglePlay: noop,
     nextTrack: noop,
@@ -70,7 +80,8 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
-    const [visible, setVisible] = useState(false);
+    /** activated = user has explicitly pressed Play at least once in this session */
+    const [activated, setActivated] = useState(false);
 
     // Ensure audio element exists
     useEffect(() => {
@@ -83,7 +94,6 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
                 setDuration(audioRef.current?.duration || 0);
             });
             audioRef.current.addEventListener('ended', () => {
-                // Auto-next
                 handleNext();
             });
             audioRef.current.addEventListener('play', () => setIsPlaying(true));
@@ -113,12 +123,27 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
         });
     }, []);
 
-    const playTrack = useCallback((track: GlobalTrack, newPlaylist?: GlobalTrack[]) => {
+    /** Load a track into the player WITHOUT starting playback or showing mini-player */
+    const loadTrack = useCallback((track: GlobalTrack, newPlaylist?: GlobalTrack[]) => {
         if (newPlaylist) setPlaylistState(newPlaylist);
         setCurrentTrack(track);
-        setVisible(true);
+        // Prepare the audio source but don't play
         if (audioRef.current) {
             audioRef.current.src = track.audioUrl;
+        }
+    }, []);
+
+    /** Start playback (shows mini-player, marks as activated) */
+    const playTrack = useCallback((track?: GlobalTrack, newPlaylist?: GlobalTrack[]) => {
+        if (newPlaylist) setPlaylistState(newPlaylist);
+        if (track) {
+            setCurrentTrack(track);
+            if (audioRef.current) {
+                audioRef.current.src = track.audioUrl;
+            }
+        }
+        setActivated(true);
+        if (audioRef.current) {
             audioRef.current.play().catch(() => { });
         }
     }, []);
@@ -128,6 +153,7 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
         if (isPlaying) {
             audioRef.current.pause();
         } else {
+            setActivated(true); // First play activates the mini-player
             audioRef.current.play().catch(() => { });
         }
     }, [isPlaying, currentTrack]);
@@ -157,7 +183,7 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
         }
         setCurrentTrack(null);
         setIsPlaying(false);
-        setVisible(false);
+        setActivated(false);
     }, []);
 
     const setPlaylist = useCallback((tracks: GlobalTrack[]) => {
@@ -166,8 +192,8 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
 
     return (
         <GlobalMusicContext.Provider value={{
-            currentTrack, playlist, isPlaying, currentTime, duration, visible,
-            playTrack, togglePlay, nextTrack, prevTrack, seekTo, close, setPlaylist,
+            currentTrack, playlist, isPlaying, currentTime, duration, activated,
+            loadTrack, playTrack, togglePlay, nextTrack, prevTrack, seekTo, close, setPlaylist,
         }}>
             {children}
         </GlobalMusicContext.Provider>

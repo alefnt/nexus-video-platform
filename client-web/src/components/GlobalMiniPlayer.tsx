@@ -1,21 +1,34 @@
 // FILE: /video-platform/client-web/src/components/GlobalMiniPlayer.tsx
 /**
- * GlobalMiniPlayer — Persistent floating mini player that appears at the bottom
- * of the screen when music is playing. Survives page navigation.
- * Uses the GlobalMusicContext for state management.
+ * GlobalMiniPlayer — Persistent floating mini player.
+ * 
+ * Business Logic:
+ * 1. Only shows AFTER user has explicitly pressed Play (activated = true)
+ * 2. Hidden on /music page (which has its own full player UI)
+ * 3. Hidden when user closes it or stops playback
+ * 4. Persists across all other page navigations
  */
 
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { useGlobalMusic } from '../contexts/GlobalMusicContext';
 import { Play, Pause, SkipBack, SkipForward, X, Music } from 'lucide-react';
 
 export default function GlobalMiniPlayer() {
     const {
-        currentTrack, isPlaying, currentTime, duration, visible,
+        currentTrack, isPlaying, currentTime, duration, activated,
         togglePlay, nextTrack, prevTrack, seekTo, close,
     } = useGlobalMusic();
+    const location = useLocation();
 
-    if (!visible || !currentTrack) return null;
+    // ─── Business Logic: When to show ───────────────────────────────
+    // 1. Must have a track loaded
+    // 2. User must have explicitly activated playback (pressed Play at least once)
+    // 3. Don't show on /music page (it has its own full player)
+    const isOnMusicPage = location.pathname === '/music';
+    const shouldShow = activated && currentTrack && !isOnMusicPage;
+
+    if (!shouldShow) return null;
 
     const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -43,8 +56,17 @@ export default function GlobalMiniPlayer() {
                 padding: '0 16px',
                 gap: 12,
                 boxShadow: '0 -4px 30px rgba(0,0,0,0.5)',
+                animation: 'slideUpMiniPlayer 0.3s ease-out',
             }}
         >
+            {/* Slide-up animation */}
+            <style>{`
+                @keyframes slideUpMiniPlayer {
+                    from { transform: translateY(100%); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+            `}</style>
+
             {/* Progress bar at top */}
             <div
                 style={{

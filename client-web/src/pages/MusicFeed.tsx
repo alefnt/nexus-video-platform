@@ -318,7 +318,8 @@ export default function MusicFeed() {
             setNeedPurchase(false);
             setView('player');
 
-            // Sync to global music player for cross-page playback
+            // Prepare track in global context (NO auto-play, NO mini-player yet)
+            // Mini-player only shows after user explicitly presses Play
             const globalPlaylist: GlobalTrack[] = tracks.map(t => ({
                 id: t.id,
                 title: t.title,
@@ -333,7 +334,7 @@ export default function MusicFeed() {
                 coverUrl: track.posterUrl,
                 audioUrl: track.cdnUrl,
             };
-            globalMusic.playTrack(globalTrack, globalPlaylist);
+            globalMusic.loadTrack(globalTrack, globalPlaylist);
         } else if (view === 'shelf') {
             setView('player');
         }
