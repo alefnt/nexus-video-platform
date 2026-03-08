@@ -47,7 +47,9 @@ const VideoList = React.lazy(() => import("./pages/VideoList"));
 const VideoPlayer = React.lazy(() => import("./pages/VideoPlayer"));
 const VideoFeed = React.lazy(() => import("./pages/VideoFeed"));
 const MusicFeed = React.lazy(() => import("./pages/MusicFeed"));
+const MusicPlaylist = React.lazy(() => import("./pages/MusicPlaylist"));
 const ArticleFeed = React.lazy(() => import("./pages/ArticleFeed"));
+const ArticleReader = React.lazy(() => import("./pages/ArticleReader"));
 const CreatorUpload = React.lazy(() => import("./pages/CreatorUpload"));
 const UserCenter = React.lazy(() => import("./pages/UserCenter"));
 const PointsCenter = React.lazy(() => import("./pages/PointsCenter"));
@@ -281,6 +283,8 @@ const router = createBrowserRouter(
         <Route path="/home" element={<Home />} />
         <Route path="/search" element={<SearchResults />} />
         <Route path="/notifications" element={<Notifications />} />
+        <Route path="/music-v2" element={<MusicPlaylist />} />
+        <Route path="/articles-v2" element={<ArticleReader />} />
 
         {/* User & Economy */}
         <Route path="/user" element={<UserCenter />} />
