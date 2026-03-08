@@ -36,6 +36,9 @@ import Login from "./pages/Login";
 import MobileJoyID from "./pages/MobileJoyID";
 import TwitterCallback from "./pages/TwitterCallback";
 import GoogleCallback from "./pages/GoogleCallback";
+import TikTokCallback from "./pages/TikTokCallback";
+import YouTubeCallback from "./pages/YouTubeCallback";
+import BilibiliCallback from "./pages/BilibiliCallback";
 import MagicLink from "./pages/MagicLink";
 import Explore from "./pages/Explore";
 import Notifications from "./pages/Notifications";
@@ -57,6 +60,8 @@ const CreatorUpload = React.lazy(() => import("./pages/CreatorUpload"));
 const UserCenter = React.lazy(() => import("./pages/UserCenter"));
 const PointsCenter = React.lazy(() => import("./pages/PointsCenter"));
 const StreamPaymentDemo = React.lazy(() => import("./pages/StreamPaymentDemo"));
+const DAOGovernance = React.lazy(() => import("./pages/DAOGovernance"));
+const AIRoyaltyDashboard = React.lazy(() => import("./pages/AIRoyaltyDashboard"));
 const Live = React.lazy(() => import("./pages/Live"));
 const ChannelPage = React.lazy(() => import("./pages/ChannelPage"));
 const LiveStudio = React.lazy(() => import("./pages/LiveStudio"));
@@ -87,6 +92,9 @@ const CreatorPass = React.lazy(() => import("./pages/CreatorPass"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const ArticleEditor = React.lazy(() => import("./pages/ArticleEditor"));
 const NFTMarketplace = React.lazy(() => import("./pages/NFTMarketplace"));
+const AISettings = React.lazy(() => import("./pages/AISettings"));
+const AIToolMarketplace = React.lazy(() => import("./pages/AIToolMarketplace"));
+const AIToolSubmit = React.lazy(() => import("./pages/AIToolSubmit"));
 
 import { ToastProvider } from "./components/Toast";
 import { getApiClient } from "./lib/apiClient";
@@ -269,6 +277,9 @@ const router = createBrowserRouter(
         <Route path="/joyid/mobile-callback" element={<MobileJoyID />} />
         <Route path="/auth/twitter/callback" element={<TwitterCallback />} />
         <Route path="/auth/google/callback" element={<GoogleCallback />} />
+        <Route path="/auth/tiktok/callback" element={<TikTokCallback />} />
+        <Route path="/auth/youtube/callback" element={<YouTubeCallback />} />
+        <Route path="/auth/bilibili/callback" element={<BilibiliCallback />} />
       </Route>
 
       {/* ====== Top Nav layout pages (no sidebar, matching concept design) ====== */}
@@ -288,16 +299,20 @@ const router = createBrowserRouter(
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/music-v2" element={<MusicPlaylist />} />
         <Route path="/settings/platforms" element={<PlatformBindings />} />
+        <Route path="/settings/ai" element={<AISettings />} />
         <Route path="/studio/ai/music" element={<AIMusicLab />} />
         <Route path="/studio/ai/article" element={<AIArticleLab />} />
         <Route path="/studio/ai/video" element={<AIVideoLab />} />
+        <Route path="/ai-tools" element={<AIToolMarketplace />} />
+        <Route path="/ai-tools/submit" element={<AIToolSubmit />} />
 
         {/* User & Economy */}
         <Route path="/user" element={<UserCenter />} />
         <Route path="/points" element={<PointsCenter />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/achievements" element={<Achievements />} />
-        <Route path="/dao" element={<DAOVoting />} />
+        <Route path="/dao" element={<DAOGovernance />} />
+        <Route path="/creator/royalties" element={<AIRoyaltyDashboard />} />
         <Route path="/wheel" element={<DailyWheel />} />
         <Route path="/fragments" element={<FragmentGallery />} />
 

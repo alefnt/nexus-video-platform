@@ -27,6 +27,7 @@ const proxies = [
     { prefix: "/moderation", base: process.env.MODERATION_URL || "http://localhost:8102" },
     { prefix: "/notifications", base: process.env.MESSAGING_URL || "http://localhost:8103" },
     { prefix: "/engagement", base: process.env.ENGAGEMENT_URL || "http://localhost:8104" },
+    { prefix: "/ai", base: process.env.AI_SERVICE_URL || "http://localhost:8105" },
 ];
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";

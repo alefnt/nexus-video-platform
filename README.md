@@ -86,6 +86,16 @@
 | **Achievement SBTs** | 18 non-transferable Soulbound Tokens across 5 categories |
 | **DAO Governance** | Token-based proposals and voting (quorum 10k, threshold 50-67%) |
 
+### 🤖 AI Studio
+| Feature | Description |
+|---------|-------------|
+| **AI Article Lab** | AI-powered article generation with multiple LLM providers (OpenAI, DeepSeek, Ollama) |
+| **AI Music Lab** | Music generation via Suno API with real-time progress and local storage |
+| **AI Video Lab** | Video generation via Runway, Kling AI, and other providers |
+| **AI Settings** | BYOK (Bring Your Own Key) with AES-256 encryption and per-provider config |
+| **AI Tool Marketplace** | Decentralized marketplace for AI tools with Spore NFT ownership + Fiber payments + RGB++ splits |
+| **AI Tool Submission** | 3-step creator wizard for publishing AI tools with pricing and NFT minting |
+
 ### 👤 Social & Engagement
 | Feature | Description |
 |---------|-------------|
@@ -95,6 +105,7 @@
 | **Messages** | WebSocket-based direct messaging with push notifications |
 | **Search** | Full-text search powered by MeiliSearch |
 | **Live PK Battles** | 60-second scored competition mode between streamers |
+| **Cross-Platform OAuth** | Real OAuth 2.0 + PKCE for TikTok, YouTube, Bilibili, Twitter, Google |
 
 ---
 
@@ -132,7 +143,7 @@ Nexus follows a **microservices architecture** with 17 Fastify-based backend ser
 
 | Port | Service | Responsibility |
 |------|---------|----------------|
-| **8080** | **Identity/Gateway** | JWT auth, route proxying, circuit breaking, JoyID/MetaMask/Email login |
+| **8080** | **Identity/Gateway** | JWT auth, route proxying, circuit breaking, JoyID/MetaMask/Email/TikTok/YouTube/Bilibili login |
 | **8091** | **Payment** | Points balance, CKB/USDI top-up, per-second stream billing, Fiber invoice clearing |
 | **8092** | **Content** | Upload (Base64/TUS), HybridStorageEngine, DRM/HLS ticket generation |
 | **8093** | **Metadata** | Video/music/article metadata, danmaku (SSE), comments, trending, watchlists |
@@ -147,6 +158,7 @@ Nexus follows a **microservices architecture** with 17 Fastify-based backend ser
 | **8102** | **Moderation** | Content moderation and reporting |
 | **8103** | **Messaging** | WebSocket DM system, ntfy.sh push notifications |
 | **8104** | **Engagement** | Daily tasks, check-ins, anti-abuse rate limiting |
+| **8105** | **AI Generation** | AI content generation proxy (text/music/video), API key management |
 | — | **Recommendation** | Content recommendation engine |
 | — | **Collaboration** | Real-time collaborative editing |
 
@@ -318,14 +330,16 @@ nexus-video-platform/
 
 | Metric | Value |
 |--------|-------|
-| **Microservices** | 17 |
-| **Frontend Pages** | 50 |
+| **Microservices** | 18 |
+| **Frontend Pages** | 55+ |
 | **UI Components** | 47+ |
 | **React Hooks** | 64+ |
 | **Prisma Models** | 30+ |
 | **NFT Categories** | 7 |
 | **Achievement Types** | 18 |
 | **Gift Types** | 10 |
+| **OAuth Providers** | 5 (JoyID, Twitter, Google, TikTok, YouTube, Bilibili) |
+| **AI Tool Categories** | 10 |
 | **Languages** | TypeScript (100%) |
 
 ---

@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
-import { ToggleRight, ToggleLeft, Settings, CheckCircle2, ChevronRight, Hash, Shield, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ToggleRight, ToggleLeft, Settings, ChevronRight, Hash, Shield, ShieldCheck, Loader2, ExternalLink, Fingerprint, Wallet } from 'lucide-react';
+import { getApiClient } from '../lib/apiClient';
+import { useAuthStore } from '../stores';
+
+// ── Types ──────────────────────────────────────────────────
 
 interface Platform {
     id: string;
@@ -10,62 +14,17 @@ interface Platform {
     username?: string;
     followers?: string;
     avatar?: string;
+    connectUrl?: string;
 }
 
+// ── Component ──────────────────────────────────────────────
+
 export default function PlatformBindings() {
-    const [platforms, setPlatforms] = useState<Platform[]>([
-        {
-            id: 'tiktok',
-            name: 'TikTok',
-            iconUrl: 'https://cdn.iconscout.com/icon/free/png-256/free-tiktok-2270636-1891163.png',
-            color: 'from-cyan-500 to-pink-500',
-            connected: true,
-            username: '@nexus_creator',
-            followers: '124K',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=tiktok'
-        },
-        {
-            id: 'youtube',
-            name: 'YouTube',
-            iconUrl: 'https://cdn.iconscout.com/icon/free/png-256/free-youtube-85-226402.png',
-            color: 'from-red-600 to-red-500',
-            connected: false
-        },
-        {
-            id: 'douyin',
-            name: '抖音 (Douyin)',
-            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3046/3046124.png',
-            color: 'from-gray-900 to-black',
-            connected: false
-        },
-        {
-            id: 'instagram',
-            name: 'Instagram',
-            iconUrl: 'https://cdn-icons-png.flaticon.com/512/174/174855.png',
-            color: 'from-purple-500 via-pink-500 to-orange-500',
-            connected: true,
-            username: 'nexus.official',
-            followers: '45K',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=insta'
-        },
-        {
-            id: 'bilibili',
-            name: 'Bilibili',
-            iconUrl: 'https://i.pinimg.com/originals/a0/eb/bb/a0ebbb0975dd59f518e3881ca7ab15ed.png',
-            color: 'from-blue-400 to-pink-400',
-            connected: false
-        },
-        {
-            id: 'twitter',
-            name: 'X (Twitter)',
-            iconUrl: 'https://cdn-icons-png.flaticon.com/512/5969/5969020.png',
-            color: 'from-gray-800 to-black',
-            connected: true,
-            username: '@nexusWeb3',
-            followers: '12K',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=twit'
-        }
-    ]);
+    const api = getApiClient();
+    const { user, isLoggedIn } = useAuthStore();
+
+    const [platforms, setPlatforms] = useState<Platform[]>([]);
+    const [loading, setLoading] = useState(true);
 
     const [settings, setSettings] = useState({
         privacy: 'public',
@@ -74,18 +33,134 @@ export default function PlatformBindings() {
         complianceMode: true
     });
 
-    const toggleConnection = (id: string) => {
-        setPlatforms(platforms.map(p => {
-            if (p.id === id) {
-                if (p.connected) {
-                    return { ...p, connected: false, username: undefined, followers: undefined, avatar: undefined };
-                } else {
-                    return { ...p, connected: true, username: '@new_connection', followers: '0', avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${id}` };
-                }
+    // ── Build platform list from user profile ──────────────
+
+    const refreshPlatforms = useCallback(async () => {
+        setLoading(true);
+        try {
+            // Fetch fresh user profile from server to get binding status
+            let profile: any = null;
+            try {
+                profile = await api.get<any>('/auth/profile');
+            } catch {
+                // Fall back to local store data
             }
-            return p;
-        }));
+
+            const u = profile || user;
+
+            const list: Platform[] = [
+                {
+                    id: 'joyid',
+                    name: 'JoyID (Passkey)',
+                    iconUrl: 'https://cdn-icons-png.flaticon.com/128/7764/7764202.png',
+                    color: 'from-green-400 to-emerald-600',
+                    connected: !!(u?.ckbAddress),
+                    username: u?.ckbAddress ? `${u.ckbAddress.slice(0, 8)}...${u.ckbAddress.slice(-6)}` : undefined,
+                    avatar: u?.avatar || `https://api.dicebear.com/7.x/shapes/svg?seed=joyid`,
+                },
+                {
+                    id: 'twitter',
+                    name: 'X (Twitter)',
+                    iconUrl: 'https://cdn-icons-png.flaticon.com/512/5969/5969020.png',
+                    color: 'from-gray-800 to-black',
+                    connected: !!(u?.twitterId || u?.twitterHandle),
+                    username: u?.twitterHandle ? `@${u.twitterHandle}` : undefined,
+                    avatar: u?.twitterAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=twit`,
+                    connectUrl: '/auth/twitter',
+                },
+                {
+                    id: 'google',
+                    name: 'Google',
+                    iconUrl: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png',
+                    color: 'from-blue-500 via-red-500 to-yellow-500',
+                    connected: !!(u?.googleId || u?.email),
+                    username: u?.email || undefined,
+                    avatar: u?.googleAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=google`,
+                    connectUrl: '/auth/google',
+                },
+                {
+                    id: 'tiktok',
+                    name: 'TikTok',
+                    iconUrl: 'https://cdn.iconscout.com/icon/free/png-256/free-tiktok-2270636-1891163.png',
+                    color: 'from-cyan-500 to-pink-500',
+                    connected: !!(u?.tiktokId),
+                    username: u?.tiktokHandle ? `@${u.tiktokHandle}` : undefined,
+                    connectUrl: '/auth/tiktok',
+                },
+                {
+                    id: 'youtube',
+                    name: 'YouTube',
+                    iconUrl: 'https://cdn.iconscout.com/icon/free/png-256/free-youtube-85-226402.png',
+                    color: 'from-red-600 to-red-500',
+                    connected: !!(u?.youtubeChannelId),
+                    username: u?.youtubeChannelName || undefined,
+                    connectUrl: '/auth/youtube',
+                },
+                {
+                    id: 'bilibili',
+                    name: 'Bilibili',
+                    iconUrl: 'https://i.pinimg.com/originals/a0/eb/bb/a0ebbb0975dd59f518e3881ca7ab15ed.png',
+                    color: 'from-blue-400 to-pink-400',
+                    connected: !!(u?.bilibiliMid),
+                    username: u?.bilibiliName || undefined,
+                    connectUrl: '/auth/bilibili',
+                },
+            ];
+
+            setPlatforms(list);
+        } finally {
+            setLoading(false);
+        }
+    }, [user]);
+
+    useEffect(() => { refreshPlatforms(); }, [refreshPlatforms]);
+
+    // ── Connect handler ────────────────────────────────────
+
+    const handleConnect = async (platform: Platform) => {
+        if (platform.id === 'joyid') {
+            window.location.href = '/login?method=joyid&redirect=/settings/platforms';
+            return;
+        }
+        if (platform.connectUrl) {
+            try {
+                // Call the OAuth start endpoint to get the auth URL
+                const res = await api.get<{ authUrl: string; state: string }>(`${platform.connectUrl}/start?dfp=browser`);
+                if (res?.authUrl) {
+                    window.location.href = res.authUrl;
+                    return;
+                }
+                alert(`Failed to start ${platform.name} OAuth: no auth URL returned`);
+            } catch (err: any) {
+                alert(err?.error || `Failed to connect ${platform.name}`);
+            }
+            return;
+        }
+        alert(`${platform.name} integration coming soon!`);
     };
+
+    // ── Disconnect handler ─────────────────────────────────
+
+    const handleDisconnect = async (platform: Platform) => {
+        if (!confirm(`Are you sure you want to disconnect ${platform.name}?`)) return;
+
+        try {
+            await api.post('/auth/unbind', { provider: platform.id });
+            await refreshPlatforms();
+        } catch (err: any) {
+            alert(err?.error || 'Failed to disconnect');
+        }
+    };
+
+    // ── Loading ────────────────────────────────────────────
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-[#0a0a12] text-white p-8 flex items-center justify-center">
+                <Loader2 size={40} className="animate-spin text-cyan-400" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#0a0a12] text-white p-8 md:p-12 font-sans">
@@ -93,7 +168,7 @@ export default function PlatformBindings() {
                 {/* Header */}
                 <header className="mb-12">
                     <h1 className="text-4xl font-black tracking-tight mb-2 flex items-center gap-4">
-                        <span className="bg-gradient-to-r from-nexusCyan to-nexusPurple text-transparent bg-clip-text">
+                        <span className="bg-gradient-to-r from-cyan-400 to-purple-500 text-transparent bg-clip-text">
                             Platform Connections
                         </span>
                     </h1>
@@ -109,15 +184,15 @@ export default function PlatformBindings() {
                             {platforms.map(platform => (
                                 <div
                                     key={platform.id}
-                                    className="relative glass-panel rounded-2xl p-6 border border-white/5 overflow-hidden group hover:border-white/10 transition-colors"
+                                    className="relative bg-[#12121e] rounded-2xl p-6 border border-white/5 overflow-hidden group hover:border-white/10 transition-colors flex flex-col min-h-[200px]"
                                 >
-                                    {/* Subtly colored top border accent */}
+                                    {/* Top border accent */}
                                     <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${platform.color} opacity-70`} />
 
-                                    <div className="flex justify-between items-start mb-6">
+                                    <div className="flex justify-between items-start mb-4">
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-xl bg-white/5 p-2 flex items-center justify-center backdrop-blur-md">
-                                                <img src={platform.iconUrl} alt={platform.name} className="w-full h-full object-contain filter brightness-110 drop-shadow-md" />
+                                                <img src={platform.iconUrl} alt={platform.name} className="w-full h-full object-contain filter brightness-110 drop-shadow-md" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                             </div>
                                             <div>
                                                 <h3 className="font-bold text-lg">{platform.name}</h3>
@@ -131,34 +206,44 @@ export default function PlatformBindings() {
                                         </div>
                                     </div>
 
+                                    {/* Always push action to bottom */}
+                                    <div className="flex-1" />
+
                                     {platform.connected ? (
-                                        <div className="flex flex-col gap-4">
+                                        <div className="flex flex-col gap-3">
                                             <div className="flex items-center justify-between bg-black/30 rounded-xl p-3 border border-white/5">
                                                 <div className="flex items-center gap-3">
-                                                    <img src={platform.avatar} alt="avatar" className="w-8 h-8 rounded-full bg-white/10" />
+                                                    {platform.avatar && <img src={platform.avatar} alt="avatar" className="w-8 h-8 rounded-full bg-white/10" />}
                                                     <div>
-                                                        <p className="text-sm font-bold text-white/90">{platform.username}</p>
-                                                        <p className="text-xs text-gray-500 font-mono">{platform.followers} Followers</p>
+                                                        <p className="text-sm font-bold text-white/90">{platform.username || 'Connected'}</p>
+                                                        {platform.followers && <p className="text-xs text-gray-500 font-mono">{platform.followers} Followers</p>}
                                                     </div>
                                                 </div>
                                             </div>
-                                            <button
-                                                onClick={() => toggleConnection(platform.id)}
-                                                className="w-full py-2.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 font-bold text-sm transition-colors uppercase tracking-wider"
-                                            >
-                                                Disconnect
-                                            </button>
+                                            {platform.id === 'joyid' ? (
+                                                <div className="w-full py-2.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-center font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2">
+                                                    <Wallet size={14} /> Primary Wallet
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleDisconnect(platform)}
+                                                    className="w-full py-3 rounded-xl border-2 border-red-500/40 text-red-400 hover:bg-red-500/10 font-bold text-sm transition-colors uppercase tracking-wider"
+                                                >
+                                                    ✕ Disconnect
+                                                </button>
+                                            )}
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col gap-4 mt-auto h-full justify-end">
-                                            <div className="bg-white/[0.02] border border-white/5 border-dashed rounded-xl p-4 text-center">
-                                                <p className="text-xs text-gray-500 font-mono">Unlock cross-posting for {platform.name}</p>
-                                            </div>
+                                        <div className="flex flex-col gap-3">
+                                            <p className="text-xs text-gray-500 font-mono text-center">
+                                                Connect to unlock cross-posting
+                                            </p>
                                             <button
-                                                onClick={() => toggleConnection(platform.id)}
-                                                className={`w-full py-2.5 rounded-lg font-bold text-sm text-black transition-all shadow-lg uppercase tracking-wider bg-gradient-to-r ${platform.color} hover:brightness-110`}
+                                                onClick={() => handleConnect(platform)}
+                                                className={`w-full py-3 rounded-xl font-bold text-sm text-white transition-all shadow-lg uppercase tracking-wider bg-gradient-to-r ${platform.color} hover:brightness-110 hover:scale-[1.02] flex items-center justify-center gap-2`}
                                             >
-                                                Connect Account
+                                                <ExternalLink size={14} />
+                                                Connect {platform.name}
                                             </button>
                                         </div>
                                     )}
@@ -169,9 +254,9 @@ export default function PlatformBindings() {
 
                     {/* Right: Settings Sidebar */}
                     <div className="w-full lg:w-96 flex-shrink-0">
-                        <div className="glass-panel rounded-2xl p-6 border border-white/5 sticky top-24">
+                        <div className="bg-[#12121e] rounded-2xl p-6 border border-white/5 sticky top-24">
                             <h3 className="text-xl font-bold mb-6 flex items-center gap-3 border-b border-white/10 pb-4">
-                                <Settings className="text-nexusCyan" size={20} />
+                                <Settings className="text-cyan-400" size={20} />
                                 Cross-Post Settings
                             </h3>
 
@@ -183,7 +268,7 @@ export default function PlatformBindings() {
                                             <button
                                                 key={p}
                                                 onClick={() => setSettings({ ...settings, privacy: p.toLowerCase() })}
-                                                className={`py-2 text-xs font-bold uppercase tracking-wider rounded-lg border transition-all ${settings.privacy === p.toLowerCase() ? 'bg-nexusCyan/20 text-nexusCyan border-nexusCyan' : 'bg-transparent text-gray-500 border-white/10 hover:border-white/20 hover:text-white'}`}
+                                                className={`py-2 text-xs font-bold uppercase tracking-wider rounded-lg border transition-all ${settings.privacy === p.toLowerCase() ? 'bg-cyan-400/20 text-cyan-400 border-cyan-400' : 'bg-transparent text-gray-500 border-white/10 hover:border-white/20 hover:text-white'}`}
                                             >
                                                 {p}
                                             </button>
@@ -195,18 +280,18 @@ export default function PlatformBindings() {
 
                                 <div className="flex items-center justify-between cursor-pointer" onClick={() => setSettings({ ...settings, autoHashtags: !settings.autoHashtags })}>
                                     <div>
-                                        <p className="font-bold text-sm text-white/90 flex items-center gap-2"><Hash size={14} className="text-nexusPurple" /> Auto-Hashtags</p>
+                                        <p className="font-bold text-sm text-white/90 flex items-center gap-2"><Hash size={14} className="text-purple-400" /> Auto-Hashtags</p>
                                         <p className="text-xs text-gray-500 font-mono mt-1 w-4/5">AI automatically extracts & appends optimal tags.</p>
                                     </div>
-                                    {settings.autoHashtags ? <ToggleRight className="text-nexusCyan w-10 h-10" /> : <ToggleLeft className="text-gray-600 w-10 h-10" />}
+                                    {settings.autoHashtags ? <ToggleRight className="text-cyan-400 w-10 h-10" /> : <ToggleLeft className="text-gray-600 w-10 h-10" />}
                                 </div>
 
                                 <div className="flex items-center justify-between cursor-pointer" onClick={() => setSettings({ ...settings, watermark: !settings.watermark })}>
                                     <div>
-                                        <p className="font-bold text-sm text-white/90 flex items-center gap-2"><Shield size={14} className="text-nexusCyan" /> Content Watermark</p>
+                                        <p className="font-bold text-sm text-white/90 flex items-center gap-2"><Shield size={14} className="text-cyan-400" /> Content Watermark</p>
                                         <p className="text-xs text-gray-500 font-mono mt-1 w-4/5">Add Nexus ID watermark to exported cross-posts.</p>
                                     </div>
-                                    {settings.watermark ? <ToggleRight className="text-nexusCyan w-10 h-10" /> : <ToggleLeft className="text-gray-600 w-10 h-10" />}
+                                    {settings.watermark ? <ToggleRight className="text-cyan-400 w-10 h-10" /> : <ToggleLeft className="text-gray-600 w-10 h-10" />}
                                 </div>
 
                                 <div className="flex items-center justify-between cursor-pointer" onClick={() => setSettings({ ...settings, complianceMode: !settings.complianceMode })}>

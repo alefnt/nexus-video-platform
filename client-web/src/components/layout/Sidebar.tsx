@@ -120,6 +120,21 @@ export default function Sidebar() {
                 </button>
 
                 <button
+                    onClick={() => handleNav("/dao")}
+                    className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all group w-full text-left ${isActive(["/dao"])
+                        ? "bg-gradient-to-r from-nexusCyan/20 to-transparent text-nexusCyan border-l-2 border-nexusCyan"
+                        : "text-gray-500 hover:text-white hover:bg-white/5"
+                        }`}
+                >
+                    <svg className={`w-5 h-5 flex-shrink-0 ${isActive(["/dao"]) ? "" : "group-hover:text-nexusCyan transition-colors"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span className={`font-bold text-sm ${isActive(["/dao"]) ? "" : "group-hover:translate-x-1 transition-transform"}`}>
+                        DAO Governance
+                    </span>
+                </button>
+
+                <button
                     onClick={() => handleNav("/points")}
                     className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all group w-full text-left ${isActive(["/points", "/wallet"])
                         ? "bg-gradient-to-r from-nexusCyan/20 to-transparent text-nexusCyan border-l-2 border-nexusCyan"
@@ -163,6 +178,21 @@ export default function Sidebar() {
                         {t("sidebar.marketplace", "NFT Marketplace")}
                     </span>
                 </button>
+
+                <button
+                    onClick={() => handleNav("/ai-tools")}
+                    className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all group w-full text-left ${isActive(["/ai-tools"])
+                        ? "bg-gradient-to-r from-nexusCyan/20 to-transparent text-nexusCyan border-l-2 border-nexusCyan"
+                        : "text-gray-500 hover:text-white hover:bg-white/5"
+                        }`}
+                >
+                    <svg className={`w-5 h-5 flex-shrink-0 ${isActive(["/ai-tools"]) ? "" : "group-hover:text-nexusCyan transition-colors"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    <span className={`font-bold text-sm ${isActive(["/ai-tools"]) ? "" : "group-hover:translate-x-1 transition-transform"}`}>
+                        {t("sidebar.aiTools", "AI Tool Market")}
+                    </span>
+                </button>
             </nav>
 
             {/* Creator Studio Section */}
@@ -183,6 +213,7 @@ export default function Sidebar() {
                         {[
                             { path: '/creator/dashboard', icon: '⚙️', label: 'Dashboard' },
                             { path: '/creator/analytics', icon: '📊', label: 'Analytics' },
+                            { path: '/creator/royalties', icon: '💰', label: 'AI Royalties' },
                             { path: '/creator/content', icon: '📁', label: 'Content' },
                             { path: '/creator/contracts', icon: '📝', label: 'Contracts' },
                             { path: '/creator/pass', icon: '🎫', label: 'Pass Issuance' },

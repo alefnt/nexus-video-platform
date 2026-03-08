@@ -31,6 +31,23 @@ export const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
 export const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "http://localhost:5173/auth/google/callback";
 export const GOOGLE_SCOPE = "openid email profile";
 
+// TikTok OAuth Config
+export const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY || "";
+export const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET || "";
+export const TIKTOK_REDIRECT_URI = process.env.TIKTOK_REDIRECT_URI || "http://localhost:5173/auth/tiktok/callback";
+export const TIKTOK_SCOPE = "user.info.basic,video.list,video.publish";
+
+// YouTube OAuth Config (uses Google OAuth with YouTube scopes)
+export const YOUTUBE_CLIENT_ID = process.env.YOUTUBE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "";
+export const YOUTUBE_CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || "";
+export const YOUTUBE_REDIRECT_URI = process.env.YOUTUBE_REDIRECT_URI || "http://localhost:5173/auth/youtube/callback";
+export const YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload openid email profile";
+
+// Bilibili OAuth Config
+export const BILIBILI_CLIENT_ID = process.env.BILIBILI_CLIENT_ID || "";
+export const BILIBILI_CLIENT_SECRET = process.env.BILIBILI_CLIENT_SECRET || "";
+export const BILIBILI_REDIRECT_URI = process.env.BILIBILI_REDIRECT_URI || "http://localhost:5173/auth/bilibili/callback";
+
 // ============== Utility Functions ==============
 
 export function base64url(buf: Buffer): string {

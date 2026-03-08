@@ -1,247 +1,492 @@
-import React, { useState } from 'react';
-import { Play, Pause, Maximize, UploadCloud, Film, Image as ImageIcon, Music, Type, Settings, Sparkles, Wand2, Download, Share2, Plus, Clock, SkipBack, SkipForward, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Film, Sparkles, Loader2, Settings, ChevronRight, Upload, Camera, Image, SlidersHorizontal, Clock, AlertTriangle, RotateCcw, Play, Maximize, Ratio, Trash2, HardDrive, Check } from 'lucide-react';
+import { getApiClient } from '../lib/apiClient';
+import { useAuthStore } from '../stores';
+import { useNavigate } from 'react-router-dom';
+import { saveGeneration, getGenerationsByType, downloadToLocal, getBlobUrl, markPublished, deleteGeneration, type LocalGeneration } from '../lib/aiLocalStorage';
+
+const STYLES = ['Cinematic', 'Anime', 'Photorealistic', 'Abstract', '3D Render', 'Watercolor', 'Pixel Art', 'Noir', 'Sci-Fi', 'Fantasy'];
+const RESOLUTIONS = ['720p', '1080p', '4K'];
+const RATIOS = [
+    { label: '16:9', desc: 'Landscape' },
+    { label: '9:16', desc: 'Portrait' },
+    { label: '1:1', desc: 'Square' },
+    { label: '4:3', desc: 'Classic' },
+];
+const CAMERAS = ['Static', 'Pan Left', 'Pan Right', 'Zoom In', 'Zoom Out', 'Tracking', 'Orbit', 'Dolly'];
 
 export default function AIVideoLab() {
-    const [prompt, setPrompt] = useState("");
-    const [style, setStyle] = useState("Cinematic");
-    const [resolution, setResolution] = useState("1080p");
-    const [duration, setDuration] = useState("15s");
-    const [aspectRatio, setAspectRatio] = useState("16:9");
+    const api = getApiClient();
+    const navigate = useNavigate();
+    const { isLoggedIn } = useAuthStore();
+
+    // Provider
+    const [providerReady, setProviderReady] = useState<boolean | null>(null);
+    const [providerName, setProviderName] = useState('');
+
+    // Inputs
+    const [prompt, setPrompt] = useState('');
+    const [negPrompt, setNegPrompt] = useState('');
+    const [showAdvanced, setShowAdvanced] = useState(false);
+    const [style, setStyle] = useState('');
+    const [duration, setDuration] = useState(5);
+    const [resolution, setResolution] = useState('1080p');
+    const [ratio, setRatio] = useState('16:9');
+    const [camera, setCamera] = useState('Static');
+    const [seed, setSeed] = useState('');
+    const [referenceImage, setReferenceImage] = useState<string | null>(null);
+
+    // Generation
     const [generating, setGenerating] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const [genError, setGenError] = useState('');
 
-    const [clips, setClips] = useState([
-        { id: '1', name: 'Scene 1: Intro', duration: '5s', status: 'ready', selected: true },
-        { id: '2', name: 'Scene 2: Action', duration: '10s', status: 'ready', selected: false }
-    ]);
+    // Result (local)
+    const [currentGen, setCurrentGen] = useState<LocalGeneration | null>(null);
+    const [localVideoUrl, setLocalVideoUrl] = useState<string | null>(null);
 
-    const styles = ["Cinematic", "Anime", "Documentary", "Music Video", "Product Demo", "Vlog", "Abstract", "3D Render"];
-    const resolutions = ["720p", "1080p", "4K"];
-    const durations = ["5s", "10s", "15s", "30s"];
-    const ratios = ["16:9", "9:16", "1:1"];
+    // History (IndexedDB)
+    const [history, setHistory] = useState<LocalGeneration[]>([]);
 
-    const handleGenerate = () => {
-        if (!prompt) return;
-        setGenerating(true);
-        setTimeout(() => {
-            setGenerating(false);
-            setClips([...clips.map(c => ({ ...c, selected: false })), { id: Date.now().toString(), name: `Scene ${clips.length + 1}: ${style}`, duration: duration, status: 'ready', selected: true }]);
-            setPrompt("");
-        }, 3000);
+    // Publishing
+    const [publishing, setPublishing] = useState(false);
+
+    // ── Load local history ──────────────
+    const loadHistory = useCallback(async () => {
+        try {
+            const gens = await getGenerationsByType('video', 30);
+            setHistory(gens);
+        } catch { }
+    }, []);
+
+    // ── Check provider & load history ──────────────
+    useEffect(() => {
+        if (!isLoggedIn) return;
+        (async () => {
+            try {
+                const res = await api.get<any>('/ai/settings');
+                const video = res?.video;
+                if (video?.enabled && video?.apiKeyMasked) {
+                    setProviderReady(true);
+                    setProviderName(video.providerId || 'configured');
+                } else {
+                    setProviderReady(false);
+                }
+            } catch { setProviderReady(false); }
+        })();
+        loadHistory();
+    }, [isLoggedIn]);
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => setReferenceImage(reader.result as string);
+        reader.readAsDataURL(file);
     };
 
-    return (
-        <div className="min-h-screen bg-[#08080c] text-white p-6 md:p-8 font-sans pb-24">
-            <div className="max-w-[1800px] mx-auto h-[calc(100vh-100px)] flex flex-col gap-6">
+    // ── Generate Video (local-first) ──────────────
+    const handleGenerate = useCallback(async () => {
+        if (!prompt.trim()) return;
+        setGenerating(true);
+        setProgress(0);
+        setGenError('');
+        setCurrentGen(null);
+        setLocalVideoUrl(null);
 
-                {/* Top Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <div className="flex items-center gap-2 text-nexusCyan mb-1">
-                            <Sparkles size={16} />
-                            <span className="font-mono text-xs uppercase tracking-widest font-bold">Creator Studio &gt; AI Lab</span>
-                        </div>
-                        <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
-                            AI Video <span className="text-transparent bg-clip-text bg-gradient-to-r from-nexusCyan to-blue-500">Director</span>
-                        </h1>
+        const genId = `video-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const localGen: LocalGeneration = {
+            id: genId,
+            type: 'video',
+            status: 'processing',
+            progress: 0,
+            prompt: prompt.trim(),
+            params: { style, duration, resolution, aspectRatio: ratio, camera, seed, negativePrompt: negPrompt },
+            published: false,
+            createdAt: Date.now(),
+        };
+        await saveGeneration(localGen);
+
+        try {
+            const res = await api.post<any>('/ai/generate', {
+                type: 'video',
+                prompt: `${localGen.prompt}${style ? `, ${style} style` : ''}${camera !== 'Static' ? `, camera: ${camera}` : ''}`,
+                params: localGen.params,
+            });
+
+            const apiBase = (import.meta as any).env?.VITE_API_GATEWAY_URL || 'http://localhost:8080';
+            const es = new EventSource(`${apiBase}/ai/task/${res.taskId}/stream`);
+
+            es.onmessage = async (e) => {
+                if (e.data === '[DONE]') { es.close(); return; }
+                try {
+                    const data = JSON.parse(e.data);
+                    setProgress(data.progress || 0);
+                    localGen.progress = data.progress || 0;
+
+                    if (data.status === 'completed') {
+                        es.close();
+                        localGen.resultUrl = data.resultUrl;
+                        localGen.resultMeta = data.resultMeta || {};
+                        if (data.resultUrl) {
+                            const blobKey = await downloadToLocal(data.resultUrl, genId, 'video/mp4');
+                            if (blobKey) localGen.resultBlobKey = blobKey;
+                        }
+                        localGen.status = 'completed';
+                        localGen.completedAt = Date.now();
+                        await saveGeneration(localGen);
+                        setCurrentGen({ ...localGen });
+                        setGenerating(false);
+
+                        if (localGen.resultBlobKey) {
+                            setLocalVideoUrl(await getBlobUrl(localGen.resultBlobKey));
+                        } else if (data.resultUrl) {
+                            setLocalVideoUrl(data.resultUrl);
+                        }
+                        loadHistory();
+                    } else if (data.status === 'failed') {
+                        localGen.status = 'failed';
+                        localGen.error = data.error || 'Failed';
+                        await saveGeneration(localGen);
+                        setGenError(localGen.error);
+                        setGenerating(false);
+                        loadHistory();
+                        es.close();
+                    }
+                } catch { }
+            };
+
+            es.onerror = () => {
+                const poll = setInterval(async () => {
+                    try {
+                        const status = await api.get<any>(`/ai/task/${res.taskId}`);
+                        setProgress(status.progress || 0);
+                        if (status.status === 'completed') {
+                            clearInterval(poll);
+                            localGen.resultUrl = status.resultUrl;
+                            localGen.resultMeta = status.resultMeta || {};
+                            if (status.resultUrl) {
+                                const blobKey = await downloadToLocal(status.resultUrl, genId, 'video/mp4');
+                                if (blobKey) localGen.resultBlobKey = blobKey;
+                            }
+                            localGen.status = 'completed';
+                            localGen.completedAt = Date.now();
+                            await saveGeneration(localGen);
+                            setCurrentGen({ ...localGen });
+                            setGenerating(false);
+                            if (localGen.resultBlobKey) {
+                                setLocalVideoUrl(await getBlobUrl(localGen.resultBlobKey));
+                            } else if (status.resultUrl) {
+                                setLocalVideoUrl(status.resultUrl);
+                            }
+                            loadHistory();
+                        } else if (status.status === 'failed') {
+                            clearInterval(poll);
+                            localGen.status = 'failed';
+                            localGen.error = status.error || 'Failed';
+                            await saveGeneration(localGen);
+                            setGenError(localGen.error);
+                            setGenerating(false);
+                            loadHistory();
+                        }
+                    } catch { }
+                }, 5000);
+                es.close();
+            };
+        } catch (err: any) {
+            localGen.status = 'failed';
+            localGen.error = err?.error || err?.message || 'Failed';
+            await saveGeneration(localGen);
+            setGenError(localGen.error);
+            setGenerating(false);
+            loadHistory();
+        }
+    }, [prompt, negPrompt, style, duration, resolution, ratio, camera, seed, referenceImage]);
+
+    const loadHistoryItem = useCallback(async (gen: LocalGeneration) => {
+        setCurrentGen(gen);
+        if (gen.resultBlobKey) {
+            setLocalVideoUrl(await getBlobUrl(gen.resultBlobKey));
+        } else if (gen.resultUrl) {
+            setLocalVideoUrl(gen.resultUrl);
+        }
+    }, []);
+
+    const handlePublish = useCallback(async () => {
+        if (!currentGen) return;
+        setPublishing(true);
+        try {
+            const res = await api.post<any>('/content/upload', {
+                type: 'video', title: currentGen.prompt.slice(0, 60),
+                description: currentGen.prompt,
+                sourceUrl: currentGen.resultUrl || '',
+                style: currentGen.params?.style || '',
+                resolution: currentGen.params?.resolution || '1080p',
+                aiGenerated: true, aiProvider: providerName,
+            });
+            await markPublished(currentGen.id, res?.id || 'published');
+            setCurrentGen(prev => prev ? { ...prev, published: true, publishedAt: Date.now() } : null);
+            loadHistory();
+        } catch (err: any) {
+            alert('发布失败: ' + (err?.error || err?.message || ''));
+        } finally { setPublishing(false); }
+    }, [currentGen, providerName]);
+
+    const handleDelete = useCallback(async (id: string) => {
+        await deleteGeneration(id);
+        if (currentGen?.id === id) { setCurrentGen(null); setLocalVideoUrl(null); }
+        loadHistory();
+    }, [currentGen]);
+
+    // ── Provider not configured ──────────────
+    if (providerReady === false) {
+        return (
+            <div className="min-h-screen bg-[#0a0a12] text-white p-8 flex items-center justify-center">
+                <div className="text-center max-w-lg">
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center mx-auto mb-6">
+                        <Film size={36} className="text-cyan-400" />
                     </div>
-                    <div className="flex gap-3">
-                        <button className="px-4 py-2 font-bold text-sm bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg flex items-center gap-2 transition-colors">
-                            <UploadCloud size={16} /> Save Project
-                        </button>
-                    </div>
+                    <h2 className="text-2xl font-bold mb-3">Video AI Provider Not Configured</h2>
+                    <p className="text-gray-400 mb-6">Configure a video AI provider (like Runway or Kling) with your API key.</p>
+                    <button onClick={() => navigate('/settings/ai')}
+                        className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold hover:brightness-110 flex items-center gap-2 mx-auto">
+                        <Settings size={16} /> Configure AI Provider
+                    </button>
                 </div>
+            </div>
+        );
+    }
 
-                <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
+    return (
+        <div className="min-h-screen bg-[#0a0a12] text-white p-6 md:p-10 font-sans pb-32">
+            <div className="max-w-[1600px] mx-auto">
+                {/* Header */}
+                <div className="flex items-center gap-2 text-cyan-400 mb-4">
+                    <Sparkles size={16} />
+                    <span className="font-mono text-xs uppercase tracking-widest font-bold">
+                        AI Studio <ChevronRight size={12} className="inline" /> Video Lab
+                    </span>
+                    <span className="ml-auto flex items-center gap-3">
+                        <span className="text-xs bg-white/5 border border-white/10 px-3 py-1 rounded-full text-gray-400 font-mono flex items-center gap-1">
+                            <HardDrive size={10} /> Local Storage
+                        </span>
+                        {providerName && (
+                            <span className="text-xs bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full text-cyan-400 font-mono">
+                                Provider: {providerName}
+                            </span>
+                        )}
+                    </span>
+                </div>
+                <h1 className="text-3xl font-black mb-8">
+                    <span className="bg-gradient-to-r from-cyan-400 to-blue-500 text-transparent bg-clip-text">AI Video Generation</span>
+                </h1>
 
-                    {/* Left/Top: Prompt Zone & Player */}
-                    <div className="flex-1 flex flex-col gap-6 min-w-0">
-
-                        {/* Prompt Zone */}
-                        <div className="glass-panel rounded-2xl border border-white/5 p-5 bg-gradient-to-br from-white/[0.02] to-transparent">
-                            <div className="flex flex-col xl:flex-row gap-6">
-                                {/* Prompt Input & Style */}
-                                <div className="flex-1 flex flex-col gap-4">
-                                    <textarea
-                                        className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-sm text-white focus:border-nexusCyan focus:ring-1 focus:ring-nexusCyan outline-none resize-none h-24"
-                                        placeholder="Describe your video scene in detail... (e.g., 'A cyberpunk city alleyway at night in pouring rain, neon reflections on the puddles, cinematic lighting, tracking shot forward')"
-                                        value={prompt}
-                                        onChange={(e) => setPrompt(e.target.value)}
-                                    />
-                                    <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1">
-                                        <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mr-2 flex-shrink-0">Style:</span>
-                                        {styles.map(s => (
-                                            <button
-                                                key={s} onClick={() => setStyle(s)}
-                                                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${style === s ? 'bg-nexusCyan/20 text-nexusCyan border-nexusCyan' : 'bg-transparent text-gray-400 border-white/10 hover:border-white/20 hover:text-white'}`}
-                                            >
-                                                {s}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Settings & Render */}
-                                <div className="w-full xl:w-72 flex flex-col gap-4">
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <select value={resolution} onChange={e => setResolution(e.target.value)} className="bg-black/50 border border-white/10 rounded-lg p-2 text-xs font-bold font-mono text-gray-300 outline-none focus:border-nexusCyan">
-                                            {resolutions.map(r => <option key={r} value={r}>{r}</option>)}
-                                        </select>
-                                        <select value={duration} onChange={e => setDuration(e.target.value)} className="bg-black/50 border border-white/10 rounded-lg p-2 text-xs font-bold font-mono text-gray-300 outline-none focus:border-nexusCyan">
-                                            {durations.map(r => <option key={r} value={r}>{r}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        {ratios.map(r => (
-                                            <button key={r} onClick={() => setAspectRatio(r)} className={`flex-1 py-1.5 rounded border text-xs font-bold font-mono transition-colors ${aspectRatio === r ? 'bg-white/10 border-white/30 text-white' : 'border-white/5 text-gray-500 hover:text-gray-300'}`}>
-                                                {r}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <button
-                                        onClick={handleGenerate}
-                                        disabled={generating || !prompt}
-                                        className={`w-full py-3 rounded-xl font-black text-sm uppercase tracking-wider flex justify-center items-center gap-2 transition-all shadow-[0_0_15px_rgba(34,211,238,0.2)] ${generating ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-white/10' : !prompt ? 'bg-nexusCyan/30 text-white/50 cursor-not-allowed border border-nexusCyan/30' : 'bg-gradient-to-r from-nexusCyan to-blue-600 text-white hover:brightness-110'}`}
-                                    >
-                                        {generating ? <><Sparkles className="animate-spin" size={16} /> Rendering...</> : <><Film size={16} /> Generate Scene</>}
-                                    </button>
-                                </div>
-                            </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Left: Controls */}
+                    <div className="space-y-6">
+                        {/* Prompt */}
+                        <div className="bg-[#12121e] rounded-2xl p-6 border border-white/5">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block flex items-center gap-2">
+                                <Camera size={12} /> Scene Description
+                            </label>
+                            <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={4}
+                                placeholder="Describe the video scene... e.g. 'A futuristic city at night with neon lights reflecting on wet streets'"
+                                className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-sm text-white resize-none outline-none focus:border-cyan-500 placeholder-gray-600" />
                         </div>
 
-                        {/* Video Player Workspace */}
-                        <div className="flex-1 glass-panel rounded-2xl border border-white/5 overflow-hidden flex flex-col min-h-[300px] relative bg-black">
-                            <div className="flex-1 relative flex items-center justify-center">
-                                {/* Mock Video Area */}
-                                {generating ? (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-10">
-                                        <div className="w-16 h-16 border-4 border-nexusCyan/20 border-t-nexusCyan rounded-full animate-spin mb-4" />
-                                        <p className="font-mono text-nexusCyan text-sm font-bold tracking-widest uppercase animate-pulse">Synthesizing Pixels</p>
-                                    </div>
-                                ) : (
-                                    <div className="w-full h-full bg-gradient-to-br from-[#1a1a24] to-black flex items-center justify-center relative group">
-                                        <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=2000" alt="Video Preview" className="absolute inset-0 w-full h-full object-cover opacity-60" />
-                                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
-                                        <button
-                                            onClick={() => setIsPlaying(!isPlaying)}
-                                            className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-nexusCyan hover:border-nexusCyan hover:scale-110 transition-all z-10 shadow-[0_0_30px_rgba(0,0,0,0.5)]"
-                                        >
-                                            {isPlaying ? <Pause size={32} /> : <Play size={32} className="ml-2" />}
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Player Controls */}
-                            <div className="h-12 bg-[#0c0c11] border-t border-white/5 px-4 flex items-center justify-between z-20">
-                                <div className="flex items-center gap-4">
-                                    <button className="text-gray-400 hover:text-white transition-colors"><SkipBack size={18} /></button>
-                                    <button onClick={() => setIsPlaying(!isPlaying)} className="text-white hover:text-nexusCyan transition-colors">
-                                        {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-                                    </button>
-                                    <button className="text-gray-400 hover:text-white transition-colors"><SkipForward size={18} /></button>
-                                    <span className="font-mono text-xs text-gray-500 ml-2">00:00:00 / 00:00:15</span>
+                        {/* Reference Image */}
+                        <div className="bg-[#12121e] rounded-2xl p-6 border border-white/5">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block flex items-center gap-2">
+                                <Image size={12} /> Reference Image (Optional)
+                            </label>
+                            {referenceImage ? (
+                                <div className="relative">
+                                    <img src={referenceImage} alt="ref" className="w-full h-32 object-cover rounded-xl" />
+                                    <button onClick={() => setReferenceImage(null)} className="absolute top-2 right-2 bg-red-500 rounded-full w-6 h-6 flex items-center justify-center text-xs">✕</button>
                                 </div>
-                                <button className="text-gray-400 hover:text-white transition-colors"><Maximize size={18} /></button>
-                            </div>
+                            ) : (
+                                <label className="flex flex-col items-center gap-2 border-2 border-dashed border-white/10 rounded-xl p-8 cursor-pointer hover:border-cyan-500/30 transition-colors">
+                                    <Image size={24} className="text-gray-600" />
+                                    <span className="text-xs text-gray-500">Drop image or click to upload</span>
+                                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                                </label>
+                            )}
                         </div>
 
-                        {/* Generated Clips Timeline */}
-                        <div className="h-32 glass-panel rounded-2xl border border-white/5 p-3 flex flex-col">
-                            <div className="flex justify-between items-center mb-2 px-1">
-                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2"><Clock size={12} /> Timeline Sequence</h3>
-                                <button className="text-[10px] font-mono text-nexusCyan border border-nexusCyan/30 bg-nexusCyan/10 px-2 py-0.5 rounded leading-none flex items-center gap-1 hover:bg-nexusCyan hover:text-black transition-colors">
-                                    <Plus size={10} /> Add Track
-                                </button>
-                            </div>
-                            <div className="flex-1 flex gap-2 overflow-x-auto hide-scrollbar items-center pb-1">
-                                {clips.map((clip, i) => (
-                                    <div key={clip.id} className="flex items-center gap-2">
-                                        <div className={`relative w-40 h-16 rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${clip.selected ? 'border-nexusCyan brightness-110' : 'border-white/10 brightness-75 hover:brightness-100 hover:border-white/30'}`}>
-                                            <div className="absolute inset-0 bg-gradient-to-r from-blue-900 to-purple-900 opacity-50" />
-                                            <div className="absolute bottom-1 left-2 select-none">
-                                                <p className="text-[10px] font-bold text-white shadow-black drop-shadow-md truncate w-32">{clip.name}</p>
-                                            </div>
-                                            <div className="absolute top-1 right-1 bg-black/60 backdrop-blur-md rounded px-1.5 py-0.5 text-[8px] font-mono text-gray-300">
-                                                {clip.duration}
-                                            </div>
-                                        </div>
-                                        {i < clips.length - 1 && <ArrowRight size={14} className="text-white/20 flex-shrink-0" />}
-                                    </div>
+                        {/* Style */}
+                        <div className="bg-[#12121e] rounded-2xl p-6 border border-white/5">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">Visual Style</label>
+                            <div className="flex flex-wrap gap-2">
+                                {STYLES.map(s => (
+                                    <button key={s} onClick={() => setStyle(style === s ? '' : s)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${style === s ? 'bg-cyan-500 text-white shadow-[0_0_12px_rgba(6,182,212,0.4)]' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+                                        {s}
+                                    </button>
                                 ))}
                             </div>
                         </div>
 
+                        {/* Duration / Resolution / Ratio / Camera */}
+                        <div className="bg-[#12121e] rounded-2xl p-6 border border-white/5 grid grid-cols-2 gap-6">
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block flex items-center gap-1">
+                                    <Clock size={12} /> Duration: {duration}s
+                                </label>
+                                <input type="range" min={5} max={60} step={5} value={duration}
+                                    onChange={e => setDuration(Number(e.target.value))} className="w-full accent-cyan-500" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block flex items-center gap-1">
+                                    <Maximize size={12} /> Resolution
+                                </label>
+                                <div className="flex gap-2">
+                                    {RESOLUTIONS.map(r => (
+                                        <button key={r} onClick={() => setResolution(r)}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex-1 transition-all ${resolution === r ? 'bg-cyan-500 text-white' : 'bg-white/5 text-gray-400'}`}>{r}</button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block flex items-center gap-1">
+                                    <Ratio size={12} /> Aspect Ratio
+                                </label>
+                                <div className="flex gap-2">
+                                    {RATIOS.map(r => (
+                                        <button key={r.label} onClick={() => setRatio(r.label)}
+                                            className={`px-2 py-1.5 rounded-lg text-xs font-bold flex-1 transition-all ${ratio === r.label ? 'bg-cyan-500 text-white' : 'bg-white/5 text-gray-400'}`}>{r.label}</button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Camera Motion</label>
+                                <select value={camera} onChange={e => setCamera(e.target.value)}
+                                    className="w-full bg-black/50 border border-white/10 rounded-xl p-2.5 text-sm text-white outline-none">
+                                    {CAMERAS.map(c => <option key={c} value={c} className="bg-gray-900">{c}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Advanced */}
+                        <button onClick={() => setShowAdvanced(!showAdvanced)}
+                            className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-bold">
+                            <SlidersHorizontal size={12} /> {showAdvanced ? 'Hide' : 'Show'} Advanced
+                        </button>
+                        {showAdvanced && (
+                            <div className="bg-[#12121e] rounded-2xl p-6 border border-white/5 space-y-4">
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Negative Prompt</label>
+                                    <textarea value={negPrompt} onChange={e => setNegPrompt(e.target.value)} rows={2} placeholder="What to avoid..."
+                                        className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white resize-none outline-none focus:border-cyan-500 placeholder-gray-600" />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Seed</label>
+                                    <input type="number" value={seed} onChange={e => setSeed(e.target.value)} placeholder="Random"
+                                        className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white outline-none" />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Generate */}
+                        <button onClick={handleGenerate} disabled={generating || !prompt.trim()}
+                            className="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:brightness-110 transition-all shadow-[0_0_30px_rgba(6,182,212,0.3)] disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-widest">
+                            {generating ? <><Loader2 size={20} className="animate-spin" /> Generating... {progress}%</> : <><Sparkles size={20} /> Generate Video</>}
+                        </button>
+                        {generating && (
+                            <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-cyan-500 to-blue-600 transition-all duration-500 rounded-full" style={{ width: `${progress}%` }} />
+                            </div>
+                        )}
+                        {genError && (
+                            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-red-400 text-sm flex items-center gap-2">
+                                <AlertTriangle size={16} /> {genError}
+                            </div>
+                        )}
                     </div>
 
-                    {/* Right Panel: Post-Production */}
-                    <div className="w-full lg:w-80 flex-shrink-0 flex flex-col gap-4">
-                        <div className="glass-panel flex-1 rounded-2xl border border-white/5 p-5 flex flex-col relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-nexusCyan/5 blur-[50px] pointer-events-none" />
+                    {/* Right: Output */}
+                    <div className="space-y-6">
+                        <div className="bg-[#12121e] rounded-2xl p-6 border border-white/5 min-h-[400px]">
+                            <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                <Film size={16} className="text-cyan-400" /> Generated Video
+                                {currentGen && (
+                                    <span className="ml-auto text-xs font-mono text-gray-500 flex items-center gap-1">
+                                        <HardDrive size={10} /> Stored Locally
+                                    </span>
+                                )}
+                            </h3>
 
-                            <h2 className="text-lg font-bold flex items-center gap-2 mb-6 border-b border-white/10 pb-4">
-                                <Settings size={18} className="text-gray-400" /> Post-Production
-                            </h2>
+                            {currentGen && localVideoUrl ? (
+                                <div className="space-y-4">
+                                    <video src={localVideoUrl} controls autoPlay
+                                        className="w-full rounded-xl bg-black"
+                                        style={{ aspectRatio: ratio.replace(':', '/') }} />
+                                    <div className="flex items-center justify-between text-xs text-gray-500 font-mono">
+                                        <span>{currentGen.params?.resolution || '1080p'}</span>
+                                        <span>{currentGen.params?.aspectRatio || '16:9'}</span>
+                                        <span>{currentGen.params?.duration || 5}s</span>
+                                    </div>
 
-                            <div className="space-y-6 flex-1 overflow-y-auto hide-scrollbar">
-                                {/* Tools */}
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 block">Enhance</label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button className="flex flex-col items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl py-4 text-xs font-bold text-gray-300 transition-colors">
-                                            <Type size={18} className="text-blue-400" /> Subtitles
+                                    {currentGen.published ? (
+                                        <div className="w-full py-3 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-center font-bold text-sm flex items-center justify-center gap-2">
+                                            <Check size={14} /> Published to Nexus
+                                        </div>
+                                    ) : (
+                                        <button onClick={handlePublish} disabled={publishing}
+                                            className="w-full py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-sm hover:brightness-110 flex items-center justify-center gap-2 uppercase tracking-wider disabled:opacity-50">
+                                            {publishing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                                            {publishing ? 'Publishing...' : 'Publish to Nexus'}
                                         </button>
-                                        <button className="flex flex-col items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl py-4 text-xs font-bold text-gray-300 transition-colors">
-                                            <Music size={18} className="text-purple-400" /> Audio
-                                        </button>
-                                        <button className="flex flex-col items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl py-4 text-xs font-bold text-gray-300 transition-colors">
-                                            <Sparkles size={18} className="text-nexusCyan" /> VFX
-                                        </button>
-                                        <button className="flex flex-col items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl py-4 text-xs font-bold text-gray-300 transition-colors">
-                                            <ImageIcon size={18} className="text-pink-400" /> Overlays
-                                        </button>
+                                    )}
+
+                                    <p className="text-[10px] text-gray-600 font-mono text-center">
+                                        ℹ️ This video is stored in your browser. It will be uploaded to platform storage only when you publish.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-center h-64 text-gray-600">
+                                    <div className="text-center">
+                                        <Film size={48} className="mx-auto mb-3 opacity-30" />
+                                        <p className="text-sm mb-1">Your generated video will appear here</p>
+                                        <p className="text-xs text-gray-700">Stored locally until published</p>
                                     </div>
                                 </div>
+                            )}
+                        </div>
 
-                                <div className="h-px bg-white/5 w-full" />
-
-                                {/* Reference Image */}
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 block">Image Reference</label>
-                                    <div className="w-full h-24 rounded-xl border border-dashed border-white/20 bg-black/30 flex flex-col items-center justify-center text-gray-500 hover:text-white hover:border-nexusCyan/50 hover:bg-nexusCyan/5 transition-all cursor-pointer group">
-                                        <UploadCloud size={20} className="mb-2 group-hover:-translate-y-1 transition-transform" />
-                                        <span className="text-xs font-mono">Drop image here</span>
-                                    </div>
+                        {/* History */}
+                        <div className="bg-[#12121e] rounded-2xl p-6 border border-white/5">
+                            <h3 className="font-bold text-sm mb-4 flex items-center gap-2 text-gray-400 uppercase tracking-wider">
+                                <RotateCcw size={14} /> Local History ({history.length})
+                            </h3>
+                            {history.length === 0 ? (
+                                <p className="text-gray-600 text-sm text-center py-4">No videos generated yet</p>
+                            ) : (
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    {history.map((h) => (
+                                        <div key={h.id} className="flex items-center gap-3 p-3 rounded-xl bg-black/20 hover:bg-black/40 transition-colors group">
+                                            <button onClick={() => h.status === 'completed' && loadHistoryItem(h)}
+                                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs flex-shrink-0 ${h.status === 'completed' ? 'bg-green-500/20 text-green-400 cursor-pointer' : 'bg-gray-500/20 text-gray-400'}`}>
+                                                {h.status === 'completed' ? <Play size={12} /> : <Clock size={12} />}
+                                            </button>
+                                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => h.status === 'completed' && loadHistoryItem(h)}>
+                                                <p className="text-sm font-bold truncate">{h.prompt}</p>
+                                                <div className="flex items-center gap-2 text-xs text-gray-500 font-mono">
+                                                    <span>{new Date(h.createdAt).toLocaleDateString()}</span>
+                                                    {h.published && <span className="text-green-500">• Published</span>}
+                                                </div>
+                                            </div>
+                                            <button onClick={() => handleDelete(h.id)}
+                                                className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-all p-1">
+                                                <Trash2 size={12} />
+                                            </button>
+                                        </div>
+                                    ))}
                                 </div>
-                            </div>
-
-                            {/* Export Actions */}
-                            <div className="pt-4 border-t border-white/10 mt-auto flex flex-col gap-2 relative z-10">
-                                <button className="w-full bg-white text-black font-black text-sm uppercase tracking-wider py-3.5 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-                                    <Share2 size={16} /> Publish to Nexus
-                                </button>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <button className="flex items-center justify-center gap-2 bg-blue-600/20 text-blue-400 border border-blue-600/30 hover:bg-blue-600/30 py-2 rounded-lg text-xs font-bold transition-colors">
-                                        <Globe size={14} className="lucide-globe" /> Cross-Post
-                                    </button>
-                                    <button className="flex items-center justify-center gap-2 bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10 py-2 rounded-lg text-xs font-bold transition-colors">
-                                        <Download size={14} /> Export MP4
-                                    </button>
-                                </div>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     );
-}
-
-// Quick inline icon replacing Globe since it wasn't imported from lucide
-function Globe(props: any) {
-    return (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-        </svg>
-    )
 }

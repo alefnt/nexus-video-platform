@@ -20,6 +20,9 @@ import {
     revokeJti,
     setTwitterPkce, getTwitterPkce, deleteTwitterPkce,
     setGoogleOAuthState, getGoogleOAuthState, deleteGoogleOAuthState,
+    setTikTokOAuthState, getTikTokOAuthState, deleteTikTokOAuthState,
+    setYouTubeOAuthState, getYouTubeOAuthState, deleteYouTubeOAuthState,
+    setBilibiliOAuthState, getBilibiliOAuthState, deleteBilibiliOAuthState,
     setEmailCode, getEmailCode, deleteEmailCode,
     setSmsCode, getSmsCode, deleteSmsCode,
     setMagicLink, getMagicLink, deleteMagicLink,
@@ -29,6 +32,9 @@ import {
     NONCE_TTL_MS, PKCE_TTL_MS, EMAIL_CODE_TTL_MS, MAGIC_LINK_TTL_MS, SMS_CODE_TTL_MS,
     TWITTER_CLIENT_ID, TWITTER_REDIRECT_URI, TWITTER_SCOPE,
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, GOOGLE_SCOPE,
+    TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REDIRECT_URI, TIKTOK_SCOPE,
+    YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REDIRECT_URI, YOUTUBE_SCOPE,
+    BILIBILI_CLIENT_ID, BILIBILI_CLIENT_SECRET, BILIBILI_REDIRECT_URI,
     ADMIN_USER_IDS, ADMIN_BIT_DOMAINS,
     base64url, generateCodeVerifier, computeCodeChallengeS256, generateNumericCode, isAdmin,
     buildJWTClaims, buildAuthResponse,
@@ -279,6 +285,231 @@ export function registerAuthRoutes(app: FastifyInstance) {
             return reply.send(buildAuthResponse(jwtToken, user, claims, rec.dfp, Buffer.from("google_oauth").toString("base64").slice(0, 44)));
         } catch (err: any) {
             return reply.status(500).send({ error: err?.message || "Google 回调处理失败", code: "google_callback_error" });
+        }
+    });
+
+    // ============== TikTok OAuth2 ==============
+    app.get("/auth/tiktok/start", async (req, reply) => {
+        try {
+            const dfp = ((req as any).query?.dfp || "browser") as string;
+            if (!TIKTOK_CLIENT_KEY) return reply.status(500).send({ error: "TikTok 配置未设置", code: "tiktok_config_missing" });
+            const state = uuidv4();
+            const codeVerifier = generateCodeVerifier();
+            const codeChallenge = computeCodeChallengeS256(codeVerifier);
+            await setTikTokOAuthState(state, { codeVerifier, dfp, issuedAt: Date.now() });
+            const params = new URLSearchParams({
+                client_key: TIKTOK_CLIENT_KEY,
+                response_type: "code",
+                scope: TIKTOK_SCOPE,
+                redirect_uri: TIKTOK_REDIRECT_URI,
+                state,
+                code_challenge: codeChallenge,
+                code_challenge_method: "S256",
+            });
+            return reply.send({ authUrl: `https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`, state });
+        } catch (err: any) {
+            return reply.status(500).send({ error: err?.message || "TikTok 启动失败", code: "tiktok_start_error" });
+        }
+    });
+
+    app.post<{ Body: { code: string; state: string } }>("/auth/tiktok/callback", async (req, reply) => {
+        try {
+            const { code, state } = (req.body || {}) as { code: string; state: string };
+            if (!code || !state) return reply.status(400).send({ error: "缺少 code 或 state", code: "bad_request" });
+            const rec = await getTikTokOAuthState(state);
+            if (!rec) return reply.status(400).send({ error: "state 无效或已过期", code: "invalid_state" });
+            if (Date.now() - rec.issuedAt > PKCE_TTL_MS) { await deleteTikTokOAuthState(state); return reply.status(400).send({ error: "登录会话已过期", code: "pkce_expired" }); }
+
+            // Exchange code for access token
+            const tokenResp = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({
+                    client_key: TIKTOK_CLIENT_KEY,
+                    client_secret: TIKTOK_CLIENT_SECRET,
+                    code,
+                    grant_type: "authorization_code",
+                    redirect_uri: TIKTOK_REDIRECT_URI,
+                    code_verifier: rec.codeVerifier,
+                }).toString(),
+            });
+            if (!tokenResp.ok) return reply.status(400).send({ error: "TikTok 令牌交换失败", code: "token_exchange_failed", details: await tokenResp.text() });
+            const tokenJson: any = await tokenResp.json();
+            const accessToken = tokenJson?.data?.access_token;
+            if (!accessToken) return reply.status(400).send({ error: "缺少 access_token", code: "token_missing" });
+
+            // Fetch user info
+            const userResp = await fetch("https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url,username", {
+                headers: { "Authorization": `Bearer ${accessToken}` },
+            });
+            const userJson: any = userResp.ok ? await userResp.json() : {};
+            const tiktokUser = userJson?.data?.user || {};
+            const displayName = tiktokUser.display_name || tiktokUser.username || "TikTok User";
+            const tiktokId = tiktokUser.open_id || tokenJson?.data?.open_id || uuidv4();
+
+            const user = await findOrCreateUserByDid(`tiktok:${tiktokId}`, { nickname: displayName, avatar: tiktokUser.avatar_url });
+            const claims = buildJWTClaims(user.id, { dom: `tiktok:${displayName}`, dfp: rec.dfp });
+            const jwtToken = await reply.jwtSign(claims, { algorithm: "HS256" as any });
+            await deleteTikTokOAuthState(state);
+            return reply.send(buildAuthResponse(jwtToken, user, claims, rec.dfp, Buffer.from("tiktok_oauth").toString("base64").slice(0, 44)));
+        } catch (err: any) {
+            return reply.status(500).send({ error: err?.message || "TikTok 回调处理失败", code: "tiktok_callback_error" });
+        }
+    });
+
+    // ============== YouTube OAuth2 ==============
+    app.get("/auth/youtube/start", async (req, reply) => {
+        try {
+            const dfp = ((req as any).query?.dfp || "browser") as string;
+            if (!YOUTUBE_CLIENT_ID) return reply.status(500).send({ error: "YouTube 配置未设置", code: "youtube_config_missing" });
+            const state = uuidv4();
+            const codeVerifier = generateCodeVerifier();
+            const codeChallenge = computeCodeChallengeS256(codeVerifier);
+            await setYouTubeOAuthState(state, { codeVerifier, dfp, issuedAt: Date.now() });
+            const params = new URLSearchParams({
+                response_type: "code",
+                client_id: YOUTUBE_CLIENT_ID,
+                redirect_uri: YOUTUBE_REDIRECT_URI,
+                scope: YOUTUBE_SCOPE,
+                state,
+                code_challenge: codeChallenge,
+                code_challenge_method: "S256",
+                access_type: "offline",
+                prompt: "consent",
+            });
+            return reply.send({ authUrl: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`, state });
+        } catch (err: any) {
+            return reply.status(500).send({ error: err?.message || "YouTube 启动失败", code: "youtube_start_error" });
+        }
+    });
+
+    app.post<{ Body: { code: string; state: string } }>("/auth/youtube/callback", async (req, reply) => {
+        try {
+            const { code, state } = (req.body || {}) as { code: string; state: string };
+            if (!code || !state) return reply.status(400).send({ error: "缺少 code 或 state", code: "bad_request" });
+            const rec = await getYouTubeOAuthState(state);
+            if (!rec) return reply.status(400).send({ error: "state 无效或已过期", code: "invalid_state" });
+            if (Date.now() - rec.issuedAt > PKCE_TTL_MS) { await deleteYouTubeOAuthState(state); return reply.status(400).send({ error: "登录会话已过期", code: "pkce_expired" }); }
+
+            const tokenResp = await fetch("https://oauth2.googleapis.com/token", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({
+                    client_id: YOUTUBE_CLIENT_ID,
+                    client_secret: YOUTUBE_CLIENT_SECRET,
+                    grant_type: "authorization_code",
+                    code,
+                    redirect_uri: YOUTUBE_REDIRECT_URI,
+                    code_verifier: rec.codeVerifier,
+                }).toString(),
+            });
+            if (!tokenResp.ok) return reply.status(400).send({ error: "YouTube 令牌交换失败", code: "token_exchange_failed", details: await tokenResp.text() });
+            const tokenJson: any = await tokenResp.json();
+            const accessToken = tokenJson?.access_token;
+            if (!accessToken) return reply.status(400).send({ error: "缺少 access_token", code: "token_missing" });
+
+            // Get YouTube channel info
+            const channelResp = await fetch("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true", {
+                headers: { "Authorization": `Bearer ${accessToken}` },
+            });
+            let channelName = "YouTube User";
+            let channelAvatar = "";
+            let youtubeEmail = "";
+            if (channelResp.ok) {
+                const channelJson: any = await channelResp.json();
+                const ch = channelJson?.items?.[0]?.snippet;
+                if (ch) {
+                    channelName = ch.title || channelName;
+                    channelAvatar = ch.thumbnails?.default?.url || "";
+                }
+            }
+
+            // Also get email from Google userinfo
+            const userInfoResp = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", { headers: { Authorization: `Bearer ${accessToken}` } });
+            if (userInfoResp.ok) {
+                const userInfo: any = await userInfoResp.json();
+                youtubeEmail = userInfo?.email || "";
+            }
+
+            const user = youtubeEmail
+                ? await findOrCreateUserByEmail(youtubeEmail, { nickname: channelName, avatar: channelAvatar })
+                : await findOrCreateUserByDid(`youtube:${channelName}`, { nickname: channelName, avatar: channelAvatar });
+            const claims = buildJWTClaims(user.id, { dom: youtubeEmail || `youtube:${channelName}`, dfp: rec.dfp });
+            const jwtToken = await reply.jwtSign(claims, { algorithm: "HS256" as any });
+            await deleteYouTubeOAuthState(state);
+            return reply.send(buildAuthResponse(jwtToken, user, claims, rec.dfp, Buffer.from("youtube_oauth").toString("base64").slice(0, 44)));
+        } catch (err: any) {
+            return reply.status(500).send({ error: err?.message || "YouTube 回调处理失败", code: "youtube_callback_error" });
+        }
+    });
+
+    // ============== Bilibili OAuth2 ==============
+    app.get("/auth/bilibili/start", async (req, reply) => {
+        try {
+            const dfp = ((req as any).query?.dfp || "browser") as string;
+            if (!BILIBILI_CLIENT_ID) return reply.status(500).send({ error: "Bilibili 配置未设置", code: "bilibili_config_missing" });
+            const state = uuidv4();
+            const codeVerifier = generateCodeVerifier();
+            await setBilibiliOAuthState(state, { codeVerifier, dfp, issuedAt: Date.now() });
+            const params = new URLSearchParams({
+                client_id: BILIBILI_CLIENT_ID,
+                response_type: "code",
+                redirect_uri: BILIBILI_REDIRECT_URI,
+                state,
+            });
+            return reply.send({ authUrl: `https://passport.bilibili.com/register/verification.html?${params.toString()}`, state });
+        } catch (err: any) {
+            return reply.status(500).send({ error: err?.message || "Bilibili 启动失败", code: "bilibili_start_error" });
+        }
+    });
+
+    app.post<{ Body: { code: string; state: string } }>("/auth/bilibili/callback", async (req, reply) => {
+        try {
+            const { code, state } = (req.body || {}) as { code: string; state: string };
+            if (!code || !state) return reply.status(400).send({ error: "缺少 code 或 state", code: "bad_request" });
+            const rec = await getBilibiliOAuthState(state);
+            if (!rec) return reply.status(400).send({ error: "state 无效或已过期", code: "invalid_state" });
+            if (Date.now() - rec.issuedAt > PKCE_TTL_MS) { await deleteBilibiliOAuthState(state); return reply.status(400).send({ error: "登录会话已过期", code: "pkce_expired" }); }
+
+            // Exchange code for access token
+            const tokenResp = await fetch("https://api.bilibili.com/x/account-oauth2/v1/token", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({
+                    client_id: BILIBILI_CLIENT_ID,
+                    client_secret: BILIBILI_CLIENT_SECRET,
+                    grant_type: "authorization_code",
+                    code,
+                    redirect_uri: BILIBILI_REDIRECT_URI,
+                }).toString(),
+            });
+            if (!tokenResp.ok) return reply.status(400).send({ error: "Bilibili 令牌交换失败", code: "token_exchange_failed", details: await tokenResp.text() });
+            const tokenJson: any = await tokenResp.json();
+            const accessToken = tokenJson?.data?.access_token || tokenJson?.access_token;
+            if (!accessToken) return reply.status(400).send({ error: "缺少 access_token", code: "token_missing" });
+
+            // Fetch Bilibili user info
+            const userResp = await fetch("https://api.bilibili.com/x/space/v2/myinfo", {
+                headers: { "Authorization": `Bearer ${accessToken}` },
+            });
+            let biliName = "Bilibili User";
+            let biliAvatar = "";
+            let biliMid = "";
+            if (userResp.ok) {
+                const userJson: any = await userResp.json();
+                const profile = userJson?.data?.profile || userJson?.data || {};
+                biliName = profile.name || profile.uname || biliName;
+                biliAvatar = profile.face || "";
+                biliMid = String(profile.mid || "");
+            }
+
+            const user = await findOrCreateUserByDid(`bilibili:${biliMid || uuidv4()}`, { nickname: biliName, avatar: biliAvatar });
+            const claims = buildJWTClaims(user.id, { dom: `bilibili:${biliName}`, dfp: rec.dfp });
+            const jwtToken = await reply.jwtSign(claims, { algorithm: "HS256" as any });
+            await deleteBilibiliOAuthState(state);
+            return reply.send(buildAuthResponse(jwtToken, user, claims, rec.dfp, Buffer.from("bilibili_oauth").toString("base64").slice(0, 44)));
+        } catch (err: any) {
+            return reply.status(500).send({ error: err?.message || "Bilibili 回调处理失败", code: "bilibili_callback_error" });
         }
     });
 

@@ -357,7 +357,64 @@
 请生成这个界面的高保真设计图。
 ```
 
-**保存路径**：`d:\111new_sp\new_sp\video-platform\design\ai-royalty-dashboard.png`
+
+---
+
+### Phase 5: Web3-Powered Cross-Media Feed
+
+```
+请生成：第五阶段终极形态的“跨媒体信息流 (Cross-Media Feed)” 概念界面
+
+设计目标：完美融合 Web2 的“刷短视频般上瘾的消费体验”与底层硬核 Web3 技术（Fiber流支付、JoyID、Spore协议、RGB++版税）的无感交互。
+
+布局说明（暗黑科技娱乐风）：
+- 背景：全屏沉浸式的视觉体（一张极具赛博朋克感的 AI 生成画面），带有轻微暗紫色/暗青色环境光晕，底色为纯黑(`#08080c`)。
+- 顶部状态栏：左上角极小的文字 "14:38"，右上角有一个发绿光的极其精致的【指纹图标】，旁边写着 "Passkey Active"（代表 JoyID 无感会话已激活）。
+- 顶部悬浮导航：毛玻璃效果，左侧有 "For You"（下划线高亮）和 "Following"。右侧是一个琥珀色边框的小胶囊，带闪电图标显示 "12.5 CKB"（代表 Fiber Network 余额通道）。
+- 右侧悬浮交互栏 (仿TikTok位置)：
+  - 从上到下：创作者头像（带粉色+号）、红色爱心(24.5K)、评论(1,204)、分享。
+  - 最底部是一个极其炫目、发着青蓝色光芒的圆形大按钮，上面有脉冲动画和几何纹理。按钮下方写着赛博朋克字体的 "COLLECT"（这代表使用 Spore 协议零基础一键 Mint NFT，替代枯燥的 Web3 操作）。
+- 左下角内容与资产信息区：
+  - 内容标签组：两个胶囊标签。一个是紫色底 "[音乐图标] AI Music Track"，旁边紧挨着一个是蓝色发光底的 Web3 溯源标签 "[光盘图标] Spore Protocol / Arweave"。
+  - 标题与描述："Cybernetic Dreams Vol.1 (Official Audio)" 及其两行灰色介绍文字。
+  - 【核心特色 - 流支付可视化模块】：在描述下方，有一个带有发光琥珀色边框的长条模块。最左侧是跳动的金色闪电。文字显示 "Streaming Payment: -0.005 CKB/s"，旁边有三根跳动的金色音量柱形图代表资金流。模块右侧用很小的粉色字写着："Creators get: 92% RGB++"（代表版税智能合约的实时运行）。
+- 底部与导航：底部有一条极细的白色进度条。最下方是标准的 Web2 黑色沉浸到底的 Dock（Explore, Read, 中间的彩色发布大按钮, Inbox, Profile）。
+
+整体色彩与材质：深沉黑底 + 高亮霓虹色（Cyan, Magenta, Amber）。需要具有顶级的 Dribbble / 欧美顶级 Crypto App（如 Backpack, Phantom 早期感）那种极简但质感十足的视觉冲击力。让复杂的 Web3 协议（Fiber, Spore, RGB++）变成令人兴奋的游戏化/科技化 UI 元素，完美融入娱乐信息流。
+```
+
+**保存路径**：`d:\111new_sp\new_sp\video-platform\design\web3_cross_media_feed.png`
+
+---
+
+### Phase 6 (Refactor): Gamified DAO (Fan Guilds)
+
+```
+请生成：重构后的 DAO 治理页面（泛娱乐粉丝俱乐部/公会风格）
+
+布局说明：
+- 沉浸式背景：带有热烈音乐节或粉丝应援会氛围的动态暗夜背景，叠加橙色/粉色发光微粒。
+- 顶部导航区：
+  - 盾牌图标加上金黄色的文字 "Guild Secured"。
+- 页面核心视觉区 (头部大图)：
+  - 一张极具冲击力的赛博朋克风音乐厂牌或科幻阵营的高清横幅图片。
+  - 图片左下角醒目的厂牌名称："Neon Syndicate"，上方有金色小标签 "Verified Faction"。
+  - 图片右下角是用户的粉丝玻璃态卡片（替代无聊的治理权重分数）：高亮的金色星星，文字显示 "LVL.4 Your Fan Cred"。
+- 金库目标区 (The Vault - 替代 Treasury)：
+  - 一个带有强烈橙色/金色发光的面板，左上角标有奖杯图标 "Guild Vault"。金额显示 "1.2M CKB"。
+  - 下方是一个进度条："Next Unlock: Exclusive Live Set (75%)"。进度条发出耀眼的金光。
+- 提案/任务区 (Active Quests - 替代 Proposals)：
+  - 标题旁带有燃烧的火焰图标："Active Quests"。
+  - 任务卡片 1："Fund the Next CGI Music Video"，配有史诗级的封面缩略图。
+  - 卡片中间是类似众筹打赏的能量条：绿色高亮 "Make it Happen (82%)"，旁边有几个支持者的圆形小头像。
+  - 卡片底部：一个极其炫目的紫色/粉色渐变大按钮，带有闪电图标，写着 "Back this Project"。
+  - 在卡片的一角，有一个非常小但充满科技感的粉色 JoyID 指纹授权徽章隐约可见。
+
+整体要求：彻底摒弃 Web3 金融/交易所的严肃感。把这设计成一个会让Z世代粉丝疯狂的“饭圈打榜/共建公会”一样的极度炫酷、充满激励感、高级 Dribbble 风格的沉浸式 App 界面。
+```
+
+**保存路径**：`d:\111new_sp\new_sp\video-platform\design\gamified-dao-guild.png`
+
 
 ---
 
