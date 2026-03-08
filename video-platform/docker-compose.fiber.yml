@@ -1,0 +1,30 @@
+version: '3.8'
+# Fiber Network Node (FNN) v0.7.1 — CKB Testnet
+# Downloads the official FNN Linux binary and runs it with testnet configuration.
+#
+# Usage:
+#   docker-compose -f docker-compose.fiber.yml up -d
+#
+# RPC endpoint: http://localhost:8227
+# P2P port: 8228
+#
+# After startup, set in .env.local:
+#   FIBER_RPC_URL=http://localhost:8227
+#   FIBER_ALLOW_MOCK=0
+services:
+  fiber-node:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.fiber
+    container_name: nexus-fiber
+    # Host network mode: RPC binds to 127.0.0.1 (secure) and ports are directly accessible
+    network_mode: host
+    volumes:
+      - fiber-data:/app/data
+    environment:
+      - RUST_LOG=info
+      - FIBER_SECRET_KEY_PASSWORD=nexus_dev_2025
+    restart: unless-stopped
+
+volumes:
+  fiber-data:

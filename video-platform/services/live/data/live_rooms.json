@@ -1,0 +1,18 @@
+{
+  "live-15b4be6d-35cb-4c1c-a85b-109bbfad60fc-1768316939862": {
+    "roomId": "live-15b4be6d-35cb-4c1c-a85b-109bbfad60fc-1768316939862",
+    "name": "live-15b4be6d-35cb-4c1c-a85b-109bbfad60fc-1768316939862",
+    "title": "AI",
+    "description": "AI已来",
+    "creatorId": "15b4be6d-35cb-4c1c-a85b-109bbfad60fc",
+    "creatorAddress": "ckt1qyqf0c6bf4f1979cbab5a516209faa6e0",
+    "status": "live",
+    "category": "聊天",
+    "startedAt": "2026-01-13T15:09:04.825Z",
+    "viewerCount": 0,
+    "peakViewerCount": 0,
+    "totalTips": 0,
+    "isRecording": false,
+    "createdAt": "2026-01-13T15:09:04.825Z"
+  }
+}

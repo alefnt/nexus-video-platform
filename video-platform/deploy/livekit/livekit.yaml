@@ -1,0 +1,29 @@
+port: 7880
+bind_addresses:
+    - ""
+rtc:
+    tcp_port: 7881
+    port_range_start: 50000
+    port_range_end: 50050
+    use_external_ip: false
+
+redis:
+    address: redis:6379
+    username: ""
+    password: ""
+    db: 0
+    use_tls: false
+
+keys:
+    API7G63Reip94z9: g7BEIVLH21JoHX2flUaeuAq7eBtDbqIwKXGIVPQDhepC
+
+logging:
+    json: false
+    level: info
+
+webhook:
+    # URL where LiveKit will send events (our backend)
+    # NOTE: In Docker, host.docker.internal allows access to host localhost
+    urls:
+        - http://host.docker.internal:8096/live/webhook
+    api_key: API7G63Reip94z9 # Optional: sign webhook to verify it's from LiveKit

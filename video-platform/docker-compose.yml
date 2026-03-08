@@ -1,0 +1,85 @@
+# docker-compose.yml
+
+# ─────────────────────────────────────────────────────
+# Development docker-compose
+# Passwords are loaded from .secrets/ files (gitignored)
+# For production, use deploy/docker/docker-compose.production.yml
+# ─────────────────────────────────────────────────────
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: nexus
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    secrets:
+      - db_password
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U nexus" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass nexus123
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: nexus_admin
+      MINIO_ROOT_PASSWORD: nexus_minio_2024
+    command: server /data --console-address ":9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: [ "CMD", "mc", "ready", "local" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    ports:
+      - "7700:7700"
+    environment:
+      MEILI_MASTER_KEY: nexus_meili_dev_key
+      MEILI_ENV: development
+    volumes:
+      - meilidata:/meili_data
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:7700/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+secrets:
+  db_password:
+    file: ./.secrets/db_password
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  meilidata:

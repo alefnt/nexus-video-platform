@@ -1,0 +1,582 @@
+/* Watch Party — Base: layout, container, grid, lobby, participants, responsive */
+
+:root {
+  --neon-blue: #00f3ff;
+  --neon-pink: #bc13fe;
+  --neon-green: #00ff9f;
+  --neon-orange: #ff8c00;
+  --glass-bg: rgba(20, 20, 35, 0.85);
+  --glass-bg-light: rgba(40, 40, 60, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+/* ========== Page Layout ========== */
+.wp-page {
+  position: relative;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0a1a, #1a0a2a);
+  color: #fff;
+  font-family: 'Inter', -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+.wp-bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.wp-fallback-bg {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #050510 0%, #0a0520 50%, #100818 100%);
+  position: relative;
+}
+
+.wp-grid-overlay {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  animation: grid-scroll 20s linear infinite;
+}
+
+@keyframes grid-scroll {
+  0% {
+    background-position: 0 0;
+  }
+
+  100% {
+    background-position: 50px 50px;
+  }
+}
+
+.wp-room-view {
+  position: relative;
+  overflow: hidden;
+}
+
+.wp-room-content {
+  position: relative;
+  z-index: 10;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ========== Lobby ========== */
+.wp-lobby {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 40px 20px;
+  position: relative;
+  z-index: 10;
+}
+
+.wp-lobby-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.wp-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 3.5rem;
+  font-weight: 900;
+  margin: 0 0 16px;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  background: linear-gradient(90deg,
+      #ff0080,
+      #ff8c00,
+      #ffff00,
+      #00ff9f,
+      #00f3ff,
+      #bc13fe,
+      #ff0080);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: rainbow-shift 3s linear infinite;
+  text-shadow: none;
+}
+
+@keyframes rainbow-shift {
+  0% {
+    background-position: 0% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.wp-neon-text {
+  -webkit-text-fill-color: transparent;
+}
+
+@keyframes neon-flicker {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.9;
+  }
+
+  52% {
+    opacity: 1;
+  }
+
+  54% {
+    opacity: 0.95;
+  }
+}
+
+.wp-subtitle {
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+}
+
+.wp-lobby-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  max-width: 400px;
+  width: 100%;
+  z-index: 100;
+  position: relative;
+  pointer-events: auto;
+}
+
+.wp-divider {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 16px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.wp-divider::before,
+.wp-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.2), transparent);
+}
+
+.wp-join-form {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.wp-input {
+  flex: 1;
+  padding: 14px 18px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 16px;
+  outline: none;
+  transition: all 0.3s;
+}
+
+.wp-input:focus {
+  border-color: var(--neon-blue);
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+}
+
+.wp-3d-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.4;
+}
+
+/* ========== Create Room ========== */
+.wp-create {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  position: relative;
+  z-index: 100;
+  min-height: 100vh;
+}
+
+.wp-create-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 2rem;
+  margin: 24px 0 32px;
+  text-align: center;
+  background: linear-gradient(90deg, #ff0080, #ff8c00, #ffff00, #00ff9f, #00f3ff, #bc13fe, #ff0080);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: rainbow-shift 3s linear infinite;
+}
+
+.wp-section {
+  margin-bottom: 32px;
+}
+
+.wp-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  color: var(--neon-blue);
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.wp-video-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wp-video-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.wp-video-item:hover {
+  background: var(--glass-bg-light);
+}
+
+.wp-video-item.selected {
+  border-color: var(--neon-pink);
+  background: rgba(188, 19, 254, 0.1);
+}
+
+.wp-video-thumb {
+  width: 60px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--neon-pink);
+}
+
+.wp-countdown-options {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.wp-countdown-btn {
+  padding: 12px 20px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.wp-countdown-btn:hover {
+  background: var(--glass-bg-light);
+}
+
+.wp-countdown-btn.active {
+  border-color: var(--neon-green);
+  background: rgba(0, 255, 159, 0.1);
+  color: var(--neon-green);
+}
+
+.wp-room-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+}
+
+.wp-room-id {
+  font-family: monospace;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.wp-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(0, 243, 255, 0.1);
+  border: 1px solid var(--neon-blue);
+  border-radius: 8px;
+  color: var(--neon-blue);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.wp-copy-btn:hover {
+  background: rgba(0, 243, 255, 0.2);
+}
+
+/* ========== Room View ========== */
+.wp-3d-container {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+.wp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.wp-overlay>* {
+  pointer-events: auto;
+}
+
+.wp-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent);
+}
+
+.wp-room-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.wp-room-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wp-participant-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--glass-bg);
+  border-radius: 20px;
+  font-size: 13px;
+}
+
+.wp-share-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.wp-share-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ========== Right Panel ========== */
+.wp-right-panel {
+  position: absolute;
+  right: 24px;
+  top: 80px;
+  bottom: 80px;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ========== Participants ========== */
+.wp-participants {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 16px;
+  max-height: 200px;
+  overflow: hidden;
+}
+
+.wp-participants-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--neon-green);
+}
+
+.wp-participant-count {
+  background: rgba(0, 255, 159, 0.2);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.wp-participant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 130px;
+  overflow-y: auto;
+}
+
+.wp-participant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.wp-participant.self {
+  background: rgba(0, 243, 255, 0.1);
+}
+
+.wp-participant.host {
+  background: rgba(255, 140, 0, 0.1);
+}
+
+.wp-participant-avatar {
+  position: relative;
+  width: 32px;
+  height: 32px;
+}
+
+.wp-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: #000;
+}
+
+.wp-host-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  background: var(--neon-orange);
+  border-radius: 50%;
+  padding: 3px;
+  display: flex;
+}
+
+.wp-participant-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wp-participant-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.wp-participant-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.wp-participant-status.online {
+  color: var(--neon-green);
+}
+
+/* ========== Main Area ========== */
+.wp-main-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  padding-right: 360px;
+}
+
+/* ========== Loading Spinner ========== */
+.wp-loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(0, 243, 255, 0.2);
+  border-top-color: var(--neon-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 768px) {
+  .wp-right-panel {
+    position: fixed;
+    right: 8px;
+    left: 8px;
+    top: auto;
+    bottom: 8px;
+    width: auto;
+    height: 50vh;
+  }
+
+  .wp-main-area {
+    padding-right: 20px;
+  }
+
+  .wp-title {
+    font-size: 2rem;
+  }
+
+  .wp-countdown-timer {
+    font-size: 3rem;
+  }
+
+  .wp-payment-options {
+    max-width: 280px;
+  }
+
+  .wp-modal {
+    padding: 24px;
+  }
+}

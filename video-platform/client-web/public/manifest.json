@@ -1,0 +1,84 @@
+{
+    "name": "Nexus Video",
+    "short_name": "Nexus",
+    "description": "去中心化视频社交平台 - 创作者优先, Web3 确权",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0a0a1a",
+    "theme_color": "#8b5cf6",
+    "orientation": "any",
+    "icons": [
+        {
+            "src": "/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "/icons/icon-512-maskable.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "categories": [
+        "entertainment",
+        "social"
+    ],
+    "screenshots": [
+        {
+            "src": "/screenshots/home.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "label": "首页推荐"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "上传视频",
+            "short_name": "上传",
+            "description": "上传新内容",
+            "url": "/upload",
+            "icons": [
+                {
+                    "src": "/icons/upload.png",
+                    "sizes": "96x96"
+                }
+            ]
+        },
+        {
+            "name": "直播",
+            "short_name": "开播",
+            "description": "开始直播",
+            "url": "/live/studio",
+            "icons": [
+                {
+                    "src": "/icons/live.png",
+                    "sizes": "96x96"
+                }
+            ]
+        }
+    ],
+    "share_target": {
+        "action": "/upload",
+        "method": "POST",
+        "enctype": "multipart/form-data",
+        "params": {
+            "title": "title",
+            "text": "description",
+            "url": "url",
+            "files": [
+                {
+                    "name": "video",
+                    "accept": [
+                        "video/*"
+                    ]
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,24 @@
+{
+    "name": "@video-platform/service-moderation",
+    "version": "0.1.0",
+    "type": "module",
+    "scripts": {
+        "dev": "tsx src/server.ts",
+        "start": "node dist/server.js",
+        "build": "tsc -p tsconfig.json"
+    },
+    "dependencies": {
+        "fastify": "^4.25.2",
+        "@fastify/cors": "^8.4.0",
+        "@video-platform/database": "file:../../packages/database",
+        "@video-platform/shared": "file:../../shared",
+        "nsfwjs": "^4.0.0",
+        "@tensorflow/tfjs-node": "^4.15.0",
+        "prom-client": "^15.1.0"
+    },
+    "devDependencies": {
+        "tsx": "^4.7.0",
+        "typescript": "^5.5.0",
+        "@types/node": "^20.11.0"
+    }
+}

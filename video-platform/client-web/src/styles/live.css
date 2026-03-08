@@ -1,0 +1,392 @@
+/**
+ * Live Page — 提取后的样式
+ *
+ * 从 Live.tsx 的 250+ 行内联 <style> 提取出来
+ * 借鉴 Fitting Pad 的毛玻璃+霓虹设计语言升级
+ */
+
+/* ========== Layout ========== */
+.live-page {
+    min-height: 100vh;
+    padding-bottom: 80px;
+}
+
+.live-container {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 24px;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.live-main {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+}
+
+/* ========== Player ========== */
+.player-wrapper {
+    position: relative;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    aspect-ratio: 16/9;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* ========== Sidebar ========== */
+.live-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: calc(100vh - 120px);
+    position: sticky;
+    top: 100px;
+}
+
+.sidebar-section {
+    background: rgba(19, 19, 31, 0.72);
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(162, 103, 255, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chat-container-card {
+    flex: 1;
+    min-height: 400px;
+}
+
+/* ========== Live Info (主播信息) ========== */
+.live-info {
+    padding: 20px;
+    background: rgba(19, 19, 31, 0.6);
+    border-radius: 14px;
+    border: 1px solid rgba(162, 103, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.live-info h1 {
+    margin: 0 0 16px;
+    font-size: 24px;
+    line-height: 1.3;
+}
+
+.host-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.host-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #A267FF, #00F5D4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 0 12px rgba(162, 103, 255, 0.35);
+}
+
+.host-details {
+    flex: 1;
+}
+
+.host-name {
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+.host-stats {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    display: flex;
+    gap: 12px;
+}
+
+/* ========== Actions ========== */
+.live-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.like-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 25px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.like-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(162, 103, 255, 0.15);
+}
+
+.like-btn.liked {
+    color: #FF2E93;
+    border-color: rgba(255, 46, 147, 0.3);
+    background: rgba(255, 46, 147, 0.1);
+    animation: likeAnimation 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes likeAnimation {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.2);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.like-text {
+    display: none;
+}
+
+/* ========== Leaderboard (排行榜) ========== */
+.leaderboard-list {
+    padding: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.leaderboard-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.leaderboard-item:hover {
+    background: rgba(162, 103, 255, 0.06);
+}
+
+.rank {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 14px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.rank.gold {
+    color: #FFD700;
+    background: rgba(255, 215, 0, 0.1);
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.2);
+}
+
+.rank.silver {
+    color: #E0E0E0;
+    background: rgba(224, 224, 224, 0.08);
+}
+
+.rank.bronze {
+    color: #CD7F32;
+    background: rgba(205, 127, 50, 0.08);
+}
+
+.leaderboard-name {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.leaderboard-amount {
+    font-family: var(--font-mono);
+    color: #FFD700;
+    font-weight: 700;
+    font-size: 14px;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+/* ========== Loading / Error ========== */
+.loading-container,
+.error-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 80vh;
+    gap: 24px;
+    text-align: center;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(162, 103, 255, 0.2);
+    border-top-color: #A267FF;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ========== Mobile ========== */
+@media (max-width: 1024px) {
+    .live-container {
+        grid-template-columns: 1fr;
+        padding: 0;
+        gap: 0;
+    }
+
+    .player-wrapper {
+        border-radius: 0;
+        position: sticky;
+        top: 0;
+        z-index: 50;
+    }
+
+    .live-info {
+        padding: 16px;
+        border-radius: 0;
+    }
+
+    .live-sidebar {
+        height: auto;
+        position: static;
+        padding: 16px;
+    }
+
+    .desktop-chat-container {
+        display: none;
+    }
+
+    .mobile-chat-overlay {
+        display: block !important;
+    }
+
+    .mobile-chat-overlay .live-chat {
+        height: 100%;
+        background: transparent;
+    }
+
+    .like-text {
+        display: inline;
+    }
+}
+
+@media (min-width: 768px) {
+    .like-text {
+        display: inline;
+    }
+}
+
+/* ========== Ticket / Pay Gate ========== */
+.pay-gate {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.pay-gate-ticket {
+    background: radial-gradient(circle at center, #1a1a2e 0%, #000 100%);
+}
+
+.pay-gate-stream {
+    background: radial-gradient(circle at center, #0a1a2e 0%, #000 100%);
+}
+
+.pay-gate-icon {
+    font-size: 64px;
+    margin-bottom: 24px;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.pay-gate-price {
+    font-size: 42px;
+    font-weight: 800;
+    font-family: var(--font-mono);
+    text-shadow: 0 0 20px currentColor;
+}
+
+.pay-gate-price.gold {
+    color: #FFD700;
+}
+
+.pay-gate-price.cyan {
+    color: #00D9FF;
+}
+
+.pay-gate-cta {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    border: none;
+    padding: 16px 48px;
+    border-radius: 50px;
+    color: #000;
+    font-size: 18px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 0 30px rgba(255, 165, 0, 0.3);
+    transition: all 0.2s;
+}
+
+.pay-gate-cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 40px rgba(255, 165, 0, 0.5);
+}
+
+.pay-gate-cta:disabled {
+    cursor: wait;
+    opacity: 0.7;
+    transform: scale(0.98);
+}

@@ -1,0 +1,20 @@
+{
+    "name": "@video-platform/engagement",
+    "version": "0.1.0",
+    "type": "module",
+    "scripts": {
+        "dev": "tsx watch src/server.ts",
+        "build": "tsc",
+        "start": "node dist/server.js"
+    },
+    "dependencies": {
+        "@video-platform/database": "*",
+        "@video-platform/shared": "*",
+        "fastify": "^4.28.0"
+    },
+    "devDependencies": {
+        "tsx": "^4.7.0",
+        "typescript": "^5.3.3",
+        "@types/node": "^20.10.5"
+    }
+}

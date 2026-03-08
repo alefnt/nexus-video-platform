@@ -1,0 +1,9 @@
+// FILE: /video-platform/contracts/rgbpp-royalty/Capsule.toml
+# 功能说明：RGB++ 合约 Capsule 配置（示例/Mock）。
+
+[package]
+name = "rgbpp-royalty"
+version = "0.1.0"
+
+[contracts]
+lib = "src/lib.rs"

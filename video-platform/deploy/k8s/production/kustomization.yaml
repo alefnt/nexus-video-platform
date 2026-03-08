@@ -1,0 +1,40 @@
+# Production Overlay
+# FILE: /video-platform/deploy/k8s/production/kustomization.yaml
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../base
+
+namePrefix: prod-
+
+commonLabels:
+  environment: production
+
+patches:
+  # 增加生产环境副本数
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+    target:
+      kind: Deployment
+      name: identity
+  
+  # 增加资源限制
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "1Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "1"
+    target:
+      kind: Deployment
+
+replicas:
+  - name: identity
+    count: 3
+  - name: web
+    count: 3

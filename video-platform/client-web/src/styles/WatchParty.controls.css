@@ -1,0 +1,282 @@
+/* Watch Party — Controls: buttons, countdown overlay, host controls, connection status, modals */
+
+/* ========== Buttons ========== */
+.wp-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: none;
+}
+
+.wp-btn-primary {
+  background: linear-gradient(90deg,
+      #ff0080,
+      #ff8c00,
+      #ffff00,
+      #00ff9f,
+      #00f3ff,
+      #bc13fe,
+      #ff0080);
+  background-size: 300% 100%;
+  color: #fff;
+  box-shadow: 0 4px 25px rgba(188, 19, 254, 0.5);
+  animation: rainbow-btn 4s linear infinite;
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes rainbow-btn {
+  0% {
+    background-position: 0% center;
+  }
+
+  100% {
+    background-position: 300% center;
+  }
+}
+
+.wp-btn-primary:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 35px rgba(188, 19, 254, 0.6), 0 0 20px rgba(0, 243, 255, 0.3);
+}
+
+.wp-btn-secondary {
+  background: var(--glass-bg);
+  color: var(--neon-blue);
+  border: 1px solid var(--neon-blue);
+}
+
+.wp-btn-secondary:hover {
+  background: rgba(0, 243, 255, 0.1);
+}
+
+.wp-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wp-btn-start {
+  width: 100%;
+  max-width: 400px;
+  background: linear-gradient(135deg, var(--neon-green), var(--neon-blue));
+  color: #000;
+  font-size: 18px;
+  padding: 18px 32px;
+}
+
+.wp-btn-start:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 30px rgba(0, 255, 159, 0.4);
+}
+
+.wp-btn-start-now {
+  background: var(--neon-green);
+  color: #000;
+  padding: 12px 24px;
+}
+
+.wp-back-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.wp-back-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ========== Countdown Overlay ========== */
+.wp-countdown-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+}
+
+.wp-countdown-content {
+  text-align: center;
+}
+
+.wp-countdown-label {
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+}
+
+.wp-countdown-timer {
+  font-family: 'Orbitron', monospace;
+  font-size: 6rem;
+  font-weight: 900;
+  color: var(--neon-green);
+  text-shadow: 0 0 30px var(--neon-green), 0 0 60px var(--neon-green);
+  animation: pulse-glow 1s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    text-shadow: 0 0 30px var(--neon-green), 0 0 60px var(--neon-green);
+  }
+
+  50% {
+    text-shadow: 0 0 40px var(--neon-green), 0 0 80px var(--neon-green), 0 0 100px var(--neon-green);
+  }
+}
+
+.wp-countdown-video {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 24px;
+}
+
+/* ========== Host Controls ========== */
+.wp-host-controls {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* ========== Connection Status ========== */
+.wp-connection-status {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--glass-bg);
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.wp-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff4444;
+}
+
+.wp-connection-status.connected .wp-status-dot {
+  background: var(--neon-green);
+  box-shadow: 0 0 10px var(--neon-green);
+}
+
+/* ========== Payment Modal ========== */
+.wp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(8px);
+}
+
+.wp-modal {
+  background: linear-gradient(135deg, rgba(20, 10, 40, 0.95), rgba(10, 10, 30, 0.95));
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 0 40px rgba(0, 243, 255, 0.3);
+}
+
+.wp-modal h3 {
+  font-size: 1.5rem;
+  margin: 0 0 20px;
+  text-align: center;
+  color: white;
+}
+
+.wp-modal p {
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  margin: 0 0 16px;
+}
+
+.wp-modal strong {
+  color: var(--neon-green);
+}
+
+.wp-group-summary {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.wp-group-summary p {
+  margin: 8px 0;
+}
+
+.wp-discount-highlight {
+  color: #ffd700 !important;
+  font-weight: bold;
+}
+
+.wp-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+/* Modal-context button overrides */
+.wp-modal .wp-btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: none;
+}
+
+.wp-modal .wp-btn-secondary {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.wp-modal .wp-btn-secondary:hover {
+  border-color: white;
+}
+
+.wp-modal .wp-btn-primary {
+  background: linear-gradient(90deg, var(--neon-blue), var(--neon-green));
+  color: black;
+}
+
+.wp-modal .wp-btn-primary:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+}
+
+.wp-modal .wp-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}

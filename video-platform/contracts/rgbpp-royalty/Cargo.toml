@@ -1,0 +1,9 @@
+// FILE: /video-platform/contracts/rgbpp-royalty/Cargo.toml
+[package]
+name = "rgbpp-royalty"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "rgbpp_royalty"
+path = "src/lib.rs"

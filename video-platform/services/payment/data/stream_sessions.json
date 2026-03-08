@@ -1,0 +1,278 @@
+{
+  "017a8e1f-e818-4886-8cc8-008160c4577e": {
+    "sessionId": "017a8e1f-e818-4886-8cc8-008160c4577e",
+    "videoId": "b7df801a-5f7d-4881-92b4-4084c56656bb",
+    "userId": "201b017a-e1ad-4256-abdb-292624ea8d90",
+    "videoDurationSeconds": 600,
+    "pricePerMinute": 10,
+    "segmentMinutes": 5,
+    "totalSegments": 2,
+    "currentSegment": 2,
+    "paidSegments": [
+      1,
+      2
+    ],
+    "lastWatchedSegment": 1,
+    "totalPaid": 100,
+    "actualUsedSeconds": 425,
+    "invoices": [
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_d47ab65b-f442-49eb-aca7-c11510c9141d",
+        "paymentHash": "mock_hash_1768049707753",
+        "amount": 50,
+        "status": "pending"
+      },
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_22ef6083-b428-46f7-855b-0d60a05baf35",
+        "paymentHash": "mock_hash_1768049757257",
+        "amount": 50,
+        "status": "pending"
+      },
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_1d61a832-e0cd-4fed-9536-5f31ef52d9a2",
+        "paymentHash": "mock_hash_1768049766301",
+        "amount": 50,
+        "status": "pending"
+      },
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_63e866e0-c9b0-4fc3-baad-45d99f316893",
+        "paymentHash": "mock_hash_1768050150604",
+        "amount": 50,
+        "status": "pending"
+      },
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_8f85798d-6ad6-4481-a621-c3b915b0f22f",
+        "paymentHash": "mock_hash_1768050453567",
+        "amount": 50,
+        "status": "pending"
+      },
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_fc8068f6-2f6d-4580-81b3-2dcd5d456d06",
+        "paymentHash": "mock_hash_1768050476242",
+        "amount": 50,
+        "status": "pending"
+      },
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_c4f0148a-5dd3-43e6-b5b8-8b28b41970c2",
+        "paymentHash": "mock_hash_1768052819060",
+        "amount": 50,
+        "status": "paid"
+      },
+      {
+        "segmentNumber": 2,
+        "invoice": "mock_invoice_99631f99-7372-4b4c-b1e5-8070e800406c",
+        "paymentHash": "mock_hash_1768053636552",
+        "amount": 50,
+        "status": "pending"
+      },
+      {
+        "segmentNumber": 2,
+        "invoice": "mock_invoice_43188cb6-7e46-4757-85f1-16317ca852ec",
+        "paymentHash": "mock_hash_1768054727909",
+        "amount": 50,
+        "status": "pending"
+      },
+      {
+        "segmentNumber": 2,
+        "invoice": "mock_invoice_49400d75-6fc7-4613-9f87-bf7fb312a870",
+        "paymentHash": "mock_hash_1768055500574",
+        "amount": 50,
+        "status": "paid"
+      }
+    ],
+    "status": "active",
+    "createdAt": "2026-01-10T12:55:07.753Z",
+    "lastTickAt": "2026-01-10T14:32:19.331Z",
+    "expiresAt": "2026-01-10T13:55:07.753Z"
+  },
+  "cb23035d-3df3-4165-98ab-01c850ce64a4": {
+    "sessionId": "cb23035d-3df3-4165-98ab-01c850ce64a4",
+    "videoId": "3f262fe2-6605-46f3-a761-dc814a1c6a5c",
+    "userId": "201b017a-e1ad-4256-abdb-292624ea8d90",
+    "videoDurationSeconds": 600,
+    "pricePerMinute": 10,
+    "segmentMinutes": 5,
+    "totalSegments": 2,
+    "currentSegment": 1,
+    "paidSegments": [],
+    "lastWatchedSegment": 0,
+    "totalPaid": 0,
+    "actualUsedSeconds": 0,
+    "invoices": [
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_5da18861-3704-44c4-8224-1dc4ea1c4412",
+        "paymentHash": "mock_hash_1768055664530",
+        "amount": 50,
+        "status": "pending"
+      }
+    ],
+    "status": "active",
+    "createdAt": "2026-01-10T14:34:24.530Z",
+    "lastTickAt": "2026-01-10T14:34:24.530Z",
+    "expiresAt": "2026-01-10T15:34:24.530Z"
+  },
+  "c056f271-f775-4f4e-af65-6f1fd3267d1f": {
+    "sessionId": "c056f271-f775-4f4e-af65-6f1fd3267d1f",
+    "videoId": "b7df801a-5f7d-4881-92b4-4084c56656bb",
+    "userId": "fb970111-0d5d-4d65-98fa-305cc5f361c8",
+    "videoDurationSeconds": 600,
+    "pricePerMinute": 10,
+    "segmentMinutes": 5,
+    "totalSegments": 2,
+    "currentSegment": 1,
+    "paidSegments": [
+      1
+    ],
+    "lastWatchedSegment": 0,
+    "totalPaid": 50,
+    "actualUsedSeconds": 29,
+    "invoices": [
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_d372eaf6-4058-4148-b7e8-8f4e1dd5e943",
+        "paymentHash": "mock_hash_1768311229985",
+        "amount": 50,
+        "status": "pending"
+      },
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_97947900-c70c-4063-a4d7-f60622f842f2",
+        "paymentHash": "mock_hash_1768311235675",
+        "amount": 50,
+        "status": "pending"
+      },
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_51aa0c1e-7f2c-4f91-9273-42453679e160",
+        "paymentHash": "mock_hash_1768311259586",
+        "amount": 50,
+        "status": "paid"
+      }
+    ],
+    "status": "active",
+    "createdAt": "2026-01-13T13:33:49.985Z",
+    "lastTickAt": "2026-01-13T13:36:40.751Z",
+    "expiresAt": "2026-01-13T14:33:49.985Z"
+  },
+  "9ba8b54f-d1ed-4a6f-bdb9-ed809121c470": {
+    "sessionId": "9ba8b54f-d1ed-4a6f-bdb9-ed809121c470",
+    "videoId": "b7df801a-5f7d-4881-92b4-4084c56656bb",
+    "userId": "2feb8b077319777d883981234d6cc5d7",
+    "videoDurationSeconds": 600,
+    "pricePerMinute": 10,
+    "segmentMinutes": 5,
+    "totalSegments": 2,
+    "currentSegment": 1,
+    "paidSegments": [
+      1
+    ],
+    "lastWatchedSegment": 0,
+    "totalPaid": 50,
+    "actualUsedSeconds": 3,
+    "invoices": [
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_8bc31b83-6f27-49fb-b316-781aa7b47fac",
+        "paymentHash": "mock_hash_1768317177334",
+        "amount": 50,
+        "status": "paid"
+      }
+    ],
+    "status": "active",
+    "createdAt": "2026-01-13T15:12:57.334Z",
+    "lastTickAt": "2026-01-13T15:13:03.888Z",
+    "expiresAt": "2026-01-13T16:12:57.334Z"
+  },
+  "0bdd4b7c-4230-4304-97f1-dcbfc17ac65e": {
+    "sessionId": "0bdd4b7c-4230-4304-97f1-dcbfc17ac65e",
+    "videoId": "b7df801a-5f7d-4881-92b4-4084c56656bb",
+    "userId": "2b8dd41a-e12d-49f5-8a0e-ce6d86000346",
+    "videoDurationSeconds": 600,
+    "pricePerMinute": 10,
+    "segmentMinutes": 5,
+    "totalSegments": 2,
+    "currentSegment": 1,
+    "paidSegments": [],
+    "lastWatchedSegment": 0,
+    "totalPaid": 0,
+    "actualUsedSeconds": 0,
+    "invoices": [
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_a71d7a12-faf2-47f4-82d3-75a6b8ec2345",
+        "paymentHash": "mock_hash_1768321296782",
+        "amount": 50,
+        "status": "pending"
+      },
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_65dcdeca-7587-4d4a-81ee-d5597000882b",
+        "paymentHash": "mock_hash_1768321298606",
+        "amount": 50,
+        "status": "pending"
+      },
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_fc256a1c-c2c1-4307-a087-67ae573d3a61",
+        "paymentHash": "mock_hash_1768321300199",
+        "amount": 50,
+        "status": "pending"
+      },
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_7b4411f5-6f4a-4aed-9a07-eb0b0f820f4a",
+        "paymentHash": "mock_hash_1768321301398",
+        "amount": 50,
+        "status": "pending"
+      },
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_21b9d6d8-0715-46da-84ac-4c63edce5e71",
+        "paymentHash": "mock_hash_1768321390799",
+        "amount": 50,
+        "status": "pending"
+      }
+    ],
+    "status": "active",
+    "createdAt": "2026-01-13T16:21:36.782Z",
+    "lastTickAt": "2026-01-13T16:23:10.799Z",
+    "expiresAt": "2026-01-13T17:21:36.782Z"
+  },
+  "729d797e-b17d-4b0a-886f-849f0f831d33": {
+    "sessionId": "729d797e-b17d-4b0a-886f-849f0f831d33",
+    "videoId": "3f262fe2-6605-46f3-a761-dc814a1c6a5c",
+    "userId": "2feb8b077319777d883981234d6cc5d7",
+    "videoDurationSeconds": 600,
+    "pricePerMinute": 10,
+    "segmentMinutes": 5,
+    "totalSegments": 2,
+    "currentSegment": 1,
+    "paidSegments": [
+      1
+    ],
+    "lastWatchedSegment": 0,
+    "totalPaid": 50,
+    "actualUsedSeconds": 0,
+    "invoices": [
+      {
+        "segmentNumber": 1,
+        "invoice": "mock_invoice_14a47319-4a0b-417c-8c70-6e68ac8e1b08",
+        "paymentHash": "mock_hash_1768321561605",
+        "amount": 50,
+        "status": "paid"
+      }
+    ],
+    "status": "active",
+    "createdAt": "2026-01-13T16:26:01.605Z",
+    "lastTickAt": "2026-01-13T16:26:01.605Z",
+    "expiresAt": "2026-01-13T17:26:01.605Z"
+  }
+}

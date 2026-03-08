@@ -1,0 +1,26 @@
+FROM debian:bookworm-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y curl tar ca-certificates openssl && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Download FNN v0.7.1 Linux binary
+RUN curl -L -o fnn.tar.gz https://github.com/nervosnetwork/fiber/releases/download/v0.7.1/fnn_v0.7.1-x86_64-linux-portable.tar.gz \
+    && tar xzf fnn.tar.gz \
+    && chmod +x fnn \
+    && rm fnn.tar.gz
+
+# Copy testnet config
+COPY docker/fiber-testnet-config.yml /app/config.yml
+
+# Copy entrypoint script
+COPY docker/fiber-entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Create data directory
+RUN mkdir -p /app/data
+
+EXPOSE 8227 8228
+
+ENTRYPOINT ["/app/entrypoint.sh"]

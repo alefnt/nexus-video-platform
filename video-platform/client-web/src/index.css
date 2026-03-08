@@ -1,0 +1,573 @@
+@import "tailwindcss";
+
+@theme {
+    --color-bgMain: #080811;
+    --color-bgDarker: #030308;
+    --color-bgCard: #0A0A10;
+    --color-nexusCyan: #22d3ee;
+    --color-nexusPurple: #a855f7;
+    --color-nexusPink: #ec4899;
+    --color-nexusYellow: #eab308;
+
+    --font-sans: 'Inter', system-ui, sans-serif;
+    --font-display: 'Outfit', 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+}
+
+:root {
+    --bg-main: #080811;
+    --bg-darker: #030308;
+    --sidebar-width: 256px;
+    --topbar-height: 80px;
+
+    --nexus-cyan: #22d3ee;
+    --nexus-purple: #a855f7;
+    --nexus-pink: #ec4899;
+}
+
+/* ========== Base Styles ========== */
+body {
+    background-color: var(--bg-main) !important;
+    color: white;
+    overflow-x: hidden;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ========== Glass Styling (Consolidated) ========== */
+.glass-panel {
+    background: rgba(10, 10, 16, 0.4);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-card {
+    background: rgba(15, 15, 25, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+}
+
+.glass-panel-hover {
+    transition: all 0.3s ease;
+}
+
+.glass-panel-hover:hover {
+    background: rgba(19, 19, 31, 0.9);
+    border-color: rgba(34, 211, 238, 0.3);
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.1);
+    transform: translateY(-2px);
+}
+
+/* ========== Neon Borders ========== */
+.neon-border {
+    border: 1px solid rgba(162, 103, 255, 0.25);
+    box-shadow: 0 0 15px rgba(162, 103, 255, 0.08),
+        inset 0 0 15px rgba(162, 103, 255, 0.03);
+}
+
+.neon-border-cyan {
+    border: 1px solid rgba(34, 211, 238, 0.25);
+    box-shadow: 0 0 15px rgba(34, 211, 238, 0.08),
+        inset 0 0 15px rgba(34, 211, 238, 0.03);
+}
+
+/* ========== Text Effects ========== */
+.glow-text {
+    text-shadow: 0 0 20px currentColor;
+}
+
+.glow-text-sm {
+    text-shadow: 0 0 10px currentColor;
+}
+
+.text-neon-cyan {
+    color: #00D5FF;
+    text-shadow: 0 0 10px rgba(0, 245, 212, 0.5);
+}
+
+.text-neon-pink {
+    color: #FF0055;
+    text-shadow: 0 0 10px rgba(255, 46, 147, 0.5);
+}
+
+/* ========== Background Utilities ========== */
+.bg-nexus-gradient {
+    background: linear-gradient(135deg, #0a0a12 0%, #000000 100%);
+}
+
+.bg-hero-gradient {
+    background: linear-gradient(to top, #050505 0%, transparent 100%);
+}
+
+/* ========== Sidebar Nav Items (Consolidated) ========== */
+.sidebar-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+}
+
+.sidebar-nav-item:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-nav-item:hover svg {
+    color: #22d3ee;
+}
+
+.sidebar-nav-item:hover span {
+    transform: translateX(4px);
+}
+
+.sidebar-nav-item span {
+    transition: transform 0.2s ease;
+}
+
+.sidebar-nav-item.active {
+    background: linear-gradient(90deg, rgba(34, 211, 238, 0.15) 0%, transparent 100%);
+    border-left: 3px solid #22d3ee;
+    color: #22d3ee;
+}
+
+.sidebar-nav-item.active svg {
+    color: #22d3ee;
+}
+
+/* ========== Hero Banner Glow (Consolidated) ========== */
+.hero-glow {
+    position: absolute;
+    top: 20%;
+    left: 10%;
+    width: 50%;
+    height: 50%;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%);
+    filter: blur(60px);
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* ========== Content Card (Consolidated) ========== */
+.content-card {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.content-card:hover {
+    transform: scale(1.05) translateY(-5px);
+    z-index: 10;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+}
+
+.content-card .play-btn-overlay {
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.3s;
+}
+
+.content-card:hover .play-btn-overlay {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* ========== Video Card Hover Effects ========== */
+.video-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.video-card:hover {
+    transform: translateY(-4px);
+    z-index: 20;
+}
+
+.video-card::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    background: linear-gradient(to bottom right, #22d3ee, #a855f7);
+    border-radius: 17px;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.video-card:hover::before {
+    opacity: 0.5;
+}
+
+.thumbnail-container {
+    overflow: hidden;
+    position: relative;
+}
+
+.thumbnail-img {
+    transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.video-card:hover .thumbnail-img {
+    transform: scale(1.05);
+}
+
+/* Play button animated overlay (Video Explorer) */
+.play-overlay {
+    opacity: 0;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(4px);
+}
+
+.video-card:hover .play-overlay {
+    opacity: 1;
+}
+
+.play-btn-inner {
+    transform: scale(0.8) translateY(10px);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.video-card:hover .play-btn-inner {
+    transform: scale(1) translateY(0);
+}
+
+/* ========== Vinyl Archive: Record Card Effects ========== */
+.record-card {
+    transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+    transform-style: preserve-3d;
+    position: relative;
+}
+
+.record-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    z-index: 20;
+}
+
+.record-card::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(to bottom right, #a855f7, #ec4899);
+    border-radius: 10px;
+    z-index: -2;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    filter: blur(8px);
+}
+
+.record-card:hover::after {
+    opacity: 0.6;
+}
+
+.record-card::before {
+    content: '';
+    position: absolute;
+    top: 2%;
+    right: 0%;
+    width: 96%;
+    height: 96%;
+    background: radial-gradient(circle, #222 20%, #111 21%, #000 80%);
+    border-radius: 50%;
+    z-index: -1;
+    transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+    opacity: 0;
+    box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.1), inset 0 0 20px rgba(0, 0, 0, 0.8);
+    background-image: repeating-radial-gradient(#111 0, #111 2px, #000 3px, #000 4px);
+}
+
+.record-card:hover::before {
+    right: -30%;
+    opacity: 1;
+    transform: rotate(90deg);
+}
+
+/* ========== Cyber Filter Buttons ========== */
+.cyber-filter {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #9ca3af;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    letter-spacing: 0.05em;
+}
+
+.cyber-filter:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.cyber-filter.active {
+    background: rgba(34, 211, 238, 0.1);
+    color: #22d3ee;
+    border-color: #22d3ee;
+    text-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
+    box-shadow: inset 0 0 10px rgba(34, 211, 238, 0.2);
+}
+
+.cyber-filter.active-purple {
+    background: rgba(168, 85, 247, 0.1);
+    color: #a855f7;
+    border-color: #a855f7;
+    text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+    box-shadow: inset 0 0 10px rgba(168, 85, 247, 0.2);
+}
+
+/* ========== Music Shelf Effect ========== */
+.shelf {
+    position: relative;
+    perspective: 1000px;
+    padding-bottom: 2rem;
+    margin-bottom: 3rem;
+}
+
+.shelf::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 5%;
+    width: 90%;
+    height: 20px;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1), transparent);
+    transform: rotateX(60deg);
+    box-shadow: 0 20px 30px rgba(0, 0, 0, 0.8);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+/* ========== Player Glow ========== */
+.player-glow {
+    box-shadow: 0 0 100px rgba(34, 211, 238, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* ========== Chat Glass Panel ========== */
+.chat-glass {
+    background: rgba(10, 10, 15, 0.7);
+    backdrop-filter: blur(15px);
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ========== Archives: Bookshelf Item Effects ========== */
+.book-item {
+    position: relative;
+    z-index: 10;
+    width: 150px;
+    height: 230px;
+    transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+    transform-style: preserve-3d;
+    perspective: 800px;
+    cursor: pointer;
+}
+
+.book-cover {
+    width: 100%;
+    height: 100%;
+    border-radius: 4px 10px 10px 4px;
+    box-shadow:
+        -4px 0 10px rgba(0, 0, 0, 0.5) inset,
+        6px 15px 25px rgba(0, 0, 0, 0.8);
+    transition: all 0.5s ease;
+    transform-origin: left center;
+    overflow: hidden;
+    position: relative;
+}
+
+.book-item::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 3px;
+    bottom: -3px;
+    width: 12px;
+    background: linear-gradient(to right, #111, #333);
+    border-radius: 2px 0 0 2px;
+    transform: skewY(-20deg);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.book-item::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    background: linear-gradient(to bottom right, #22d3ee, #a855f7);
+    border-radius: 8px 14px 14px 8px;
+    z-index: -2;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    filter: blur(10px);
+    transform: scale(0.9);
+}
+
+.book-item:hover {
+    transform: translateY(-20px) scale(1.05);
+    z-index: 50;
+}
+
+.book-item:hover::after {
+    opacity: 0.5;
+    transform: scale(1);
+}
+
+.book-item:hover .book-cover {
+    box-shadow:
+        -4px 0 10px rgba(0, 0, 0, 0.2) inset,
+        15px 30px 40px rgba(0, 0, 0, 0.9);
+}
+
+/* ========== Nexus Card ========== */
+.nexus-card {
+    background: rgba(15, 15, 25, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+}
+
+/* ========== Custom Scrollbar (Consolidated) ========== */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #030308;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.nexus-main-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.nexus-main-scroll::-webkit-scrollbar-track {
+    background: var(--bg-darker, #030308);
+}
+
+.nexus-main-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
+
+.nexus-main-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+/* ========== Hide Scrollbar Utility (Consolidated) ========== */
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* ========== Mask Fade ========== */
+.mask-fade-right {
+    -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
+    mask-image: linear-gradient(to right, black 90%, transparent 100%);
+}
+
+/* ========== Animations ========== */
+@keyframes breathing-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 10px rgba(0, 245, 212, 0.2);
+    }
+
+    50% {
+        box-shadow: 0 0 25px rgba(0, 245, 212, 0.5);
+    }
+}
+
+.animate-breathing-glow {
+    animation: breathing-glow 3s infinite;
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.animate-float {
+    animation: float 6s ease-in-out infinite;
+}
+
+/* ========== Typing Indicator (Chat) ========== */
+.typing-indicator span {
+    animation: blink 1.4s infinite cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes blink {
+    0% {
+        opacity: .2;
+    }
+
+    20% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: .2;
+    }
+}
+
+/* ========== Mini Player (Music) ========== */
+.mini-player {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(168, 85, 247, 0.2);
+}
+
+/* ========== Purple Hero Glow (Music) ========== */
+.hero-glow-purple {
+    position: absolute;
+    top: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80vw;
+    height: 40vh;
+    background: radial-gradient(ellipse, rgba(168, 85, 247, 0.15) 0%, transparent 60%);
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+}

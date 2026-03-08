@@ -1,0 +1,84 @@
+name: CI
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Typecheck shared
+        run: npx tsc --noEmit -p shared/tsconfig.json
+
+      - name: Lint client
+        run: npx eslint client-web/src --ext .ts,.tsx --max-warnings 50
+        continue-on-error: true
+
+      - name: Build client
+        run: npm run build --workspace=client-web
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E smoke tests
+        run: npm run test:e2e
+
+  build-images:
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service:
+          - identity
+          - payment
+          - content
+          - metadata
+          - royalty
+          - nft
+          - live
+          - achievement
+          - governance
+          - bridge
+          - transcode
+          - search
+          - moderation
+          - messaging
+          - engagement
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: deploy/docker/Dockerfile.service
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ghcr.io/${{ github.repository }}/${{ matrix.service }}:${{ github.sha }}
+          build-args: |
+            SERVICE_NAME=${{ matrix.service }}
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: build-images
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to staging
+        run: echo "Deploy to staging environment"

@@ -1,0 +1,70 @@
+name: Deploy to Kubernetes
+
+on:
+  workflow_run:
+    workflows: ["Build and Push Docker Images"]
+    types: [completed]
+    branches: [main]
+
+env:
+  NAMESPACE: nexus-video
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.29.0'
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Update image tags
+        run: |
+          # 获取最新的 commit SHA
+          SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          
+          # 更新所有 deployment 的镜像标签
+          for service in identity payment content metadata royalty nft live achievement governance bridge transcode search moderation messaging engagement; do
+            kubectl set image deployment/$service \
+              $service=ghcr.io/${{ github.repository }}/$service:sha-$SHA \
+              -n $NAMESPACE || true
+          done
+          
+          # 更新前端
+          kubectl set image deployment/web \
+            web=ghcr.io/${{ github.repository }}/web:sha-$SHA \
+            -n $NAMESPACE || true
+
+      - name: Wait for rollout
+        run: |
+          for service in identity payment content metadata; do
+            kubectl rollout status deployment/$service -n $NAMESPACE --timeout=300s || true
+          done
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n $NAMESPACE
+          kubectl get services -n $NAMESPACE
+
+      - name: Notify on success
+        if: success()
+        run: |
+          echo "✅ Deployment successful!"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed!"
+          kubectl describe pods -n $NAMESPACE --selector=app=identity || true

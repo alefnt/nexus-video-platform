@@ -1,0 +1,131 @@
+/**
+ * StreamStats — 科幻仪表盘样式
+ *
+ * 借鉴 Fitting Pad 的渐变进度条 + 霓虹发光
+ */
+
+.stream-stats {
+    padding: 16px;
+}
+
+.stream-stats-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    margin-bottom: 14px;
+}
+
+.stream-stats-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #00F5D4;
+    box-shadow: 0 0 8px rgba(0, 245, 212, 0.6);
+    animation: statDotPulse 2s ease-in-out infinite;
+}
+
+@keyframes statDotPulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
+}
+
+/* ========== Grid ========== */
+.stream-stats-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.stat-row {
+    display: grid;
+    grid-template-columns: 50px 1fr 60px;
+    align-items: center;
+    gap: 10px;
+}
+
+.stat-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.stat-value {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-align: right;
+}
+
+/* ========== Bar ========== */
+.stat-bar {
+    grid-column: 1 / -1;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.stat-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.08s linear;
+    min-width: 2px;
+}
+
+/* Color variants */
+.stat-bar-purple {
+    background: linear-gradient(90deg, #A267FF, #C084FC);
+    box-shadow: 0 0 8px rgba(162, 103, 255, 0.4);
+}
+
+.stat-bar-cyan {
+    background: linear-gradient(90deg, #00b4ff, #00e5ff);
+    box-shadow: 0 0 8px rgba(0, 180, 255, 0.4);
+}
+
+.stat-bar-gold {
+    background: linear-gradient(90deg, #FFD700, #FFA500);
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+}
+
+.stat-bar-pink {
+    background: linear-gradient(90deg, #FF2E93, #FF6B9D);
+    box-shadow: 0 0 8px rgba(255, 46, 147, 0.3);
+}
+
+.stat-bar-blue {
+    background: linear-gradient(90deg, #4D61FC, #7B8CFF);
+    box-shadow: 0 0 8px rgba(77, 97, 252, 0.3);
+}
+
+.stat-bar-green {
+    background: linear-gradient(90deg, #00F5D4, #48E5B0);
+    box-shadow: 0 0 8px rgba(0, 245, 212, 0.3);
+}
+
+/* ========== Power Line ========== */
+.stream-power-line {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-muted);
+    text-align: center;
+    letter-spacing: 0.03em;
+}

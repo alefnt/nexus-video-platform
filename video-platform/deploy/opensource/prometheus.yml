@@ -1,0 +1,44 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'identity'
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+    metrics_path: '/metrics'
+
+  - job_name: 'payment'
+    static_configs:
+      - targets: ['host.docker.internal:8091']
+    metrics_path: '/metrics'
+
+  - job_name: 'content'
+    static_configs:
+      - targets: ['host.docker.internal:8092']
+    metrics_path: '/metrics'
+
+  - job_name: 'live'
+    static_configs:
+      - targets: ['host.docker.internal:8096']
+    metrics_path: '/metrics'
+
+  - job_name: 'transcode'
+    static_configs:
+      - targets: ['host.docker.internal:8100']
+    metrics_path: '/metrics'
+
+  - job_name: 'search'
+    static_configs:
+      - targets: ['host.docker.internal:8101']
+    metrics_path: '/metrics'
+
+  - job_name: 'moderation'
+    static_configs:
+      - targets: ['host.docker.internal:8102']
+    metrics_path: '/metrics'
+
+  - job_name: 'messaging'
+    static_configs:
+      - targets: ['host.docker.internal:8103']
+    metrics_path: '/metrics'
