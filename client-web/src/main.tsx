@@ -85,6 +85,8 @@ const NFTMarketplace = React.lazy(() => import("./pages/NFTMarketplace"));
 
 import { ToastProvider } from "./components/Toast";
 import { getApiClient } from "./lib/apiClient";
+import { GlobalMusicProvider } from "./contexts/GlobalMusicContext";
+const GlobalMiniPlayer = React.lazy(() => import("./components/GlobalMiniPlayer"));
 import "./styles/fun.css";
 
 // React Query (唯一缓存方案)
@@ -229,6 +231,10 @@ function RootLayout() {
           <WalletBindPrompt />
         </React.Suspense>
       )}
+      {/* Global persistent music mini-player */}
+      <React.Suspense fallback={null}>
+        <GlobalMiniPlayer />
+      </React.Suspense>
     </>
   );
 }
@@ -364,10 +370,12 @@ async function tryDevAutoLogin() {
         ]}
       >
         <QueryClientProvider client={queryClient}>
-          <ToastProvider>
-            <GlobalToast />
-            <RouterProvider router={router} />
-          </ToastProvider>
+          <GlobalMusicProvider>
+            <ToastProvider>
+              <GlobalToast />
+              <RouterProvider router={router} />
+            </ToastProvider>
+          </GlobalMusicProvider>
         </QueryClientProvider>
       </ccc.Provider>
     </ErrorBoundary>

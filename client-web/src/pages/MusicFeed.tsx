@@ -7,6 +7,8 @@ import { Play, Pause, SkipBack, SkipForward, Disc, Music, Search, Mic2, X, Lock 
 import PaymentOverlay from '../components/PaymentOverlay';
 import PaymentModeSelector from '../components/PaymentModeSelector';
 import { usePayment } from '../hooks/usePayment';
+import { useGlobalMusic } from '../contexts/GlobalMusicContext';
+import type { GlobalTrack } from '../contexts/GlobalMusicContext';
 import '../styles/fun.css';
 import '../styles/music.css';
 
@@ -44,6 +46,7 @@ const parseLrc = (lrc: string): LrcLine[] => {
 
 export default function MusicFeed() {
     const navigate = useNavigate();
+    const globalMusic = useGlobalMusic();
     const [tracks, setTracks] = useState<VideoMeta[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentTrack, setCurrentTrack] = useState<VideoMeta | null>(null);
@@ -291,12 +294,26 @@ export default function MusicFeed() {
             setIsPlaying(false); // MANUAL PLAY ONLY
             setNeedPurchase(false);
             setView('player');
+
+            // Sync to global music player for cross-page playback
+            const globalPlaylist: GlobalTrack[] = tracks.map(t => ({
+                id: t.id,
+                title: t.title,
+                artist: t.description || t.creatorBitDomain || 'Unknown',
+                coverUrl: t.posterUrl,
+                audioUrl: t.cdnUrl,
+            }));
+            const globalTrack: GlobalTrack = {
+                id: track.id,
+                title: track.title,
+                artist: track.description || track.creatorBitDomain || 'Unknown',
+                coverUrl: track.posterUrl,
+                audioUrl: track.cdnUrl,
+            };
+            globalMusic.playTrack(globalTrack, globalPlaylist);
         } else if (view === 'shelf') {
             setView('player');
         }
-
-        // Fetch stream URL pattern (kept from original)
-        // In real flow, verify access here again
     };
 
     // Existing "loadTrack" logic is now split or deprecated in favor of explicit flow
@@ -379,13 +396,18 @@ export default function MusicFeed() {
     };
 
     const processPayment = async (type: 'buy_once' | 'stream') => {
-        if (pendingTrack) setCurrentTrack(pendingTrack);
+        // Set track FIRST so usePayment hook has correct contentId
+        if (pendingTrack) {
+            setCurrentTrack(pendingTrack);
+            // Wait for state to settle before calling payment
+            await new Promise(r => setTimeout(r, 50));
+        }
+        setShowPaymentChoice(false);
         if (type === 'buy_once') {
             await payment.handleBuyOnce();
         } else {
             await payment.handleStartStream();
         }
-        setShowPaymentChoice(false);
     };
 
     // --- SHELF GRID HELPER ---

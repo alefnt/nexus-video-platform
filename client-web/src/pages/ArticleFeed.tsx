@@ -612,18 +612,17 @@ export default function ArticleFeed() {
                 {showPaymentOverlay && selectedArticle && (
                     <PaymentModeSelector
                         video={{ ...selectedArticle, buyOncePrice: (selectedArticle as any).pointsPrice || 100 }}
-                        onSelect={(mode) => {
+                        onSelect={async (mode) => {
                             if (mode === 'buy_once') {
-                                setReadingArticle(selectedArticle);
-                                setSelectedArticle(null);
-                                setShowPaymentOverlay(false);
+                                await payment.handleBuyOnce();
                             } else if (mode === 'stream') {
-                                payment.handleStartStream();
+                                await payment.handleStartStream();
                             } else {
                                 setShowPaymentOverlay(false);
+                                setSelectedArticle(null);
                             }
                         }}
-                        onClose={() => setShowPaymentOverlay(false)}
+                        onClose={() => { setShowPaymentOverlay(false); setSelectedArticle(null); }}
                     />
                 )}
             </div>
