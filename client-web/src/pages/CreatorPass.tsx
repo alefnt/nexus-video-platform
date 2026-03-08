@@ -30,36 +30,8 @@ export default function CreatorPass() {
 
     return (
         <div className="flex h-full overflow-hidden">
-            {/* Left sidebar */}
-            <aside className="w-64 glass-panel border-r border-white/5 flex flex-col justify-between h-full z-20 relative !rounded-none !border-y-0 !border-l-0 hidden lg:flex">
-                <div>
-                    <div className="h-20 flex items-center px-8 cursor-pointer border-b border-white/5" onClick={() => navigate("/home")}>
-                        <svg className="w-8 h-8 mr-3 text-nexusCyan drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                        </svg>
-                        <span className="text-xl font-black tracking-widest text-white">STUDIO</span>
-                    </div>
-
-                    <nav className="mt-8 flex flex-col gap-2 px-4">
-                        <p className="px-4 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Creator Suite</p>
-                        <button onClick={() => navigate("/creator/dashboard")} className="flex items-center gap-4 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-                            <span className="font-bold text-sm">Dashboard</span>
-                        </button>
-                        <div className="flex items-center gap-4 px-4 py-3 rounded-xl bg-gradient-to-r from-nexusPurple/20 to-transparent text-nexusPurple border-l-2 border-nexusPurple">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-                            <span className="font-bold text-sm">Pass Issuance</span>
-                        </div>
-                        <button onClick={() => navigate("/creator/upload")} className="flex items-center gap-4 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                            <span className="font-bold text-sm">Upload</span>
-                        </button>
-                    </nav>
-                </div>
-            </aside>
-
             {/* Main */}
-            <main className="flex-1 flex flex-col h-full bg-[#050510] relative overflow-y-auto">
+            <main className="flex-1 flex flex-col h-full bg-[#050510] relative overflow-y-auto w-full">
                 {/* Topbar */}
                 <header className="h-20 flex-shrink-0 flex items-center justify-between px-10 sticky top-0 z-50 bg-[#050510]/90 backdrop-blur-md border-b border-white/5">
                     <h1 className="text-xl font-bold text-white tracking-widest uppercase">Contract Deployment</h1>

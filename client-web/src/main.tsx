@@ -49,7 +49,8 @@ const VideoFeed = React.lazy(() => import("./pages/VideoFeed"));
 const MusicFeed = React.lazy(() => import("./pages/MusicFeed"));
 const MusicPlaylist = React.lazy(() => import("./pages/MusicPlaylist"));
 const ArticleFeed = React.lazy(() => import("./pages/ArticleFeed"));
-const ArticleReader = React.lazy(() => import("./pages/ArticleReader"));
+const PlatformBindings = React.lazy(() => import("./pages/PlatformBindings"));
+const AIMusicLab = React.lazy(() => import("./pages/AIMusicLab"));
 const CreatorUpload = React.lazy(() => import("./pages/CreatorUpload"));
 const UserCenter = React.lazy(() => import("./pages/UserCenter"));
 const PointsCenter = React.lazy(() => import("./pages/PointsCenter"));
@@ -284,7 +285,8 @@ const router = createBrowserRouter(
         <Route path="/search" element={<SearchResults />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/music-v2" element={<MusicPlaylist />} />
-        <Route path="/articles-v2" element={<ArticleReader />} />
+        <Route path="/settings/platforms" element={<PlatformBindings />} />
+        <Route path="/studio/ai/music" element={<AIMusicLab />} />
 
         {/* User & Economy */}
         <Route path="/user" element={<UserCenter />} />

@@ -86,16 +86,16 @@ export default function Sidebar() {
                 </button>
 
                 <button
-                    onClick={() => handleNav("/articles-v2")}
-                    className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all group w-full text-left ${isActive(["/articles-v2", "/articles"])
+                    onClick={() => handleNav("/articles")}
+                    className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all group w-full text-left ${isActive(["/articles"])
                         ? "bg-gradient-to-r from-nexusCyan/20 to-transparent text-nexusCyan border-l-2 border-nexusCyan"
                         : "text-gray-500 hover:text-white hover:bg-white/5"
                         }`}
                 >
-                    <svg className={`w-5 h-5 flex-shrink-0 ${isActive(["/articles-v2", "/articles"]) ? "" : "group-hover:text-nexusCyan transition-colors"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`w-5 h-5 flex-shrink-0 ${isActive(["/articles"]) ? "" : "group-hover:text-nexusCyan transition-colors"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path>
                     </svg>
-                    <span className={`font-bold text-sm ${isActive(["/articles-v2", "/articles"]) ? "" : "group-hover:translate-x-1 transition-transform"}`}>
+                    <span className={`font-bold text-sm ${isActive(["/articles"]) ? "" : "group-hover:translate-x-1 transition-transform"}`}>
                         {t("sidebar.articles", "Articles")}
                     </span>
                 </button>
@@ -189,6 +189,8 @@ export default function Sidebar() {
                             { path: '/creator/upload', icon: '📤', label: 'Upload' },
                             { path: '/article/create', icon: '✏️', label: t('sidebar.articleEditor', 'Write Article') },
                             { path: '/creator/nft', icon: '🖼️', label: 'NFT Mint' },
+                            { path: '/settings/platforms', icon: '🔗', label: 'Platform Connections' },
+                            { path: '/studio/ai/music', icon: '🎼', label: 'AI Music Lab' },
                         ].map(item => (
                             <button
                                 key={item.path}
