@@ -1,0 +1,1175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User & Identity
+model User {
+  id            String    @id @default(uuid())
+  did           String?   @unique // JoyID or .bit DID
+  address       String?   @unique // Main CKB Address
+  username      String?   @unique // URL slug for permanent channel e.g. "alice"
+  nickname      String?
+  avatar        String?
+  bio           String?
+  email         String?   @unique
+  phone         String?   @unique // E.164 format: +86138xxxx, +1650xxxx
+  nostrPubkey   String?   @unique // Nostr public key (hex)
+  role          String    @default("viewer") // viewer, creator, admin
+  
+  // Stats
+  points        Decimal   @default(0) // Off-chain积分余额
+  
+  joinedAt      DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relationships
+  videos        Video[]
+  liveRooms     LiveRoom[]
+  liveTipsSent  LiveTip[]
+  nfts          NFTCollection[]
+  achievements  UserAchievement[]
+  votes         Vote[]
+  proposals     Proposal[]
+  transfers     BridgeTransfer[]
+  entitlements  Entitlement[]
+  music         Music[]
+  articles      Article[]
+  
+  // Payment
+  pointsTransactions PointsTransaction[]
+  buyingIntents      BuyingIntent[]
+  fiberInvoices      FiberInvoice[]
+  videoTips          VideoTip[]
+  streamSessions     StreamSession[]
+  liveRoomTickets    LiveRoomTicket[]
+  liveStreamSessions LiveStreamSession[]
+  
+  // Stats Link
+  stats         UserStat?
+  
+  // Creator Channel
+  channel       CreatorChannel?
+  
+  // Follow relationships
+  following     Follow[]  @relation("follower")
+  
+  // Social
+  comments       Comment[]
+  likeRecords    Like[]
+  danmakus       Danmaku[]
+  watchHistory   WatchHistory[]
+  bookmarks      Bookmark[]
+  userFollowing  UserFollow[]  @relation("userFollower")
+  userFollowers  UserFollow[]  @relation("userFollowing")
+  governanceToken GovernanceToken?
+  interests       UserInterest[]
+  creatorAnalytics  CreatorAnalytics[]
+  revenueSplitRules RevenueSplitRule[]
+  fiberPayoutTasks  FiberPayoutTask[]
+}
+
+model Entitlement {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  videoId      String
+  video        Video    @relation(fields: [videoId], references: [id])
+  purchaseType String   @default("points") // points, stream, group, creator
+  grantedBy    String?  // userId of group purchase buyer (for group purchases)
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, videoId])
+  @@map("video_entitlement")
+}
+
+// Video Content (supports video, audio, article via contentType)
+model Video {
+  id            String    @id @default(uuid())
+  title         String
+  description   String?
+  coverUrl      String?
+  videoUrl      String    @default("") // IPFS hash, OSS URL, or empty for articles
+  duration      Int       @default(0)
+  size          Int       @default(0)
+  
+  // Content classification
+  contentType   String    @default("video") // video, audio, article
+  genre         String?
+  tags          String[]  @default([])
+  
+  // Creator identity (denormalized for fast reads)
+  creatorBitDomain  String?
+  creatorCkbAddress String?
+  
+  // Pricing
+  priceUSDI     String    @default("0")
+  pointsPrice   Int?
+  priceMode     String    @default("free") // free, buy_once, stream, both
+  streamPricePerMinute Decimal @default(0)
+  
+  // Scarcity & Remix
+  allowRemix    Boolean   @default(true)
+  parentVideoId String?
+  limitType     String    @default("none") // none, views, time
+  limitValue    BigInt?
+  
+  // Text content (for articles)
+  textContent   String?
+  
+  // Storage Metadata
+  encryptionKeyHash String?
+  
+  // Fingerprinting & Ownership
+  sha256        String?
+  phash         String?
+  sporeId       String?
+  
+  cfStreamUid   String?
+  cfPlaybackHls String?
+  arweaveTxId   String?
+  filecoinCid   String?
+    
+  // Transcoding (Livepeer)
+  transcodeStatus  String?
+  transcodedUrls   Json?
+  cdnUrlGlobal     String?
+  cdnUrlCN         String?
+  
+  // Legacy compatibility: store full original metadata JSON
+  rawMeta       Json?
+  
+  // Commercialization
+  pricePerMin   Decimal   @default(0)
+  isNftGated    Boolean   @default(false)
+  
+  // Content Moderation
+  moderationStatus String  @default("approved") // pending, approved, rejected, flagged
+  moderationNote   String?
+
+  // Stats
+  views         Int       @default(0)
+  likes         Int       @default(0)
+  commentCount  Int       @default(0)
+  
+  creatorId     String
+  creator       User      @relation(fields: [creatorId], references: [id])
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  entitlements  Entitlement[]
+  tips          VideoTip[]
+  streamSessions StreamSession[]
+  comments      Comment[]
+  likeRecords   Like[]
+  danmakus      Danmaku[]
+  watchHistory  WatchHistory[]
+  bookmarks     Bookmark[]
+
+  @@index([creatorId])
+  @@index([createdAt])
+  @@index([views])
+  @@index([moderationStatus])
+}
+
+// Universal Revenue Split Rule
+model RevenueSplitRule {
+  id              String   @id @default(uuid())
+  targetType      String   // "video", "live", "article", etc.
+  targetId        String   // ID of the video, room, etc.
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  percentage      Decimal  // Percentage (e.g., 40.00)
+  role            String   @default("collaborator") // owner, collaborator
+  fiberAddress    String?  // The specific Fiber Node address to receive funds
+
+  @@unique([targetType, targetId, userId])
+  @@index([targetType, targetId])
+}
+
+// Global Platform Settings (for fees, etc.)
+model PlatformSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+// Fiber Payout Task Queue
+model FiberPayoutTask {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  amount          Decimal  // Amount in CKB/Points to payout
+  fiberAddress    String   // Destination node
+  status          String   @default("pending") // pending, processing, completed, failed
+  txHash          String?
+  errorReason     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+}
+
+// Audio Content
+model Music {
+  id            String    @id @default(uuid())
+  title         String
+  artist        String?
+  album         String?
+  genre         String?
+  tags          String[]  @default([])
+  coverUrl      String?
+  audioUrl      String    // IPFS/OSS
+  duration      Int       @default(0)
+  size          Int       @default(0)
+  views         Int       @default(0)
+  likes         Int       @default(0)
+  
+  // Fingerprinting
+  sha256        String?   // File Hash
+  audioFingerprint String? // Chromaprint/AcoustID
+  sporeId       String?   // Ownership NFT
+  
+  // Storage
+  arweaveTxId   String?
+  filecoinCid   String?
+  
+  moderationStatus String  @default("approved")
+  moderationNote   String?
+
+  creatorId     String
+  creator       User      @relation(fields: [creatorId], references: [id])
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([sha256])
+  @@index([audioFingerprint])
+  @@index([creatorId])
+  @@index([moderationStatus])
+}
+
+// Text Content
+model Article {
+  id            String    @id @default(uuid())
+  title         String
+  summary       String?
+  content       String    // MD or HTML
+  coverUrl      String?
+  genre         String?
+  tags          String[]  @default([])
+  views         Int       @default(0)
+  likes         Int       @default(0)
+  
+  // Fingerprinting
+  textHash      String?   // SHA-256 of content
+  simHash       String?   // Locality Sensitive Hash for fuzzy match
+  sporeId       String?   // Ownership NFT
+  
+  // Storage
+  arweaveTxId   String?   // Permanent text storage
+
+  moderationStatus String  @default("approved")
+  moderationNote   String?
+  
+  creatorId     String
+  creator       User      @relation(fields: [creatorId], references: [id])
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([textHash])
+  @@index([creatorId])
+  @@index([moderationStatus])
+}
+
+// Live Streaming
+model LiveRoom {
+  id            String    @id @default(uuid()) // roomId
+  title         String
+  description   String?
+  category      String?
+  coverUrl      String?
+  
+  status        String    @default("scheduled") // scheduled, live, ended
+  
+  // Stats
+  viewerCount   Int       @default(0)
+  peakViewers   Int       @default(0)
+  totalTips     Decimal   @default(0)
+  
+  // Recording
+  isRecording   Boolean   @default(false)
+  recordingUrl  String?
+  
+  creatorId     String
+  creator       User      @relation(fields: [creatorId], references: [id])
+  
+  scheduledAt   DateTime?
+  startedAt     DateTime?
+  endedAt       DateTime?
+  createdAt     DateTime  @default(now())
+  
+  tips          LiveTip[]
+  tickets       LiveRoomTicket[]
+  streamSessions LiveStreamSession[]
+  
+  // Commercial
+  isPrivate      Boolean   @default(false)
+  ticketPrice    Decimal   @default(0)
+  paymentMode    String    @default("ticket") // "ticket" | "stream"
+  pricePerMinute Decimal   @default(0)        // For stream mode
+}
+
+model LiveRoomTicket {
+  id            String    @id @default(uuid())
+  roomId        String
+  room          LiveRoom  @relation(fields: [roomId], references: [id])
+  
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  
+  price         Decimal
+  createdAt     DateTime  @default(now())
+  
+  @@unique([userId, roomId])
+}
+
+model LiveTip {
+  id            String    @id @default(uuid())
+  amount        Decimal
+  giftId        String?
+  message       String?
+  
+  fromUserId    String
+  fromUser      User      @relation(fields: [fromUserId], references: [id])
+  
+  roomId        String
+  room          LiveRoom  @relation(fields: [roomId], references: [id])
+  
+  createdAt     DateTime  @default(now())
+}
+
+// Live Stream Payment Session (for pay-per-second mode)
+model LiveStreamSession {
+  id            String    @id @default(uuid())
+  
+  roomId        String
+  room          LiveRoom  @relation(fields: [roomId], references: [id])
+  
+  viewerId      String
+  viewer        User      @relation(fields: [viewerId], references: [id])
+  
+  startedAt     DateTime  @default(now())
+  endedAt       DateTime?
+  lastTickAt    DateTime  @default(now())
+  
+  totalSeconds  Int       @default(0)
+  totalCharged  Decimal   @default(0)
+  preAuthAmount Decimal   @default(0)  // Frozen balance for pre-authorization
+  
+  status        String    @default("active") // active, paused, closed
+  
+  @@unique([roomId, viewerId])
+}
+
+// NFT & Spore
+model NFTCollection {
+  id            String    @id @default(uuid())
+  clusterId     String    @unique // Spore Cluster ID
+  name          String
+  description   String?
+  symbol        String?
+  
+  creatorId     String
+  creator       User      @relation(fields: [creatorId], references: [id])
+  
+  totalSupply   Int       @default(0)
+  maxSupply     Int?
+  
+  createdAt     DateTime  @default(now())
+}
+
+// NFT Marketplace Listing
+model NFTListing {
+  id            String    @id @default(uuid())
+  sporeId       String    // Spore token ID on CKB
+  title         String
+  description   String?
+  imageUrl      String?
+  type          String    @default("video_fragment") // video_fragment, music, creator_pass, sbt
+  rarity        String    @default("common") // common, rare, epic, legendary
+
+  price         Decimal   @default(0) // Price in Credits/CKB
+  currency      String    @default("PTS") // PTS, CKB, USDI
+
+  sellerId      String    // User who listed the NFT
+  status        String    @default("active") // active, sold, cancelled
+
+  contentId     String?   // Linked video/music/article ID
+  contentType   String?   // video, music, article
+
+  // Royalty info (original creator gets royalty on secondary sales)
+  originalCreatorId  String?   // Original creator address for royalty
+  royaltyPercent     Decimal   @default(5) // Royalty percentage (e.g., 5%)
+
+  listedAt      DateTime  @default(now())
+  soldAt        DateTime?
+  cancelledAt   DateTime?
+
+  transactions  NFTTransaction[]
+}
+
+// NFT Transaction (trade history)
+model NFTTransaction {
+  id            String    @id @default(uuid())
+
+  listingId     String
+  listing       NFTListing @relation(fields: [listingId], references: [id])
+
+  buyerId       String    // Buyer user ID
+  sellerId      String    // Seller user ID
+  price         Decimal   // Transaction price
+  currency      String    // PTS, CKB, USDI
+
+  // Royalty distribution
+  royaltyAmount     Decimal?  // Amount paid to original creator
+  royaltyRecipient  String?   // Original creator address
+  platformFee       Decimal?  // Platform fee amount
+
+  // Blockchain references
+  txHash        String?   // CKB transaction hash (Spore transfer)
+  sporeId       String?   // Spore token that was transferred
+
+  createdAt     DateTime  @default(now())
+}
+
+// Achievement (SBT)
+model Achievement {
+  id            String    @id @default(uuid())
+  slug          String    @unique // internal identifier e.g. "first_upload"
+  name          String
+  description   String?
+  icon          String?
+  category      String?   // creator, viewer, collector, community, special
+  tier          String?   // bronze, silver, gold, platinum, diamond
+  condition     String?   // JSON requirements e.g. { type: 'totalVideos', value: 10 }
+  pointsReward  Int       @default(0)
+  benefits      String?   // JSON string or comma separated
+  
+  users         UserAchievement[]
+}
+
+model UserAchievement {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+  
+  sporeId       String?   // Chain SBT ID if minted
+  txHash        String?
+  unlockedAt    DateTime  @default(now())
+  
+  @@unique([userId, achievementId])
+}
+
+model UserStat {
+  userId        String    @id
+  user          User      @relation(fields: [userId], references: [id])
+  
+  // 创作者指标
+  totalVideos        Int @default(0)
+  totalViews         Int @default(0)
+  totalLikes         Int @default(0)
+  totalTipsReceived  Decimal @default(0)
+  totalSubscribers   Int @default(0)
+  
+  // 观众指标
+  totalWatchTime     Int @default(0) // minutes
+  totalTipsSent      Decimal @default(0)
+  totalCollections   Int @default(0)
+  totalComments      Int @default(0)
+  
+  // 社区指标
+  totalShares        Int @default(0)
+  totalReferrals     Int @default(0)
+  consecutiveLoginDays Int @default(0)
+  
+  // 特殊指标
+  liveStreamCount    Int @default(0)
+  nftMintCount       Int @default(0)
+  
+  updatedAt     DateTime  @updatedAt
+}
+
+// DAO Governance
+model Proposal {
+  id            String    @id @default(uuid())
+  title         String
+  description   String?
+  proposerId    String
+  proposer      User      @relation(fields: [proposerId], references: [id])
+  
+  status        String    @default("active") // active, passed, rejected, executed, cancelled
+  type          String    @default("general") // general, funding, parameter, emergency
+  category      String?
+  
+  quorum        Decimal   @default(100)  // minimum total voting power required
+  threshold     Decimal   @default(50)   // % of "for" votes needed to pass
+  forVotes      Decimal   @default(0)
+  againstVotes  Decimal   @default(0)
+  abstainVotes  Decimal   @default(0)
+  
+  actions       Json?     // executable actions after passing
+  executionWindow Int     @default(604800) // seconds to execute after passing (7 days)
+  
+  votes         Vote[]
+  
+  createdAt     DateTime  @default(now())
+  endsAt        DateTime
+
+  @@index([status])
+  @@index([proposerId])
+}
+
+model Vote {
+  id            String    @id @default(uuid())
+  proposalId    String
+  proposal      Proposal  @relation(fields: [proposalId], references: [id])
+  
+  voterId       String
+  voter         User      @relation(fields: [voterId], references: [id])
+  
+  support       String    @default("for") // for, against, abstain
+  power         Decimal   @default(1)
+  reason        String?
+  
+  createdAt     DateTime  @default(now())
+
+  @@unique([proposalId, voterId])
+}
+
+// Governance Token
+model GovernanceToken {
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id])
+  
+  balance       Decimal   @default(0)
+  votingPower   Decimal   @default(0)
+  delegatedTo   String?   // userId of delegate
+  delegatedPower Decimal  @default(0) // power received from others
+  
+  totalEarned   Decimal   @default(0)
+  totalSpent    Decimal   @default(0)
+  
+  updatedAt     DateTime  @updatedAt
+
+  @@index([votingPower(sort: Desc)])
+}
+
+// Bridge
+model BridgeTransfer {
+  id            String    @id @default(uuid())
+  fromChain     String
+  toChain       String
+  token         String
+  amount        Decimal
+  fee           Decimal   @default(0)
+  bridgeType    String    @default("force") // force, celer, rgbpp
+  
+  fromAddress   String?
+  toAddress     String?
+  txHash        String?   @unique
+  bridgeTxHash  String?   // bridge contract tx
+  status        String    @default("pending") // pending, bridging, confirming, completed, failed
+  failReason    String?
+  
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId, status])
+  @@index([status])
+}
+
+// Payment & Points
+model PointsTransaction {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   // buy, earn, redeem, etc.
+  txType    String?  // stream_pay, buy_once, group_purchase, tip, etc.
+  amount    Int
+  videoId   String?  // Related video if any
+  reason    String?
+  createdAt DateTime @default(now())
+  
+  @@index([userId, videoId])
+}
+
+model BuyingIntent {
+  id             String   @id @default(uuid()) // orderId
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  expectedAmountShannons String
+  expectedAmountCKB      String
+  pointsToCredit Decimal
+  depositAddress String
+  status         String   // pending, confirmed, expired
+  expiresAt      DateTime
+  txHash         String?
+  confirmations  Int      @default(0)
+  payerAddress   String?
+  
+  createdAt      DateTime @default(now())
+}
+
+model FiberInvoice {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  invoice        String
+  paymentHash    String?
+  amount         String
+  asset          String
+  pointsToCredit Decimal
+  status         String   // unpaid, paid, expired, canceled
+  credited       Boolean  @default(false)
+  paidAt         DateTime?
+  expiresAt      DateTime?
+  
+  createdAt      DateTime @default(now())
+}
+
+model VideoTip {
+  id               String   @id @default(uuid())
+  videoId          String
+  video            Video    @relation(fields: [videoId], references: [id])
+  fromUserId       String
+  fromUser         User     @relation(fields: [fromUserId], references: [id])
+  toCreatorAddress String
+  amount           Decimal
+  message          String?
+  showDanmaku      Boolean  @default(true)
+  createdAt        DateTime @default(now())
+}
+
+model StreamSession {
+  sessionId            String   @id @default(uuid())
+  videoId              String
+  video                Video    @relation(fields: [videoId], references: [id])
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id])
+  videoDurationSeconds Int
+  pricePerMinute       Decimal
+  segmentMinutes       Int
+  totalSegments        Int
+  currentSegment       Int
+  paidSegments         Int[]    // Array of segment numbers
+  lastWatchedSegment   Int
+  totalPaid            Decimal
+  actualUsedSeconds    Int
+  status               String   // active, paused, completed, expired
+  
+  lastTickAt           DateTime
+  pausedAt             DateTime?
+  createdAt            DateTime @default(now())
+  expiresAt            DateTime
+  
+  invoices             StreamInvoice[]
+}
+
+model StreamInvoice {
+  id            String        @id @default(uuid())
+  sessionId     String
+  session       StreamSession @relation(fields: [sessionId], references: [sessionId])
+  segmentNumber Int
+  invoice       String
+  paymentHash   String
+  amount        Decimal
+  status        String        // pending, paid, failed
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+}
+
+// Creator Channel (Permanent Room)
+model CreatorChannel {
+  id            String    @id @default(uuid())
+  slug          String    @unique   // URL slug like "alice" -> /live/@alice
+  
+  userId        String    @unique   // One channel per user
+  user          User      @relation(fields: [userId], references: [id])
+  
+  displayName   String?
+  avatar        String?
+  description   String?
+  category      String?             // Default stream category
+  
+  isLive        Boolean   @default(false)
+  currentRoomId String?             // Points to active LiveRoom.id
+  
+  followerCount Int       @default(0)
+  totalStreams  Int       @default(0)
+  totalTips     Decimal   @default(0)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  followers     Follow[]
+}
+
+// Follow relationship
+model Follow {
+  id            String    @id @default(uuid())
+  
+  followerId    String
+  follower      User      @relation("follower", fields: [followerId], references: [id])
+  
+  channelId     String
+  channel       CreatorChannel @relation(fields: [channelId], references: [id])
+  
+  notifyOnLive  Boolean   @default(true)  // Whether to notify when creator goes live
+  createdAt     DateTime  @default(now())
+  
+  @@unique([followerId, channelId])
+}
+
+// PK (Co-streaming) System
+model PkRequest {
+  id            String    @id @default(uuid())
+  fromRoomId    String
+  toRoomId      String
+  fromUserId    String
+  toUserId      String
+  status        String    @default("pending") // pending, accepted, rejected, expired
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+}
+
+model PkSession {
+  id            String    @id @default(uuid())
+  room1Id       String
+  room2Id       String
+  status        String    @default("active") // active, ended
+  room1Score    Int       @default(0)
+  room2Score    Int       @default(0)
+  startedAt     DateTime  @default(now())
+  endedAt       DateTime?
+}
+
+// Messaging System
+model DirectMessage {
+  id            String    @id @default(uuid())
+  fromUserId    String
+  toUserId      String
+  content       String
+  read          Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+
+  @@index([toUserId, read])
+  @@index([fromUserId, toUserId, createdAt])
+}
+
+model Notification {
+  id            String    @id @default(uuid())
+  userId        String
+  title         String
+  body          String?
+  type          String    @default("system") // system, live, follow, tip
+  read          Boolean   @default(false)
+  data          Json?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}
+
+model PushToken {
+  id            String    @id @default(uuid())
+  userId        String
+  token         String
+  platform      String    @default("web") // web, ios, android
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@unique([userId, token])
+}
+
+// ============================================
+// 观众激励系统 (Viewer Engagement System)
+// ============================================
+
+// 每日任务定义
+model DailyTask {
+  id          String   @id @default(uuid())
+  type        String   @unique // checkin, watch_videos, comment, share, live_watch
+  name        String
+  description String
+  points      Int      // 奖励积分
+  maxDaily    Int      @default(1) // 每日最大完成次数
+  requirement Int      @default(1) // 完成所需次数 (如观看3个视频)
+  enabled     Boolean  @default(true)
+  sortOrder   Int      @default(0)
+}
+
+// 用户任务进度 (每日重置)
+model UserTaskProgress {
+  id          String   @id @default(uuid())
+  userId      String
+  taskType    String
+  date        DateTime @db.Date
+  progress    Int      @default(0) // 当前进度
+  completed   Boolean  @default(false)
+  rewardClaimed Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, taskType, date])
+  @@index([userId, date])
+}
+
+// 签到记录 (连续签到追踪)
+model CheckinRecord {
+  id          String   @id @default(uuid())
+  userId      String
+  date        DateTime @db.Date
+  streak      Int      @default(1) // 连续签到天数
+  bonusMultiplier Float @default(1.0) // 奖励倍数 (连续7天最高7x)
+  points      Int      // 实际获得积分
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+// 粉丝等级 (对特定创作者)
+model FanLevel {
+  id          String   @id @default(uuid())
+  userId      String
+  creatorId   String
+  totalPoints Int      @default(0) // 累计贡献积分
+  level       Int      @default(1) // 1-5 级
+  watchTime   Int      @default(0) // 累计观看秒数
+  tipAmount   Int      @default(0) // 累计打赏金额
+  interactions Int     @default(0) // 互动次数
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, creatorId])
+  @@index([creatorId, level])
+}
+
+// NFT 掉落记录
+model NFTDrop {
+  id          String   @id @default(uuid())
+  userId      String
+  triggerType String   // live_watch, daily_complete, first_tip, special_event
+  rarity      String   // N, R, SR, SSR
+  nftType     String   // badge, signature, cover, special
+  nftName     String
+  imageUrl    String?
+  claimed     Boolean  @default(false)
+  sporeId     String?  // 铸造后的 Spore ID
+  expiresAt   DateTime? // 限时领取
+  createdAt   DateTime @default(now())
+  claimedAt   DateTime?
+
+  @@index([userId, claimed])
+}
+
+// 直播奖励记录
+model LiveReward {
+  id          String   @id @default(uuid())
+  userId      String
+  roomId      String
+  rewardType  String   // checkin, watch_5min, danmaku_10, lottery
+  points      Int
+  createdAt   DateTime @default(now())
+
+  @@index([userId, roomId, createdAt])
+}
+
+// 防刷机制: 每日行为限制
+model UserDailyLimit {
+  id          String   @id @default(uuid())
+  userId      String
+  date        DateTime @db.Date
+  actionType  String   // watch, comment, share, tip, live_checkin
+  count       Int      @default(0)
+  lastIp      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, date, actionType])
+  @@index([userId, date])
+}
+
+// 可疑行为日志 (防刷检测)
+model SuspiciousActivity {
+  id          String   @id @default(uuid())
+  userId      String
+  actionType  String
+  reason      String   // rapid_action, same_ip_multi_account, bot_pattern
+  details     Json?
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ============================================
+// Social & Interaction Models
+// ============================================
+
+model Comment {
+  id          String    @id @default(uuid())
+  videoId     String
+  video       Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  
+  content     String
+  parentId    String?   // for nested replies
+  parent      Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Comment[] @relation("CommentReplies")
+  
+  likes       Int       @default(0)
+  isPinned    Boolean   @default(false)
+  isHidden    Boolean   @default(false)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([videoId, createdAt])
+  @@index([userId])
+  @@index([parentId])
+}
+
+model Like {
+  id          String   @id @default(uuid())
+  videoId     String
+  video       Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, videoId])
+  @@index([videoId])
+}
+
+model Danmaku {
+  id          String   @id @default(uuid())
+  videoId     String
+  video       Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  content     String
+  videoTime   Float    // seconds into the video
+  color       String   @default("#FFFFFF")
+  position    String   @default("scroll") // scroll, top, bottom
+  fontSize    String   @default("normal") // small, normal, large
+  
+  isPaid      Boolean  @default(false)
+  amount      Decimal  @default(0)
+  
+  createdAt   DateTime @default(now())
+
+  @@index([videoId, videoTime])
+  @@index([userId])
+}
+
+model UserFollow {
+  id            String   @id @default(uuid())
+  followerId    String
+  follower      User     @relation("userFollower", fields: [followerId], references: [id])
+  followingId   String
+  following     User     @relation("userFollowing", fields: [followingId], references: [id])
+  
+  createdAt     DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model WatchHistory {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  videoId     String
+  video       Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  
+  progress    Int      @default(0) // seconds watched
+  duration    Int      @default(0) // total video duration
+  completed   Boolean  @default(false)
+  watchCount  Int      @default(1)
+  
+  lastWatchedAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, videoId])
+  @@index([userId, lastWatchedAt])
+}
+
+model Bookmark {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  videoId     String
+  video       Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, videoId])
+  @@index([userId, createdAt])
+}
+
+// ============================================
+// 推荐系统 (Recommendation System)
+// ============================================
+
+// 用户兴趣标签 (基于观看行为自动更新)
+model UserInterest {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  tag       String
+  score     Float    @default(1.0) // 兴趣分数 (时间衰减)
+  source    String   @default("watch") // watch, like, search, explicit
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, tag])
+  @@index([userId, score(sort: Desc)])
+}
+
+// 推荐日志 (追踪推荐效果)
+model RecommendationLog {
+  id        String   @id @default(uuid())
+  userId    String
+  videoId   String
+  position  Int      // 推荐列表中的位置
+  source    String   // hot, tag_match, cf, explore, trending
+  clicked   Boolean  @default(false)
+  watchTime Int      @default(0) // 观看秒数
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([source, clicked])
+}
+
+// ============================================
+// 创作者分析 (Creator Analytics)
+// ============================================
+
+// 创作者每日聚合数据 (用于数据面板)
+model CreatorAnalytics {
+  id           String   @id @default(uuid())
+  creatorId    String
+  creator      User     @relation(fields: [creatorId], references: [id])
+  date         DateTime @db.Date
+  views        Int      @default(0)
+  likes        Int      @default(0)
+  comments     Int      @default(0)
+  revenue      Decimal  @default(0)
+  newFollowers Int      @default(0)
+  watchMinutes Int      @default(0) // 总观看时长 (分钟)
+
+  @@unique([creatorId, date])
+  @@index([creatorId, date])
+}
+
+// ============================================
+// 混合存储引擎 (Hybrid Storage Engine)
+// ============================================
+
+// 内容存储追踪 — 多层存储生命周期
+model StorageEntry {
+  id              String   @id @default(uuid())
+  contentId       String   @unique    // Video/Music/Article ID
+  contentType     String   @default("video") // video, music, article, live_recording
+  
+  // Temperature & Lifecycle
+  temperature     String   @default("hot")   // hot, warm, cold
+  accessCount     Int      @default(0)
+  lastAccessedAt  DateTime @default(now())
+  
+  // Hot Tier (MinIO / S3)
+  hotKey          String?               // Object storage key
+  hotCdnUrl       String?               // CDN URL
+  hotBucket       String?
+  hotUploadedAt   DateTime?
+  
+  // Warm Tier (Filecoin / IPFS)
+  warmCid         String?               // IPFS CID
+  warmDealId      String?               // Filecoin deal ID
+  warmIpfsUrl     String?               // IPFS gateway URL
+  warmMigratedAt  DateTime?
+  warmDealStatus  String?               // queued, proposing, accepted, active, expired
+  
+  // Cold Tier (Arweave)
+  coldTxId        String?               // Arweave TX ID
+  coldArweaveUrl  String?               // Arweave gateway URL
+  coldArchivedAt  DateTime?
+  coldConfirmed   Boolean  @default(false)
+  
+  // Certification (CKB Spore)
+  certSporeId     String?
+  certSporeTxHash String?
+  certCertifiedAt DateTime?
+  
+  // File integrity
+  sha256          String?
+  fileSizeBytes   Int      @default(0)
+  encryptionKeyHash String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([temperature])
+  @@index([contentType])
+  @@index([lastAccessedAt])
+  @@index([sha256])
+}
+
+// 一致性审计日志
+model AuditLog {
+  id              String   @id @default(uuid())
+  auditType       String   @default("consistency") // consistency, lifecycle, deal_refresh
+  totalChecked    Int      @default(0)
+  issuesFound     Int      @default(0)
+  highSeverity    Int      @default(0)
+  details         Json?                // Full audit result JSON
+  durationMs      Int      @default(0)
+  createdAt       DateTime @default(now())
+  
+  @@index([auditType, createdAt])
+}
+
+// Event Sourcing — Append-only event log for business events
+model EventLog {
+  id         String   @id @default(uuid())
+  action     String   // e.g. "payment.settled", "fiber.payout.sent"
+  data       Json?    // Event payload
+  userId     String?  // Related user (optional for system events)
+  traceId    String?  // Request trace ID for correlation
+  createdAt  DateTime @default(now())
+
+  @@index([action, createdAt])
+  @@index([userId, createdAt])
+}

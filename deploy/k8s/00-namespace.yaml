@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nexus-video
+  labels:
+    app.kubernetes.io/name: nexus-video
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nexus-config
+  namespace: nexus-video
+data:
+  NODE_ENV: "production"
+  CKB_NODE_URL: "https://testnet.ckb.dev/rpc"
+  CKB_INDEXER_URL: "https://testnet.ckb.dev/indexer"
+  LIVEKIT_URL: "wss://livekit.yourdomain.com"
+  MEILISEARCH_URL: "http://meilisearch:7700"
+  MINIO_ENDPOINT: "http://minio:9000"
+  NTFY_URL: "http://ntfy:80"
+  NTFY_TOPIC: "nexus-video"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nexus-secrets
+  namespace: nexus-video
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://nexus:YOUR_DB_PASSWORD@postgres:5432/nexus_video"
+  JWT_SECRET: "YOUR_32_CHAR_JWT_SECRET_HERE_MUST_BE_REPLACED"
+  LIVEKIT_API_KEY: "YOUR_LIVEKIT_API_KEY"
+  LIVEKIT_API_SECRET: "YOUR_LIVEKIT_API_SECRET"
+  LIVEPEER_API_KEY: "YOUR_LIVEPEER_API_KEY"
+  MEILISEARCH_KEY: "YOUR_MEILISEARCH_MASTER_KEY"
+  MINIO_ACCESS_KEY: "nexus"
+  MINIO_SECRET_KEY: "nexus123456"

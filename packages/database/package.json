@@ -1,0 +1,31 @@
+{
+    "name": "@video-platform/database",
+    "version": "0.1.0",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "prisma": {
+        "seed": "tsx prisma/seed.ts"
+    },
+    "scripts": {
+        "build": "tsc",
+        "db:push": "prisma db push",
+        "db:studio": "prisma studio",
+        "db:generate": "prisma generate",
+        "db:seed": "prisma db seed"
+    },
+    "dependencies": {
+        "@prisma/client": "^5.7.0"
+    },
+    "devDependencies": {
+        "prisma": "^5.7.0",
+        "typescript": "^5.5.0",
+        "@types/node": "^20.10.0"
+    },
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        }
+    }
+}

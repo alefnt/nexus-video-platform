@@ -1,0 +1,163 @@
+# Redis Sentinel 高可用配置
+# FILE: /video-platform/deploy/redis/docker-compose.yml
+#
+# 运行方式: docker-compose -f deploy/redis/docker-compose.yml up -d
+
+version: '3.8'
+
+services:
+  # ============== Redis 主节点 ==============
+  redis-master:
+    image: redis:7-alpine
+    container_name: redis-master
+    hostname: redis-master
+    restart: always
+    command: >
+      redis-server --port 6379 --requirepass ${REDIS_PASSWORD:-nexus123} --masterauth ${REDIS_PASSWORD:-nexus123} --appendonly yes --appendfsync everysec --maxmemory 512mb --maxmemory-policy allkeys-lru --tcp-keepalive 300 --timeout 0
+    volumes:
+      - redis-master-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - redis-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-nexus123}", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============== Redis 从节点 1 ==============
+  redis-replica1:
+    image: redis:7-alpine
+    container_name: redis-replica1
+    hostname: redis-replica1
+    restart: always
+    command: >
+      redis-server --port 6379 --replicaof redis-master 6379 --requirepass ${REDIS_PASSWORD:-nexus123} --masterauth ${REDIS_PASSWORD:-nexus123} --appendonly yes --replica-read-only yes
+    volumes:
+      - redis-replica1-data:/data
+    ports:
+      - "6382:6379"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - redis-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-nexus123}", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============== Redis 从节点 2 ==============
+  redis-replica2:
+    image: redis:7-alpine
+    container_name: redis-replica2
+    hostname: redis-replica2
+    restart: always
+    command: >
+      redis-server --port 6379 --replicaof redis-master 6379 --requirepass ${REDIS_PASSWORD:-nexus123} --masterauth ${REDIS_PASSWORD:-nexus123} --appendonly yes --replica-read-only yes
+    volumes:
+      - redis-replica2-data:/data
+    ports:
+      - "6381:6379"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - redis-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-nexus123}", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============== Sentinel 节点 1 ==============
+  sentinel1:
+    image: redis:7-alpine
+    container_name: sentinel1
+    hostname: sentinel1
+    restart: always
+    command: >
+      sh -c "cp /etc/redis/sentinel.conf /data/sentinel.conf && redis-sentinel /data/sentinel.conf"
+    volumes:
+      - ./sentinel.conf:/etc/redis/sentinel.conf:ro
+      - sentinel1-data:/data
+    ports:
+      - "26379:26379"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-replica1:
+        condition: service_healthy
+      redis-replica2:
+        condition: service_healthy
+    networks:
+      - redis-network
+
+  # ============== Sentinel 节点 2 ==============
+  sentinel2:
+    image: redis:7-alpine
+    container_name: sentinel2
+    hostname: sentinel2
+    restart: always
+    command: >
+      sh -c "cp /etc/redis/sentinel.conf /data/sentinel.conf && redis-sentinel /data/sentinel.conf"
+    volumes:
+      - ./sentinel.conf:/etc/redis/sentinel.conf:ro
+      - sentinel2-data:/data
+    ports:
+      - "26380:26379"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - redis-network
+
+  # ============== Sentinel 节点 3 ==============
+  sentinel3:
+    image: redis:7-alpine
+    container_name: sentinel3
+    hostname: sentinel3
+    restart: always
+    command: >
+      sh -c "cp /etc/redis/sentinel.conf /data/sentinel.conf && redis-sentinel /data/sentinel.conf"
+    volumes:
+      - ./sentinel.conf:/etc/redis/sentinel.conf:ro
+      - sentinel3-data:/data
+    ports:
+      - "26381:26379"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - redis-network
+
+  # ============== Redis Exporter (Prometheus) ==============
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    restart: always
+    environment:
+      REDIS_ADDR: redis://redis-master:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-nexus123}
+    ports:
+      - "9121:9121"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - redis-network
+
+volumes:
+  redis-master-data:
+  redis-replica1-data:
+  redis-replica2-data:
+  sentinel1-data:
+  sentinel2-data:
+  sentinel3-data:
+
+
+networks:
+  redis-network:
+    driver: bridge

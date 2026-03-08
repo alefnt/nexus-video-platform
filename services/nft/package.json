@@ -1,0 +1,23 @@
+{
+    "name": "@video-platform/service-nft",
+    "version": "0.1.0",
+    "type": "module",
+    "scripts": {
+        "dev": "tsx src/server.ts",
+        "start": "node dist/server.js",
+        "build": "tsc -p tsconfig.json"
+    },
+    "dependencies": {
+        "@fastify/jwt": "^8.0.1",
+        "@video-platform/shared": "file:../../shared",
+        "@video-platform/database": "file:../../packages/database",
+        "fastify": "^4.25.2",
+        "uuid": "^9.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.0",
+        "@types/uuid": "^10.0.0",
+        "tsx": "^4.0.0",
+        "typescript": "^5.5.0"
+    }
+}

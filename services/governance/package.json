@@ -1,0 +1,24 @@
+{
+    "name": "@video-platform/governance",
+    "version": "1.0.0",
+    "type": "module",
+    "description": "DAO Governance Service",
+    "main": "dist/server.js",
+    "scripts": {
+        "dev": "tsx watch src/server.ts",
+        "build": "tsc",
+        "start": "node dist/server.js"
+    },
+    "dependencies": {
+        "fastify": "^4.24.3",
+        "@fastify/jwt": "^7.2.4",
+        "@fastify/cors": "^8.5.0",
+        "uuid": "^9.0.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.3.0",
+        "tsx": "^4.6.0",
+        "@types/node": "^20.10.0",
+        "@types/uuid": "^9.0.0"
+    }
+}

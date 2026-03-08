@@ -1,0 +1,24 @@
+{
+    "name": "@video-platform/service-search",
+    "version": "0.1.0",
+    "type": "module",
+    "scripts": {
+        "dev": "tsx src/server.ts",
+        "start": "node dist/server.js",
+        "build": "tsc -p tsconfig.json"
+    },
+    "dependencies": {
+        "@elastic/elasticsearch": "^8.12.0",
+        "@fastify/cors": "^8.4.0",
+        "@video-platform/database": "file:../../packages/database",
+        "@video-platform/shared": "file:../../shared",
+        "fastify": "^4.25.2",
+        "meilisearch": "^0.55.0",
+        "prom-client": "^15.1.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.0",
+        "tsx": "^4.7.0",
+        "typescript": "^5.5.0"
+    }
+}

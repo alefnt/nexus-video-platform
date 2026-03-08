@@ -1,0 +1,203 @@
+# Prometheus Alerting Rules
+# FILE: /video-platform/deploy/monitoring/alert-rules.yml
+
+groups:
+  # ============== 服务可用性告警 ==============
+  - name: service_availability
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "服务宕机: {{ $labels.instance }}"
+          description: "服务 {{ $labels.job }} 已经宕机超过 1 分钟"
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_request_duration_seconds_count{status_code=~"5.."}[5m])) by (service)
+          / sum(rate(http_request_duration_seconds_count[5m])) by (service) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "高错误率: {{ $labels.service }}"
+          description: "服务 {{ $labels.service }} 5xx 错误率超过 5%"
+
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95, sum(rate(vp_http_request_duration_seconds_bucket[5m])) by (le, service)) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "响应时间过高: {{ $labels.service }}"
+          description: "服务 {{ $labels.service }} P95 响应时间超过 3 秒"
+
+  # ============== 支付系统告警 ==============
+  - name: payment_alerts
+    rules:
+      - alert: PaymentFailureSpike
+        expr: |
+          sum(rate(vp_payment_failures_total[5m])) > 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "支付失败激增"
+          description: "过去 5 分钟内支付失败率异常升高"
+
+      - alert: HighPaymentLatency
+        expr: |
+          histogram_quantile(0.95, rate(vp_http_request_duration_seconds_bucket{endpoint=~"/payment.*"}[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "支付接口延迟过高"
+          description: "支付接口 P95 延迟超过 5 秒"
+
+  # ============== 数据库告警 ==============
+  - name: database_alerts
+    rules:
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          pg_stat_activity_count{state="active"} > 80
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "数据库连接池接近耗尽"
+          description: "活跃连接数超过 80，可能导致连接池耗尽"
+
+      - alert: SlowQueries
+        expr: |
+          rate(pg_stat_statements_seconds_total[5m]) / rate(pg_stat_statements_calls_total[5m]) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "慢查询告警"
+          description: "平均查询时间超过 1 秒"
+
+  # ============== Redis 告警 ==============
+  - name: redis_alerts
+    rules:
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis 宕机"
+          description: "Redis 服务不可用"
+
+      - alert: RedisHighMemory
+        expr: |
+          redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis 内存使用率高"
+          description: "Redis 内存使用率超过 85%"
+
+      - alert: RedisQueueBacklog
+        expr: |
+          sum(bullmq_queue_waiting) by (queue_name) > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "消息队列积压: {{ $labels.queue_name }}"
+          description: "队列 {{ $labels.queue_name }} 积压超过 1000 个任务"
+
+  # ============== 直播服务告警 ==============
+  - name: live_alerts
+    rules:
+      - alert: LiveRoomHighViewerDrop
+        expr: |
+          (rate(vp_sse_connections_active[1m]) < -10)
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "直播观众大量离开"
+          description: "直播间观众数在 2 分钟内下降超过 10"
+
+      - alert: LiveStreamInterruption
+        expr: |
+          increase(livekit_room_errors_total[5m]) > 5
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "直播流中断"
+          description: "LiveKit 直播间错误增加"
+
+  # ============== 安全告警 ==============
+  - name: security_alerts
+    rules:
+      - alert: High403ErrorRate
+        expr: |
+          sum(rate(vp_http_403_errors_total[5m])) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "403 错误激增"
+          description: "可能存在未授权访问尝试"
+
+      - alert: RateLimitTriggered
+        expr: |
+          sum(rate(fastify_rate_limit_exceeded_total[5m])) by (service) > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "限流触发: {{ $labels.service }}"
+          description: "服务 {{ $labels.service }} 频繁触发限流"
+
+      - alert: SuspiciousTokenActivity
+        expr: |
+          sum(rate(vp_token_generation_failures_total[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "可疑 Token 活动"
+          description: "Token 生成失败率异常升高"
+
+  # ============== 资源告警 ==============
+  - name: resource_alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU 使用率高: {{ $labels.instance }}"
+          description: "CPU 使用率超过 85% 持续 10 分钟"
+
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "内存使用率高: {{ $labels.instance }}"
+          description: "内存使用率超过 85%"
+
+      - alert: DiskSpaceRunningOut
+        expr: |
+          (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 85
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "磁盘空间不足: {{ $labels.instance }}"
+          description: "磁盘使用率超过 85%"

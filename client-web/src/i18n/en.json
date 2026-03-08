@@ -1,0 +1,727 @@
+{
+    "common": {
+        "loading": "Loading...",
+        "error": "Something went wrong",
+        "retry": "Retry",
+        "save": "Save",
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "submit": "Submit",
+        "back": "Back",
+        "next": "Next",
+        "close": "Close",
+        "search": "Search",
+        "noData": "No data available",
+        "send": "Send",
+        "copy": "Copy",
+        "go": "Go",
+        "clearAll": "Clear All",
+        "items": "Items",
+        "connected": "Connected",
+        "notConnected": "Not Connected",
+        "follow": "Follow",
+        "loadMore": "Load More",
+        "delete": "Delete",
+        "edit": "Edit",
+        "share": "Share",
+        "processing": "Processing..."
+    },
+    "nav": {
+        "home": "Home",
+        "feed": "Feed",
+        "videos": "Videos",
+        "music": "Music",
+        "read": "Read",
+        "live": "Live",
+        "create": "Create",
+        "about": "About",
+        "mySpace": "My Space",
+        "profile": "Profile",
+        "tasks": "Tasks",
+        "points": "Points",
+        "switchLang": "Switch Language"
+    },
+    "sidebar": {
+        "platform": "Platform",
+        "discover": "Discover",
+        "movies": "Movies & TV",
+        "music": "Music",
+        "articles": "Articles",
+        "live": "Live",
+        "myAsset": "My Asset",
+        "quests": "Daily Quests",
+        "wallet": "Wallet & Points",
+        "fragments": "My Fragments (NFTs)",
+        "creatorStudio": "Creator Studio",
+        "marketplace": "NFT Marketplace",
+        "articleEditor": "Write Article"
+    },
+    "auth": {
+        "login": "Login",
+        "logout": "Logout",
+        "register": "Register",
+        "loginWithJoyID": "Login with JoyID",
+        "loginWithWallet": "Wallet Login",
+        "loginWithEmail": "Email Login",
+        "enterEmail": "Enter your email",
+        "sendCode": "Send Code",
+        "enterCode": "Enter verification code",
+        "agreeTerms": "I have read and agree to the",
+        "termsOfService": "Terms of Service",
+        "and": "and",
+        "privacyPolicy": "Privacy Policy",
+        "enterTheNexus": "ENTER THE NEXUS",
+        "subtitle": "Next-Gen Decentralized Streaming Protocol",
+        "signIn": "Sign In",
+        "connectVia": "Connect via JoyID Wallet or Email",
+        "bitIdentity": ".bit Identity (Optional)",
+        "ckbWallet": "CKB Wallet",
+        "connectWallet": "Connect Wallet",
+        "switchWallet": "Switch Wallet",
+        "loginWithPasskey": "Login with Passkey",
+        "authorizing": "Authorizing...",
+        "evmWallets": "EVM WALLETS",
+        "or": "OR",
+        "loginWithEmailBtn": "Login with Email",
+        "connectingMetaMask": "Connecting MetaMask...",
+        "connectingWalletConnect": "Connecting WalletConnect...",
+        "metaMaskFailed": "MetaMask connection failed",
+        "walletConnectFailed": "WalletConnect connection failed",
+        "devLoginLink": "Open Dev Login Link →",
+        "footer": "Nexus Video Protocol © 2026. Powered by IPFS, JoyID & Fiber."
+    },
+    "tasks": {
+        "title": "Task Center",
+        "subtitle": "Complete daily tasks to earn rewards",
+        "dailyTasks": "Daily Tasks",
+        "checkin": "Check In",
+        "checkinNow": "Check In Now",
+        "checkedIn": "Checked In",
+        "streakDays": "day streak",
+        "streakMax": "🎉 Max streak bonus achieved!",
+        "streakHint": "{{remaining}} more days for 7x bonus",
+        "checkinFailed": "Check-in failed",
+        "claimReward": "Claim Reward",
+        "claimed": "Claimed",
+        "inProgress": "In Progress",
+        "claimFailed": "Claim failed",
+        "rules": "Rules",
+        "rule1": "Daily tasks reset at 00:00 (UTC+8)",
+        "rule2": "Consecutive check-ins unlock up to 7x bonus",
+        "rule3": "Rewards must be manually claimed after completion",
+        "rule4": "Daily limits apply to prevent abuse"
+    },
+    "explore": {
+        "liveNow": "Live Now",
+        "goLive": "Go Live",
+        "noStreams": "No Live Streams",
+        "noStreamsHint": "Be the first to go live!",
+        "perMinute": "/min",
+        "unknownCreator": "Unknown Creator"
+    },
+    "user": {
+        "nexusUser": "Nexus User",
+        "noWallet": "No Wallet Connected",
+        "totalPoints": "Total Points",
+        "topUp": "+ Top Up / Fiber Pay",
+        "quickActions": "Quick Actions",
+        "browseContent": "Browse Content",
+        "creatorStudio": "Creator Studio",
+        "fragmentGallery": "🧩 Fragment Gallery",
+        "dailyWheel": "🎡 Daily Wheel",
+        "inviteEarn": "🎁 Invite & Earn",
+        "inviteBeta": "Beta",
+        "inviteDesc": "Invite friends to Nexus! You get {{yourPoints}} PTS, they get {{theirPoints}} PTS newbie bonus.",
+        "loginToViewLink": "Login to view link",
+        "inviteCopied": "✅ Invite link copied!",
+        "copyFailed": "Copy this invite link:",
+        "myLibrary": "My Library",
+        "noLibrary": "You haven't purchased any content yet.",
+        "offlineCache": "Offline Cache",
+        "noOffline": "No offline videos found.",
+        "accountStatus": "Account Status",
+        "identity": "Identity",
+        "verified": "Verified",
+        "accessLevel": "Access Level",
+        "reConnect": "Re-Connect",
+        "debugTools": "Debug Tools",
+        "videoId": "Video ID"
+    },
+    "player": {
+        "gettingTicket": "Getting stream ticket...",
+        "tryingCache": "Trying offline cache...",
+        "playingCache": "Playing from offline cache",
+        "playingFreeMP4": "Free content: Playing MP4",
+        "playingFreeHLS": "Free content: Playing local HLS",
+        "playingFreeHLSBypass": "Free content: Playing local HLS (gateway bypass)",
+        "playingCloudflare": "Free content: Playing Cloudflare HLS",
+        "playingOnlineHLS": "Free content: Playing online HLS",
+        "startingStream": "Starting stream payment...",
+        "unauthorized": "Unauthorized. Please choose a payment method to unlock.",
+        "playFailed": "Playback failed: {{error}}",
+        "pointsProcessing": "Processing points payment...",
+        "initFiber": "Initializing Fiber stream session...",
+        "streamFailed": "Stream payment failed",
+        "streamInitFailed": "Stream payment initialization failed",
+        "loginRequired": "Please login first",
+        "joyIdRequired": "JoyID login required for payment",
+        "joyIdRequiredStream": "JoyID login required for stream payment",
+        "paymentFailed": "Payment failed: ",
+        "sendDanmaku": "Send danmaku...",
+        "upNext": "Up Next",
+        "recommendedVideo": "Recommended Video",
+        "creatorName": "Creator",
+        "noDescription": "No description available.",
+        "danmakuToggle": "Toggle Danmaku"
+    },
+    "feed": {
+        "accessRestricted": "Access Restricted",
+        "loginHint": "This content requires a Nexus Identity.",
+        "connectIdentity": "Connect Identity",
+        "soldOut": "SOLD OUT",
+        "soldOutHint": "This Limited Drop has reached its max views.",
+        "browseOthers": "Browse Other Drops",
+        "burned": "BURNED",
+        "burnedHint": "This content has expired and is now inaccessible.",
+        "comments": "Comments",
+        "noComments": "No comments yet. Be the first!",
+        "anonymous": "Anonymous",
+        "tip": "Tip",
+        "tipNone": "None",
+        "sendPaidDanmaku": "Send Paid Danmaku ({{amount}} PTS)...",
+        "sendMessage": "Send a message...",
+        "remixThis": "Remix This"
+    },
+    "home": {
+        "title": "Discover Nexus",
+        "featured": "Featured",
+        "trending": "Trending Now",
+        "continueWatching": "Continue Watching",
+        "recommended": "Recommended for You",
+        "viewAll": "View All",
+        "startWatchingHint": "Start watching to see your history here.",
+        "live": "Live Now",
+        "watchNow": "Watch Now",
+        "addToList": "Add to List"
+    },
+    "live": {
+        "title": "Live",
+        "startStream": "Start Stream",
+        "endStream": "End Stream",
+        "viewers": "viewers",
+        "chat": "Chat",
+        "sendMessage": "Send message",
+        "gift": "Gift",
+        "follow": "Follow",
+        "following": "Following",
+        "shareStream": "Share Stream",
+        "streamTitle": "Stream Title",
+        "category": "Category",
+        "goLive": "Go Live"
+    },
+    "video": {
+        "upload": "Upload Video",
+        "title": "Title",
+        "description": "Description",
+        "tags": "Tags",
+        "thumbnail": "Thumbnail",
+        "price": "Price",
+        "free": "Free",
+        "buyOnce": "Buy Once",
+        "streamPay": "Stream Pay",
+        "tip": "Tip",
+        "share": "Share",
+        "like": "Like",
+        "comments": "Comments"
+    },
+    "wallet": {
+        "balance": "Balance",
+        "points": "Points",
+        "buyPoints": "Buy Points",
+        "history": "Transaction History",
+        "withdraw": "Withdraw",
+        "deposit": "Deposit"
+    },
+    "creator": {
+        "studio": "Creator Studio",
+        "uploads": "My Uploads",
+        "analytics": "Analytics",
+        "earnings": "Earnings",
+        "channel": "My Channel"
+    },
+    "settings": {
+        "title": "Settings",
+        "profile": "Profile",
+        "language": "Language",
+        "theme": "Theme",
+        "notifications": "Notifications",
+        "security": "Security",
+        "about": "About"
+    },
+    "points": {
+        "title": "Points Center",
+        "balance": "Balance",
+        "topUp": "Top Up",
+        "history": "History",
+        "noHistory": "No transaction history",
+        "redeemCode": "Redeem Code",
+        "redeem": "Redeem",
+        "dailyBonus": "Daily Bonus",
+        "claimed": "Claimed",
+        "claimNow": "Claim Now"
+    },
+    "achievements": {
+        "title": "Achievements",
+        "subtitle": "Track your progress and unlock badges",
+        "unlocked": "Unlocked",
+        "locked": "Locked",
+        "progress": "{{current}}/{{target}}",
+        "reward": "Reward: {{points}} PTS"
+    },
+    "upload": {
+        "title": "Upload Video",
+        "dragHint": "Drag & drop your video here or click to browse",
+        "uploading": "Uploading...",
+        "processing": "Processing...",
+        "success": "Upload successful!",
+        "failed": "Upload failed",
+        "selectFile": "Select File"
+    },
+    "legal": {
+        "terms": "Terms of Service",
+        "privacy": "Privacy Policy",
+        "copyright": "Copyright Notice"
+    },
+    "about": {
+        "hero": {
+            "systemOnline": "SYSTEM ONLINE",
+            "title": "NEXUS",
+            "subtitle": "Stream · Own · Earn",
+            "startExploring": "Start Exploring",
+            "readWhitepaper": "Whitepaper"
+        },
+        "stats": {
+            "activeUsers": "Active Users",
+            "videoViews": "Video Views",
+            "nftMinted": "NFTs Minted",
+            "satisfaction": "Satisfaction"
+        },
+        "features": {
+            "title": "Building the Future",
+            "subtitle": "Nexus is more than a platform, it's a value network built on blockchain",
+            "watchToEarn": {
+                "title": "Watch to Earn",
+                "desc": "Earn tokens by watching quality content",
+                "detail": "Every view accumulates points redeemable for crypto. Innovative Watch-to-Earn mechanism makes entertainment valuable."
+            },
+            "interactiveLive": {
+                "title": "Interactive Live",
+                "desc": "Full-screen danmaku effects & NFT gifts",
+                "detail": "Real-time interaction with special effects and NFT gifting system. Making every stream an unforgettable experience."
+            },
+            "gamefi": {
+                "title": "GameFi Assets",
+                "desc": "Collect video fragments, synthesize NFTs",
+                "detail": "Collect fragments by watching, synthesize unique NFT assets. Trade freely on the decentralized marketplace."
+            },
+            "dao": {
+                "title": "DAO Governance",
+                "desc": "Decentralized Identity on CKB",
+                "detail": "Token holders participate in platform decisions including content moderation and revenue distribution."
+            },
+            "hoverDetail": "Hover for details →"
+        },
+        "demo": {
+            "sectionTitle": "Live Interactive Experience",
+            "tryHint": "Try sending \"fire\", \"snow\", or \"love\"",
+            "welcome": "Welcome to Nexus Live!",
+            "tryFire": "Try typing 'fire'?",
+            "inputPlaceholder": "Type danmaku to interact...",
+            "send": "Send",
+            "liveBadge": "LIVE"
+        },
+        "holo": {
+            "title": "Genesis Identity",
+            "subtitle": "Genesis NFT Collection",
+            "genesis": "Genesis",
+            "holder": "Holder",
+            "benefits": "Exclusive access · Permanent rewards · Governance"
+        },
+        "tech": {
+            "title": "Core Architecture",
+            "subtitle": "Built on the most advanced blockchain stack",
+            "forceBridge": {
+                "title": "CKB Force Bridge",
+                "desc": "Seamless cross-chain asset interoperability"
+            },
+            "fiber": {
+                "title": "Fiber Network",
+                "desc": "Instant payment confirmation, zero fees"
+            },
+            "ipfs": {
+                "title": "IPFS Storage",
+                "desc": "Decentralized storage, perpetual availability"
+            },
+            "zk": {
+                "title": "Zero Knowledge",
+                "desc": "Privacy protection with data authenticity"
+            }
+        },
+        "roadmap": {
+            "title": "Future Roadmap",
+            "subtitle": "Evolution of Nexus Ecosystem",
+            "phase1": {
+                "title": "Genesis",
+                "items": [
+                    "Core Platform Launch",
+                    "Cyberpunk UI Overhaul",
+                    "JoyID Integration"
+                ]
+            },
+            "phase2": {
+                "title": "Engagement",
+                "items": [
+                    "Interactive Live Streaming",
+                    "Mobile App Beta",
+                    "Fiber Network Integration"
+                ]
+            },
+            "phase3": {
+                "title": "Renaissance",
+                "items": [
+                    "Creator DAO",
+                    "NFT Marketplace",
+                    "Global Edge Nodes"
+                ]
+            },
+            "phase4": {
+                "title": "Horizon",
+                "items": [
+                    "AI Content Generation",
+                    "Metaverse Theater",
+                    "Brain-Computer Interface"
+                ]
+            }
+        },
+        "footer": {
+            "title": "Ready to Dive In?",
+            "subtitle": "Join the automated revolution of content ownership",
+            "cta": "Launch App"
+        }
+    },
+    "whitepaper": {
+        "badge": "PROTOCOL V1.0 // DRAFT",
+        "title": "NEXUS PROTOCOL",
+        "subtitle": "The Digital Campfire of the Future: Decentralized, Gamified, and Owned by You.",
+        "executiveSummary": {
+            "title": "1. Executive Summary",
+            "p1": "Nexus Protocol is a next-generation decentralized video streaming platform built on the <strong class=\"text-white\">CKB (Common Knowledge Base)</strong> blockchain and the <strong class=\"text-white\">RGB++</strong> protocol. It aims to revolutionize the creator economy by returning data ownership and revenue to creators and users through a transparent, high-performance, and gamified ecosystem.",
+            "p2": "Unlike traditional platforms (Web2) that monopolize traffic and revenue, Nexus leverages <strong class=\"text-white\">Fiber Network</strong> for instant micropayments and <strong class=\"text-white\">IPFS</strong> for censorship-resistant storage, creating a truly free and open improved \"Web3 YouTube.\""
+        },
+        "painPoints": {
+            "title": "2. Industry Pain Points",
+            "creators": {
+                "title": "For Creators",
+                "items": [
+                    "<strong>Revenue Cuts:</strong> Web2 platforms take 45%-55% of ad revenue.",
+                    "<strong>Data Lock-in:</strong> Followers and content belong to the platform.",
+                    "<strong>Opaque Algorithms:</strong> Traffic distribution is biased."
+                ]
+            },
+            "users": {
+                "title": "For Users",
+                "items": [
+                    "<strong>Attention Exploitation:</strong> Value generated by watching ads yields $0 return.",
+                    "<strong>Privacy Violations:</strong> Data harvested and sold.",
+                    "<strong>Passive Experience:</strong> Lack of immersive engagement."
+                ]
+            }
+        },
+        "solution": {
+            "title": "3. The Nexus Solution",
+            "intro": "Nexus introduces a triple-layer innovation stack: <strong>Asset Protocol + Payment Network + Gamified Experience</strong>.",
+            "content": {
+                "title": "3.1 Content as Assets (RGB++)",
+                "desc": "Every video is minted as an RGB++ NFT. This ensures true ownership on the Bitcoin/CKB ecosystem and automated royalties for secondary sales."
+            },
+            "w2e": {
+                "title": "3.2 Watch-to-Earn",
+                "desc": "Validated watch time generates <strong>$NXP</strong>. Users share 50% of ad revenue and earn rewards for engagement."
+            },
+            "optimization": {
+                "title": "3.3 Lightning Optimization",
+                "desc": "Fiber Network enables instant, gas-free micropayments (1 CKB) and Pay-Per-Minute streaming."
+            }
+        },
+        "ecosystem": {
+            "title": "4. Ecosystem & Features",
+            "live": {
+                "title": "4.1 Immersive Live Streaming",
+                "items": [
+                    "<strong>Interactive Danmaku:</strong> Bullet comments that trigger full-screen effects.",
+                    "<strong>AI Digital Humans:</strong> 24/7 intelligent virtual streamers that interact with audiences.",
+                    "<strong>Live PK:</strong> Real-time battles between streamers, decided by user votes."
+                ]
+            },
+            "music": {
+                "title": "4.2 Decentralized Music",
+                "items": [
+                    "<strong>Audio-NFTs:</strong> Listen-to-Earn mechanics for discovering new artists.",
+                    "<strong>Stem Remixing:</strong> Release track stems as NFTs for fan remixes and revenue sharing."
+                ]
+            },
+            "publishing": {
+                "title": "4.3 Web3 Publishing",
+                "items": [
+                    "<strong>Read-to-Earn:</strong> High-quality technical articles where readers tip authors.",
+                    "<strong>Permanent Storage:</strong> Censorship-resistant storage on IPFS/Arweave."
+                ]
+            }
+        },
+        "roadmap": {
+            "title": "5. Roadmap",
+            "q1": {
+                "title": "Genesis (Completed)",
+                "desc": "Core Platform, Cyberpunk UI, JoyID Wallet."
+            },
+            "q2": {
+                "title": "Engagement (Current)",
+                "desc": "Interactive Live Streaming (AI Humans), Mobile App Beta, Fiber Network."
+            },
+            "q3": {
+                "title": "Renaissance",
+                "desc": "Creator DAO, NFT Marketplace, Web3 Publishing, Music."
+            },
+            "phase4": {
+                "title": "Horizon (2027+)",
+                "desc": "AI Video Generation, AI Music Creation, AI Journalism, Metaverse Theater."
+            }
+        },
+        "footer": {
+            "title": "Join the Revolution",
+            "subtitle": "We are building the digital campfire of the future.",
+            "cta": "Launch App"
+        }
+    },
+    "videoList": {
+        "pageTitle": "Explorer",
+        "pageSubtitle": "Discover infinite possibilities in the Nexus.",
+        "searchPlaceholder": "Search title...",
+        "showingResults": "Showing {{count}} results",
+        "minPoints": "Min Points",
+        "maxPoints": "Max Points",
+        "noResults": "No results found",
+        "noResultsHint": "Try adjusting your filters or search query.",
+        "clearFilters": "Clear Filters",
+        "balance": "BALANCE",
+        "play": "PLAY",
+        "free": "FREE",
+        "save": "Save",
+        "saved": "Saved",
+        "buy": "Buy",
+        "purchased": "Purchased",
+        "watch": "Watch",
+        "cached": "CACHED",
+        "sampleDataHint": "(Showing sample data)",
+        "quickSort": "Quick Sort",
+        "genre": "GENRE",
+        "region": "REGION",
+        "language": "LANGUAGE",
+        "duration": "DURATION",
+        "quality": "QUALITY",
+        "errorTitle": "Page error occurred, safely degraded.",
+        "errorPrefix": "Error: ",
+        "errorUnknown": "Unknown error",
+        "errorHint": "Tip: Try refreshing or retry later.",
+        "noVideoData": "No video data available",
+        "genres": {
+            "全部": "All",
+            "纪录片": "Documentary",
+            "动画": "Animation",
+            "旅行": "Travel",
+            "自然": "Nature",
+            "体育": "Sports",
+            "音乐": "Music",
+            "游戏": "Gaming",
+            "科技": "Tech",
+            "教育": "Education",
+            "美食": "Food",
+            "时尚": "Fashion",
+            "生活": "Lifestyle",
+            "汽车": "Auto",
+            "动物": "Animals",
+            "电影": "Film",
+            "短剧": "Series",
+            "新闻": "News",
+            "综艺": "Variety",
+            "其他": "Other"
+        },
+        "regions": {
+            "全部": "All",
+            "中国大陆": "Mainland China",
+            "香港/台湾": "HK/Taiwan",
+            "美国": "USA",
+            "日本": "Japan",
+            "韩国": "Korea",
+            "欧洲": "Europe",
+            "其他": "Other"
+        },
+        "languages": {
+            "全部": "All",
+            "中文": "Chinese",
+            "英语": "English",
+            "日语": "Japanese",
+            "韩语": "Korean",
+            "法语": "French",
+            "其他": "Other"
+        },
+        "durations": {
+            "全部": "All",
+            "短片": "Short",
+            "中等": "Medium",
+            "长片": "Long"
+        },
+        "qualities": {
+            "全部": "All"
+        },
+        "sorts": {
+            "热度": "Trending",
+            "销量": "Sales",
+            "价格": "Price",
+            "最新": "Latest"
+        },
+        "paymentTitle": "Choose Payment Method",
+        "buyOnce": "💎 Buy Once",
+        "buyOnceDesc": "Unlock forever, watch unlimited",
+        "streamPay": "⚡ Pay Per Minute",
+        "streamPayDesc": "Pay as you watch, stop anytime",
+        "ptsPerMin": "PTS/min",
+        "maybeLater": "Maybe Later",
+        "insufficientBalance": "Insufficient balance!\\nCurrent: {{current}} PTS\\nRequired: {{required}} PTS\\n\\nGo to top up?",
+        "general": "General"
+    },
+    "wheel": {
+        "title": "Daily Lucky Wheel",
+        "subtitle": "One free spin per day, great prizes await!",
+        "spin": "Spin",
+        "spinsLeft": "{{count}} spin(s)",
+        "tomorrow": "Tomorrow",
+        "comeBack": "Come Back",
+        "prizeList": "Prize List",
+        "congratulations": "Congratulations!",
+        "awesome": "Awesome!",
+        "pointsAwarded": "{{value}} points credited to your account",
+        "couponAwarded": "{{value}}% discount coupon issued",
+        "vipAwarded": "{{value}} day VIP activated",
+        "mysteryPrize": "Mystery prize coming soon",
+        "loginRequired": "Please login first",
+        "spinFailed": "Spin failed, please try again later"
+    },
+    "fragments": {
+        "title": "Fragment Gallery",
+        "collected": "Collected",
+        "total": "Total",
+        "synthesis": "Synthesis",
+        "rarity": {
+            "common": "Common",
+            "rare": "Rare",
+            "epic": "Epic",
+            "legendary": "Legendary"
+        }
+    },
+    "search": {
+        "placeholder": "Search...",
+        "results": "Search Results",
+        "noResults": "No results found",
+        "searching": "Searching..."
+    },
+    "moderation": {
+        "pending": "Under Review",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "flagged": "Flagged"
+    },
+    "errors": {
+        "pageNotFound": "Page Not Found",
+        "somethingWrong": "Something went wrong",
+        "goHome": "Go Home",
+        "tryAgain": "Try Again",
+        "serviceUnavailable": "Service temporarily unavailable",
+        "insufficientPoints": "Insufficient points",
+        "networkError": "Network error"
+    },
+    "profile": {
+        "title": "Profile",
+        "verified": "Verified",
+        "joined": "Joined",
+        "followers": "Followers",
+        "following": "Following",
+        "views": "Views",
+        "editProfile": "Edit Profile",
+        "follow": "+ Follow",
+        "unfollow": "✓ Following",
+        "noVideos": "No videos yet.",
+        "uploadVideo": "Upload Video",
+        "noMusic": "No music uploaded yet.",
+        "noArticles": "No articles published yet.",
+        "noLive": "No live rooms yet.",
+        "goLive": "Go Live",
+        "noNFTs": "No content NFTs yet.",
+        "mintNFT": "Mint NFT",
+        "noActivity": "No recent activity.",
+        "totalEarnings": "Total Earnings",
+        "withdrawToWallet": "Withdraw to Wallet",
+        "loading": "Loading...",
+        "digitalCreator": "Digital creator exploring the Nexus."
+    },
+    "channel": {
+        "followers": "Followers",
+        "follow": "+ Follow",
+        "following": "Following",
+        "videos": "Videos",
+        "about": "About",
+        "noVideos": "No videos in this channel.",
+        "loading": "Loading...",
+        "notFound": "Channel not found"
+    },
+    "watchParty": {
+        "title": "Watch Party",
+        "createRoom": "Create Room",
+        "joinRoom": "Join Room",
+        "roomId": "Room ID",
+        "selectVideo": "Select Video",
+        "countdown": "Countdown",
+        "startParty": "Start Party",
+        "endParty": "End Party",
+        "participants": "Participants",
+        "chat": "Chat",
+        "sendMessage": "Send a message...",
+        "viewer": "Viewer",
+        "syncing": "Syncing...",
+        "waitingHost": "Waiting for host to start",
+        "roomNotFound": "Room not found"
+    },
+    "playerStatus": {
+        "orderProcessing": "Order processing, please wait... ({{current}}/{{total}})",
+        "authRetry": "Waiting for auth/service ready, retrying ({{current}}/{{total}})...",
+        "prefetching": "Prefetching manifest and first segment...",
+        "sendFailed": "Send failed: ",
+        "notFound": "Not found"
+    },
+    "homeHero": {
+        "exclusivePremiere": "Exclusive Premiere",
+        "playTrailer": "Play Trailer (Free)",
+        "streamMovie": "Stream Movie",
+        "trendingThisWeek": "Trending This Week",
+        "allContent": "All Content",
+        "cinematicVideos": "Cinematic Videos",
+        "hiFiAudio": "Hi-Fi Audio",
+        "liveWatchParties": "Live Watch Parties",
+        "web3Research": "Web3 Research",
+        "trendingOnFiber": "🔥 Trending on Fiber",
+        "earnsPoints": "Earns Pts",
+        "watchPartyOn": "Watch Party On",
+        "views": "views",
+        "watching": "watching"
+    }
+}

@@ -1,0 +1,727 @@
+{
+    "common": {
+        "loading": "加载中...",
+        "error": "出错了",
+        "retry": "重试",
+        "save": "保存",
+        "cancel": "取消",
+        "confirm": "确认",
+        "submit": "提交",
+        "back": "返回",
+        "next": "下一步",
+        "close": "关闭",
+        "search": "搜索",
+        "noData": "暂无数据",
+        "send": "发送",
+        "copy": "复制",
+        "go": "前往",
+        "clearAll": "清除全部",
+        "items": "项",
+        "connected": "已连接",
+        "notConnected": "未连接",
+        "follow": "关注",
+        "loadMore": "加载更多",
+        "delete": "删除",
+        "edit": "编辑",
+        "share": "分享",
+        "processing": "处理中..."
+    },
+    "nav": {
+        "home": "首页",
+        "feed": "发现",
+        "videos": "视频",
+        "music": "音乐",
+        "read": "阅读",
+        "live": "直播",
+        "create": "创作",
+        "about": "关于",
+        "mySpace": "我的空间",
+        "profile": "我的",
+        "tasks": "任务",
+        "points": "积分",
+        "switchLang": "切换语言"
+    },
+    "sidebar": {
+        "platform": "平台",
+        "discover": "发现",
+        "movies": "影视",
+        "music": "音乐",
+        "articles": "阅读",
+        "live": "直播",
+        "myAsset": "我的资产",
+        "quests": "每日任务",
+        "wallet": "钱包 & 积分",
+        "fragments": "我的碎片 (NFT)",
+        "creatorStudio": "创作者工作室",
+        "marketplace": "NFT 市场",
+        "articleEditor": "写文章"
+    },
+    "auth": {
+        "login": "登录",
+        "logout": "退出登录",
+        "register": "注册",
+        "loginWithJoyID": "使用 JoyID 登录",
+        "loginWithWallet": "钱包登录",
+        "loginWithEmail": "邮箱登录",
+        "enterEmail": "请输入邮箱",
+        "sendCode": "发送验证码",
+        "enterCode": "请输入验证码",
+        "agreeTerms": "我已阅读并同意",
+        "termsOfService": "服务条款",
+        "and": "和",
+        "privacyPolicy": "隐私政策",
+        "enterTheNexus": "进入 NEXUS",
+        "subtitle": "下一代去中心化流媒体协议",
+        "signIn": "登录",
+        "connectVia": "通过 JoyID 钱包或邮箱连接",
+        "bitIdentity": ".bit 身份 (可选)",
+        "ckbWallet": "CKB 钱包",
+        "connectWallet": "连接钱包",
+        "switchWallet": "切换钱包",
+        "loginWithPasskey": "Passkey 登录",
+        "authorizing": "授权中...",
+        "evmWallets": "EVM 钱包",
+        "or": "或",
+        "loginWithEmailBtn": "邮箱登录",
+        "connectingMetaMask": "正在连接 MetaMask...",
+        "connectingWalletConnect": "正在连接 WalletConnect...",
+        "metaMaskFailed": "MetaMask 连接失败",
+        "walletConnectFailed": "WalletConnect 连接失败",
+        "devLoginLink": "打开开发登录链接 →",
+        "footer": "Nexus Video Protocol © 2026. Powered by IPFS, JoyID & Fiber."
+    },
+    "tasks": {
+        "title": "任务中心",
+        "subtitle": "完成每日任务，赚取积分奖励",
+        "dailyTasks": "每日任务",
+        "checkin": "签到",
+        "checkinNow": "立即签到",
+        "checkedIn": "已签到",
+        "streakDays": "天连续签到",
+        "streakMax": "🎉 已达成最高连续签到奖励!",
+        "streakHint": "再签到 {{remaining}} 天可获得 7x 积分加成",
+        "checkinFailed": "签到失败",
+        "claimReward": "领取奖励",
+        "claimed": "已领取",
+        "inProgress": "进行中",
+        "claimFailed": "领取失败",
+        "rules": "规则说明",
+        "rule1": "每日任务在每天 00:00 (UTC+8) 重置",
+        "rule2": "连续签到可获得最高 7x 积分加成",
+        "rule3": "每个任务完成后需手动领取奖励",
+        "rule4": "为防止刷分，每项操作有每日上限"
+    },
+    "explore": {
+        "liveNow": "正在直播",
+        "goLive": "我要开播",
+        "noStreams": "暂无直播",
+        "noStreamsHint": "现在去开播，成为第一个焦点！",
+        "perMinute": "/分",
+        "unknownCreator": "未知创作者"
+    },
+    "user": {
+        "nexusUser": "Nexus 用户",
+        "noWallet": "未连接钱包",
+        "totalPoints": "总积分",
+        "topUp": "+ 充值 / Fiber 支付",
+        "quickActions": "快捷操作",
+        "browseContent": "浏览内容",
+        "creatorStudio": "创作者工作室",
+        "fragmentGallery": "🧩 碎片画廊",
+        "dailyWheel": "🎡 每日转盘",
+        "inviteEarn": "🎁 邀请赚积分",
+        "inviteBeta": "Beta",
+        "inviteDesc": "邀请好友加入 Nexus！你获得 {{yourPoints}} 积分，他们获得 {{theirPoints}} 积分新人奖励。",
+        "loginToViewLink": "登录后查看链接",
+        "inviteCopied": "✅ 邀请链接已复制！",
+        "copyFailed": "复制邀请链接：",
+        "myLibrary": "我的库",
+        "noLibrary": "你还没有购买任何内容。",
+        "offlineCache": "离线缓存",
+        "noOffline": "暂无离线视频。",
+        "accountStatus": "账户状态",
+        "identity": "身份",
+        "verified": "已验证",
+        "accessLevel": "访问级别",
+        "reConnect": "重新连接",
+        "debugTools": "调试工具",
+        "videoId": "视频 ID"
+    },
+    "player": {
+        "gettingTicket": "获取播放凭证...",
+        "tryingCache": "尝试离线缓存...",
+        "playingCache": "使用离线缓存播放",
+        "playingFreeMP4": "免费内容：播放 MP4 源",
+        "playingFreeHLS": "免费内容：播放本地 HLS",
+        "playingFreeHLSBypass": "免费内容：播放本地 HLS（网关绕过）",
+        "playingCloudflare": "免费内容：播放 Cloudflare HLS",
+        "playingOnlineHLS": "免费内容：播放在线 HLS",
+        "startingStream": "正在启动流支付...",
+        "unauthorized": "未授权播放，请选择支付方式解锁观看。",
+        "playFailed": "播放失败：{{error}}",
+        "pointsProcessing": "积分支付处理中...",
+        "initFiber": "初始化 Fiber 流支付会话...",
+        "streamFailed": "流支付失败",
+        "streamInitFailed": "流支付初始化失败",
+        "loginRequired": "请先登录",
+        "joyIdRequired": "需使用 JoyID 登录进行支付",
+        "joyIdRequiredStream": "需使用 JoyID 登录进行流支付",
+        "paymentFailed": "支付失败: ",
+        "sendDanmaku": "发送弹幕...",
+        "upNext": "接下来播放",
+        "recommendedVideo": "推荐视频",
+        "creatorName": "创作者",
+        "noDescription": "暂无描述。",
+        "danmakuToggle": "弹幕开关"
+    },
+    "feed": {
+        "accessRestricted": "访问受限",
+        "loginHint": "此内容需要 Nexus 身份。",
+        "connectIdentity": "连接身份",
+        "soldOut": "已售罄",
+        "soldOutHint": "此限定发布已达到最大观看次数。",
+        "browseOthers": "浏览其他内容",
+        "burned": "已销毁",
+        "burnedHint": "此内容已过期，不再可访问。",
+        "comments": "评论",
+        "noComments": "还没有评论。成为第一个！",
+        "anonymous": "匿名",
+        "tip": "打赏",
+        "tipNone": "无",
+        "sendPaidDanmaku": "发送付费弹幕 ({{amount}} PTS)...",
+        "sendMessage": "发送消息...",
+        "remixThis": "二创此视频"
+    },
+    "home": {
+        "title": "探索 Nexus",
+        "featured": "精选推荐",
+        "trending": "热门趋势",
+        "continueWatching": "继续观看",
+        "recommended": "为你推荐",
+        "viewAll": "查看全部",
+        "startWatchingHint": "开始观看后，历史记录会显示在这里。",
+        "live": "正在直播",
+        "watchNow": "立即观看",
+        "addToList": "添加到列表"
+    },
+    "live": {
+        "title": "直播",
+        "startStream": "开始直播",
+        "endStream": "结束直播",
+        "viewers": "观众",
+        "chat": "聊天",
+        "sendMessage": "发送消息",
+        "gift": "送礼",
+        "follow": "关注",
+        "following": "已关注",
+        "shareStream": "分享直播",
+        "streamTitle": "直播标题",
+        "category": "分类",
+        "goLive": "开播"
+    },
+    "video": {
+        "upload": "上传视频",
+        "title": "标题",
+        "description": "描述",
+        "tags": "标签",
+        "thumbnail": "封面",
+        "price": "价格",
+        "free": "免费",
+        "buyOnce": "一次购买",
+        "streamPay": "流支付",
+        "tip": "打赏",
+        "share": "分享",
+        "like": "点赞",
+        "comments": "评论"
+    },
+    "wallet": {
+        "balance": "余额",
+        "points": "积分",
+        "buyPoints": "购买积分",
+        "history": "交易记录",
+        "withdraw": "提现",
+        "deposit": "充值"
+    },
+    "creator": {
+        "studio": "创作者工作室",
+        "uploads": "我的上传",
+        "analytics": "数据分析",
+        "earnings": "收益",
+        "channel": "我的频道"
+    },
+    "settings": {
+        "title": "设置",
+        "profile": "个人资料",
+        "language": "语言",
+        "theme": "主题",
+        "notifications": "通知",
+        "security": "安全",
+        "about": "关于"
+    },
+    "points": {
+        "title": "积分中心",
+        "balance": "余额",
+        "topUp": "充值",
+        "history": "历史记录",
+        "noHistory": "暂无交易记录",
+        "redeemCode": "兑换码",
+        "redeem": "兑换",
+        "dailyBonus": "每日奖励",
+        "claimed": "已领取",
+        "claimNow": "立即领取"
+    },
+    "achievements": {
+        "title": "成就",
+        "subtitle": "追踪你的进度并解锁徽章",
+        "unlocked": "已解锁",
+        "locked": "未解锁",
+        "progress": "{{current}}/{{target}}",
+        "reward": "奖励: {{points}} 积分"
+    },
+    "upload": {
+        "title": "上传视频",
+        "dragHint": "拖放视频文件到此处，或点击浏览",
+        "uploading": "上传中...",
+        "processing": "处理中...",
+        "success": "上传成功！",
+        "failed": "上传失败",
+        "selectFile": "选择文件"
+    },
+    "legal": {
+        "terms": "服务条款",
+        "privacy": "隐私政策",
+        "copyright": "版权声明"
+    },
+    "about": {
+        "hero": {
+            "systemOnline": "系统在线",
+            "title": "NEXUS",
+            "subtitle": "流媒体 · 拥有 · 收益",
+            "startExploring": "开始探索",
+            "readWhitepaper": "阅读白皮书"
+        },
+        "stats": {
+            "activeUsers": "活跃用户",
+            "videoViews": "视频观看",
+            "nftMinted": "NFT铸造",
+            "satisfaction": "用户满意度"
+        },
+        "features": {
+            "title": "构建未来的娱乐生态",
+            "subtitle": "Nexus 不仅仅是一个视频平台，它是基于区块链技术构建的价值互联网络",
+            "watchToEarn": {
+                "title": "观看即挖矿",
+                "desc": "观看优质视频内容即可获得代币奖励",
+                "detail": "每一次观看都会为你累积积分，可兑换为真实的加密货币奖励。创新的Watch-to-Earn机制让娱乐变得更有价值。"
+            },
+            "interactiveLive": {
+                "title": "互动直播",
+                "desc": "全屏特效弹幕，NFT礼物赠送",
+                "detail": "支持实时弹幕互动、全屏特效、NFT礼物系统。让每一次直播都成为难忘的体验，创作者可获得更多收益。"
+            },
+            "gamefi": {
+                "title": "GameFi资产",
+                "desc": "收集视频碎片，合成稀有NFT",
+                "detail": "通过观看视频收集碎片，合成独特的NFT资产。在去中心化市场自由交易，让你的收藏品真正属于你。"
+            },
+            "dao": {
+                "title": "DAO治理",
+                "desc": "基于CKB的去中心化身份系统",
+                "detail": "持有治理代币的用户可参与平台决策，包括内容审核、功能开发、收益分配等。真正的社区自治。"
+            },
+            "hoverDetail": "悬停查看详情 →"
+        },
+        "demo": {
+            "sectionTitle": "实时互动体验",
+            "tryHint": "试着发送「fire」「snow」或「love」",
+            "welcome": "欢迎来到 Nexus 直播间!",
+            "tryFire": "输入 'fire' 试试看效果?",
+            "inputPlaceholder": "输入弹幕参与互动...",
+            "send": "发送",
+            "liveBadge": "直播中"
+        },
+        "holo": {
+            "title": "传奇身份",
+            "subtitle": "创世 NFT 系列",
+            "genesis": "创世版",
+            "holder": "持有者",
+            "benefits": "尊贵身份 · 永久分红 · 治理权"
+        },
+        "tech": {
+            "title": "核心技术架构",
+            "subtitle": "基于最先进的区块链技术栈构建",
+            "forceBridge": {
+                "title": "CKB Force Bridge",
+                "desc": "跨链资产无缝互通，连接无限可能"
+            },
+            "fiber": {
+                "title": "Fiber Network",
+                "desc": "秒级支付确认，零手续费体验"
+            },
+            "ipfs": {
+                "title": "IPFS 存储",
+                "desc": "去中心化存储，内容永续保存"
+            },
+            "zk": {
+                "title": "零知识证明",
+                "desc": "保护隐私的同时确保数据真实性"
+            }
+        },
+        "roadmap": {
+            "title": "未来路线图",
+            "subtitle": "Nexus 生态的演进之路",
+            "phase1": {
+                "title": "创世",
+                "items": [
+                    "核心平台上线",
+                    "赛博朋克 UI 重构",
+                    "JoyID 集成"
+                ]
+            },
+            "phase2": {
+                "title": "互动",
+                "items": [
+                    "互动直播流",
+                    "移动端 App Beta",
+                    "光纤网络集成"
+                ]
+            },
+            "phase3": {
+                "title": "复兴",
+                "items": [
+                    "创作者 DAO",
+                    "NFT 交易市场",
+                    "全球边缘节点"
+                ]
+            },
+            "phase4": {
+                "title": "地平线",
+                "items": [
+                    "AI 内容生成",
+                    "元宇宙剧场",
+                    "脑机接口"
+                ]
+            }
+        },
+        "footer": {
+            "title": "准备好加入了吗？",
+            "subtitle": "加入内容所有权的自动化革命",
+            "cta": "启动应用"
+        }
+    },
+    "whitepaper": {
+        "badge": "协议版本 V1.0 // 草案",
+        "title": "NEXUS 协议",
+        "subtitle": "未来的数字篝火：去中心化、游戏化、并由你拥有。",
+        "executiveSummary": {
+            "title": "1. 执行摘要",
+            "p1": "Nexus 协议是建立在 <strong class=\"text-white\">CKB (Common Knowledge Base)</strong> 区块链和 <strong class=\"text-white\">RGB++</strong> 协议之上的下一代去中心化视频流媒体平台。它旨在通过一个透明、高性能和游戏化的生态系统，将数据所有权和收入归还给创作者和用户，从而彻底改变创作者经济。",
+            "p2": "与垄断流量和收入的传统平台 (Web2) 不同，Nexus 利用 <strong class=\"text-white\">Fiber Network</strong> 实现即时微支付，利用 <strong class=\"text-white\">IPFS</strong> 实现抗审查存储，创造一个真正自由开放的“Web3 YouTube”。"
+        },
+        "painPoints": {
+            "title": "2. 行业痛点",
+            "creators": {
+                "title": "对于创作者",
+                "items": [
+                    "<strong>由入分成:</strong> Web2 平台拿走 45%-55% 的广告收入。",
+                    "<strong>数据锁定:</strong> 粉丝和内容归平台所有。",
+                    "<strong>不透明算法:</strong> 流量分配存在偏见。"
+                ]
+            },
+            "users": {
+                "title": "对于用户",
+                "items": [
+                    "<strong>注意力剥削:</strong> 观看广告产生的价值回报为 $0。",
+                    "<strong>隐私侵犯:</strong> 数据被收集并出售。",
+                    "<strong>被动体验:</strong> 缺乏沉浸式互动。"
+                ]
+            }
+        },
+        "solution": {
+            "title": "3. Nexus 解决方案",
+            "intro": "Nexus 引入了三层创新堆栈：<strong>资产协议 + 支付网络 + 游戏化体验</strong>。",
+            "content": {
+                "title": "3.1 内容即资产 (RGB++)",
+                "desc": "每个视频都铸造为 RGB++ NFT。这确了 Bitcoin/CKB 生态系统上的真正所有权和二级销售的自动版税。"
+            },
+            "w2e": {
+                "title": "3.2 观看即挖矿",
+                "desc": "有效的观看时间会产生 <strong>$NXP</strong>。用户分享 50% 的广告收入并因参与而获得奖励。"
+            },
+            "optimization": {
+                "title": "3.3 闪电优化",
+                "desc": "Fiber Network 支持即时、零 Gas 费用的微支付 (1 CKB) 和按分钟付费的流媒体播放。"
+            }
+        },
+        "ecosystem": {
+            "title": "4. 生态系统与功能",
+            "live": {
+                "title": "4.1 沉浸式互动直播",
+                "items": [
+                    "<strong>互动弹幕:</strong> 触发全屏特效（雪花、火焰、爱心）。",
+                    "<strong>AI 数字人:</strong> 24/7 智能虚拟主播，与观众互动、回答问题。",
+                    "<strong>直播 PK:</strong> 主播间的实时对决，由用户投票（链上交易）决定胜负。"
+                ]
+            },
+            "music": {
+                "title": "4.2 去中心化音乐",
+                "items": [
+                    "<strong>音频 NFT:</strong> 听歌即挖矿，发现新艺术家获得代币。",
+                    "<strong>分轨混音:</strong> 音乐人发布分轨 NFT，允许粉丝二创混音并共享收益。"
+                ]
+            },
+            "publishing": {
+                "title": "4.3 Web3 出版",
+                "items": [
+                    "<strong>阅读即收益:</strong> 优质技术文章，读者直接打赏作者。",
+                    "<strong>永久存储:</strong> 所有文章存储在 IPFS/Arweave，永不丢失。"
+                ]
+            }
+        },
+        "roadmap": {
+            "title": "5. 路线图",
+            "q1": {
+                "title": "创世 (已完成)",
+                "desc": "核心平台发布, 赛博朋克 UI 重构, JoyID 钱包集成。"
+            },
+            "q2": {
+                "title": "互动 (当前)",
+                "desc": "互动直播流 (AI 数字人), 移动端 App Beta, Fiber 网络集成。"
+            },
+            "q3": {
+                "title": "复兴",
+                "desc": "创作者 DAO, NFT 交易市场, Web3 出版, 音乐板块。"
+            },
+            "phase4": {
+                "title": "地平线 (2027+)",
+                "desc": "AI 视频生成, AI 音乐创作, AI 新闻自动化, 元宇宙剧场。"
+            }
+        },
+        "footer": {
+            "title": "加入这场革命",
+            "subtitle": "我们正在构建未来的数字篝火。",
+            "cta": "启动应用"
+        }
+    },
+    "videoList": {
+        "pageTitle": "探索",
+        "pageSubtitle": "在 Nexus 中发现无限可能。",
+        "searchPlaceholder": "搜索标题...",
+        "showingResults": "显示 {{count}} 条结果",
+        "minPoints": "最低积分",
+        "maxPoints": "最高积分",
+        "noResults": "未找到结果",
+        "noResultsHint": "尝试调整筛选条件或搜索关键词。",
+        "clearFilters": "清除筛选",
+        "balance": "余额",
+        "play": "播放",
+        "free": "免费",
+        "save": "收藏",
+        "saved": "已收藏",
+        "buy": "购买",
+        "purchased": "已购买",
+        "watch": "观看",
+        "cached": "已缓存",
+        "sampleDataHint": "（显示示例数据）",
+        "quickSort": "快速排序",
+        "genre": "类型",
+        "region": "地区",
+        "language": "语言",
+        "duration": "时长",
+        "quality": "画质",
+        "errorTitle": "页面出现错误，已安全降级。",
+        "errorPrefix": "错误：",
+        "errorUnknown": "未知错误",
+        "errorHint": "提示：尝试刷新或稍后再试。",
+        "noVideoData": "暂无视频数据",
+        "genres": {
+            "全部": "全部",
+            "纪录片": "纪录片",
+            "动画": "动画",
+            "旅行": "旅行",
+            "自然": "自然",
+            "体育": "体育",
+            "音乐": "音乐",
+            "游戏": "游戏",
+            "科技": "科技",
+            "教育": "教育",
+            "美食": "美食",
+            "时尚": "时尚",
+            "生活": "生活",
+            "汽车": "汽车",
+            "动物": "动物",
+            "电影": "电影",
+            "短剧": "短剧",
+            "新闻": "新闻",
+            "综艺": "综艺",
+            "其他": "其他"
+        },
+        "regions": {
+            "全部": "全部",
+            "中国大陆": "中国大陆",
+            "香港/台湾": "香港/台湾",
+            "美国": "美国",
+            "日本": "日本",
+            "韩国": "韩国",
+            "欧洲": "欧洲",
+            "其他": "其他"
+        },
+        "languages": {
+            "全部": "全部",
+            "中文": "中文",
+            "英语": "英语",
+            "日语": "日语",
+            "韩语": "韩语",
+            "法语": "法语",
+            "其他": "其他"
+        },
+        "durations": {
+            "全部": "全部",
+            "短片": "短片",
+            "中等": "中等",
+            "长片": "长片"
+        },
+        "qualities": {
+            "全部": "全部"
+        },
+        "sorts": {
+            "热度": "热度",
+            "销量": "销量",
+            "价格": "价格",
+            "最新": "最新"
+        },
+        "paymentTitle": "选择支付方式",
+        "buyOnce": "💎 一次购买",
+        "buyOnceDesc": "永久解锁，无限观看",
+        "streamPay": "⚡ 按分钟付费",
+        "streamPayDesc": "边看边付，随时停止",
+        "ptsPerMin": "积分/分钟",
+        "maybeLater": "稍后再说",
+        "insufficientBalance": "余额不足！\\n当前：{{current}} 积分\\n需要：{{required}} 积分\\n\\n去充值？",
+        "general": "综合"
+    },
+    "wheel": {
+        "title": "每日幸运转盘",
+        "subtitle": "每天一次免费抽奖机会，精彩好礼等你来拿！",
+        "spin": "抽奖",
+        "spinsLeft": "{{count}}次",
+        "tomorrow": "明天",
+        "comeBack": "再来",
+        "prizeList": "奖品列表",
+        "congratulations": "恭喜获得",
+        "awesome": "太棒了！",
+        "pointsAwarded": "{{value}} 积分已发放到账户",
+        "couponAwarded": "{{value}}% 折扣券已发放",
+        "vipAwarded": "{{value}} 天VIP已激活",
+        "mysteryPrize": "神秘奖品稍后发放",
+        "loginRequired": "请先登录",
+        "spinFailed": "抽奖失败，请稍后重试"
+    },
+    "fragments": {
+        "title": "碎片画廊",
+        "collected": "已收集",
+        "total": "总共",
+        "synthesis": "合成",
+        "rarity": {
+            "common": "普通",
+            "rare": "稀有",
+            "epic": "史诗",
+            "legendary": "传说"
+        }
+    },
+    "search": {
+        "placeholder": "搜索...",
+        "results": "搜索结果",
+        "noResults": "未找到结果",
+        "searching": "搜索中..."
+    },
+    "moderation": {
+        "pending": "审核中",
+        "approved": "已通过",
+        "rejected": "未通过",
+        "flagged": "已标记"
+    },
+    "errors": {
+        "pageNotFound": "页面未找到",
+        "somethingWrong": "出现了错误",
+        "goHome": "返回首页",
+        "tryAgain": "重试",
+        "serviceUnavailable": "服务暂时不可用，请稍后重试",
+        "insufficientPoints": "积分不足",
+        "networkError": "网络错误"
+    },
+    "profile": {
+        "title": "个人主页",
+        "verified": "已认证",
+        "joined": "加入于",
+        "followers": "粉丝",
+        "following": "关注",
+        "views": "播放量",
+        "editProfile": "编辑资料",
+        "follow": "+ 关注",
+        "unfollow": "✓ 已关注",
+        "noVideos": "还没有视频。",
+        "uploadVideo": "上传视频",
+        "noMusic": "还没有上传音乐。",
+        "noArticles": "还没有发布文章。",
+        "noLive": "还没有直播间。",
+        "goLive": "开始直播",
+        "noNFTs": "还没有内容 NFT。",
+        "mintNFT": "铸造 NFT",
+        "noActivity": "暂无最近活动。",
+        "totalEarnings": "总收益",
+        "withdrawToWallet": "提现到钱包",
+        "loading": "加载中...",
+        "digitalCreator": "探索 Nexus 的数字创作者。"
+    },
+    "channel": {
+        "followers": "粉丝",
+        "follow": "+ 关注",
+        "following": "已关注",
+        "videos": "视频",
+        "about": "关于",
+        "noVideos": "此频道暂无视频。",
+        "loading": "加载中...",
+        "notFound": "频道未找到"
+    },
+    "watchParty": {
+        "title": "一起看",
+        "createRoom": "创建房间",
+        "joinRoom": "加入房间",
+        "roomId": "房间 ID",
+        "selectVideo": "选择视频",
+        "countdown": "倒计时",
+        "startParty": "开始",
+        "endParty": "结束",
+        "participants": "参与者",
+        "chat": "聊天",
+        "sendMessage": "发送消息...",
+        "viewer": "观众",
+        "syncing": "同步中...",
+        "waitingHost": "等待主持人开始",
+        "roomNotFound": "房间未找到"
+    },
+    "playerStatus": {
+        "orderProcessing": "订单处理中，请稍候... ({{current}}/{{total}})",
+        "authRetry": "等待授权/服务就绪，重试中 ({{current}}/{{total}})...",
+        "prefetching": "预取 manifest 和首片段中...",
+        "sendFailed": "发送失败：",
+        "notFound": "未找到"
+    },
+    "homeHero": {
+        "exclusivePremiere": "独家首映",
+        "playTrailer": "播放预告 (免费)",
+        "streamMovie": "流媒体播放",
+        "trendingThisWeek": "本周热门",
+        "allContent": "全部内容",
+        "cinematicVideos": "电影级视频",
+        "hiFiAudio": "高保真音频",
+        "liveWatchParties": "直播一起看",
+        "web3Research": "Web3 研究",
+        "trendingOnFiber": "🔥 Fiber 热门",
+        "earnsPoints": "赚取积分",
+        "watchPartyOn": "一起看进行中",
+        "views": "播放",
+        "watching": "正在观看"
+    }
+}

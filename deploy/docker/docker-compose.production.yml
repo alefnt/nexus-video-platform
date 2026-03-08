@@ -1,0 +1,458 @@
+version: '3.8'
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  networks:
+    - nexus-network
+  environment: &common-env
+    DATABASE_URL: postgresql://nexus:${DB_PASSWORD:-password}@postgres:5432/nexus_video
+    REDIS_URL: redis://redis:6379
+    JWT_SECRET: ${JWT_SECRET}
+    NODE_ENV: production
+
+services:
+  # ============== 数据库 ==============
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexus-postgres
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: nexus_video
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    networks:
+      - nexus-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U nexus -d nexus_video" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexus-redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:-}
+    networks:
+      - nexus-network
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============== 核心服务 ==============
+  identity:
+    <<: *service-defaults
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: identity
+    container_name: nexus-identity
+    ports:
+      - "8080:8080"
+    environment:
+      <<: *common-env
+      API_PORT: 8080
+      PAYMENT_URL: http://payment:8091
+      CONTENT_URL: http://content:8092
+      METADATA_URL: http://metadata:8093
+      ROYALTY_URL: http://royalty:8094
+      NFT_URL: http://nft:8095
+      LIVE_URL: http://live:8096
+      ACHIEVEMENT_URL: http://achievement:8097
+      GOVERNANCE_URL: http://governance:8098
+      BRIDGE_URL: http://bridge:8099
+      TRANSCODE_URL: http://transcode:8100
+      SEARCH_URL: http://search:8101
+      MODERATION_URL: http://moderation:8102
+      MESSAGING_URL: http://messaging:8103
+      ENGAGEMENT_URL: http://engagement:8104
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  payment:
+    <<: *service-defaults
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: payment
+    container_name: nexus-payment
+    ports:
+      - "8091:8091"
+    environment:
+      <<: *common-env
+      PORT: 8091
+      CKB_NODE_URL: ${CKB_NODE_URL}
+      CKB_INDEXER_URL: ${CKB_INDEXER_URL}
+      CKB_DEPOSIT_ADDRESS: ${CKB_DEPOSIT_ADDRESS:-}
+      FIBER_RPC_URL: ${FIBER_RPC_URL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  content:
+    <<: *service-defaults
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: content
+    container_name: nexus-content
+    ports:
+      - "8092:8092"
+    environment:
+      <<: *common-env
+      PORT: 8092
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-nexus}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-nexus123456}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  metadata:
+    <<: *service-defaults
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: metadata
+    container_name: nexus-metadata
+    ports:
+      - "8093:8093"
+    environment:
+      <<: *common-env
+      PORT: 8093
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  royalty:
+    <<: *service-defaults
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: royalty
+    container_name: nexus-royalty
+    ports:
+      - "8094:8094"
+    environment:
+      <<: *common-env
+      PORT: 8094
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  nft:
+    <<: *service-defaults
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: nft
+    container_name: nexus-nft
+    ports:
+      - "8095:8095"
+    environment:
+      <<: *common-env
+      PORT: 8095
+      CKB_NODE_URL: ${CKB_NODE_URL:-}
+      CKB_INDEXER_URL: ${CKB_INDEXER_URL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  live:
+    <<: *service-defaults
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: live
+    container_name: nexus-live
+    ports:
+      - "8096:8096"
+    environment:
+      <<: *common-env
+      PORT: 8096
+      LIVEKIT_URL: ${LIVEKIT_URL}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  achievement:
+    <<: *service-defaults
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: achievement
+    container_name: nexus-achievement
+    ports:
+      - "8097:8097"
+    environment:
+      <<: *common-env
+      PORT: 8097
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  governance:
+    <<: *service-defaults
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: governance
+    container_name: nexus-governance
+    ports:
+      - "8098:8098"
+    environment:
+      <<: *common-env
+      PORT: 8098
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  bridge:
+    <<: *service-defaults
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: bridge
+    container_name: nexus-bridge
+    ports:
+      - "8099:8099"
+    environment:
+      <<: *common-env
+      PORT: 8099
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  transcode:
+    <<: *service-defaults
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: transcode
+    container_name: nexus-transcode
+    ports:
+      - "8100:8100"
+    environment:
+      <<: *common-env
+      PORT: 8100
+      LIVEPEER_API_KEY: ${LIVEPEER_API_KEY}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-nexus}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-nexus123456}
+    depends_on:
+      - minio
+
+  search:
+    <<: *service-defaults
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: search
+    container_name: nexus-search
+    ports:
+      - "8101:8101"
+    environment:
+      <<: *common-env
+      PORT: 8101
+      MEILISEARCH_URL: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+
+  moderation:
+    <<: *service-defaults
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: moderation
+    container_name: nexus-moderation
+    ports:
+      - "8102:8102"
+    environment:
+      <<: *common-env
+      PORT: 8102
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  messaging:
+    <<: *service-defaults
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: messaging
+    container_name: nexus-messaging
+    ports:
+      - "8103:8103"
+    environment:
+      <<: *common-env
+      PORT: 8103
+      NTFY_URL: http://ntfy:80
+      NTFY_TOPIC: ${NTFY_TOPIC:-nexus-video}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ntfy:
+        condition: service_started
+
+  engagement:
+    <<: *service-defaults
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: engagement
+    container_name: nexus-engagement
+    ports:
+      - "8104:8104"
+    environment:
+      <<: *common-env
+      PORT: 8104
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ============== 基础设施 ==============
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    container_name: nexus-meilisearch
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_KEY}
+      MEILI_ENV: production
+    volumes:
+      - meilisearch_data:/meili_data
+    networks:
+      - nexus-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:7700/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: nexus-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-nexus}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-nexus123456}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - nexus-network
+    healthcheck:
+      test: [ "CMD", "mc", "ready", "local" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    container_name: nexus-ntfy
+    command: serve
+    volumes:
+      - ntfy_data:/var/cache/ntfy
+    networks:
+      - nexus-network
+
+  # ============== 监控 ==============
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: nexus-prometheus
+    volumes:
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - nexus-network
+
+  grafana:
+    image: grafana/grafana:10.3.0
+    container_name: nexus-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - nexus-network
+    depends_on:
+      - prometheus
+
+  # ============== 前端 ==============
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.web
+    container_name: nexus-web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # TLS 证书目录（需挂载 fullchain.pem 和 privkey.pem）
+      - ${SSL_CERT_DIR:-./ssl}:/etc/nginx/ssl:ro
+    environment:
+      VITE_API_GATEWAY_URL: ${API_GATEWAY_URL:-http://localhost:8080}
+    networks:
+      - nexus-network
+    depends_on:
+      - identity
+
+networks:
+  nexus-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  meilisearch_data:
+  minio_data:
+  ntfy_data:
+  prometheus_data:
+  grafana_data:

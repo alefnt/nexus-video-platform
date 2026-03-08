@@ -1,0 +1,26 @@
+# Kustomize 配置
+# FILE: /video-platform/deploy/k8s/base/kustomization.yaml
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: video-platform
+
+resources:
+  - namespace.yaml
+  - identity.yaml
+  - ingress.yaml
+  # 其他服务可按相同模式添加
+  # - payment.yaml
+  # - content.yaml
+  # - metadata.yaml
+
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+  app.kubernetes.io/part-of: video-platform
+
+images:
+  - name: ghcr.io/your-org/video-platform/identity
+    newTag: latest
+  - name: ghcr.io/your-org/video-platform/web
+    newTag: latest

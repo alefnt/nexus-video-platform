@@ -1,0 +1,40 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Identity Service (API Gateway)
+  - job_name: 'identity'
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+    metrics_path: '/metrics'
+
+  # Payment Service
+  - job_name: 'payment'
+    static_configs:
+      - targets: ['host.docker.internal:8091']
+    metrics_path: '/metrics'
+
+  # Content Service
+  - job_name: 'content'
+    static_configs:
+      - targets: ['host.docker.internal:8092']
+    metrics_path: '/metrics'
+
+  # Metadata Service
+  - job_name: 'metadata'
+    static_configs:
+      - targets: ['host.docker.internal:8093']
+    metrics_path: '/metrics'
+
+  # Live Service
+  - job_name: 'live'
+    static_configs:
+      - targets: ['host.docker.internal:8096']
+    metrics_path: '/metrics'
+
+  # Transcode Service
+  - job_name: 'transcode'
+    static_configs:
+      - targets: ['host.docker.internal:8100']
+    metrics_path: '/metrics'

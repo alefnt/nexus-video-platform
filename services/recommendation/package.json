@@ -1,0 +1,25 @@
+{
+    "name": "@video-platform/recommendation",
+    "version": "0.1.0",
+    "type": "module",
+    "scripts": {
+        "dev": "tsx watch src/server.ts",
+        "build": "tsc -p tsconfig.json",
+        "start": "node dist/server.js",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "@video-platform/database": "file:../../packages/database",
+        "@video-platform/shared": "file:../../shared",
+        "fastify": "^4.28.0",
+        "@fastify/cors": "^9.0.0",
+        "ioredis": "^5.3.2",
+        "prom-client": "^14.2.0"
+    },
+    "devDependencies": {
+        "tsx": "^4.7.0",
+        "typescript": "^5.5.0",
+        "@types/node": "^20.11.0",
+        "vitest": "^1.5.0"
+    }
+}

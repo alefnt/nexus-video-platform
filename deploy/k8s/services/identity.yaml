@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity
+  namespace: nexus-video
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: identity
+  template:
+    metadata:
+      labels:
+        app: identity
+    spec:
+      containers:
+        - name: identity
+          image: nexus-video/identity:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: nexus-config
+            - secretRef:
+                name: nexus-secrets
+          env:
+            - name: API_PORT
+              value: "8080"
+            - name: PAYMENT_URL
+              value: "http://payment:8091"
+            - name: CONTENT_URL
+              value: "http://content:8092"
+            - name: METADATA_URL
+              value: "http://metadata:8093"
+            - name: LIVE_URL
+              value: "http://live:8096"
+            - name: SEARCH_URL
+              value: "http://search:8101"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: identity
+  namespace: nexus-video
+spec:
+  selector:
+    app: identity
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP

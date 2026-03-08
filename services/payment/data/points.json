@@ -1,0 +1,1355 @@
+{
+  "balances": {
+    "0d577215-d9aa-4577-942f-700c4e1c6998": 8000,
+    "4234ba57-49d9-4a9f-be3b-cf173a458406": 1400,
+    "380ebffb-e64a-498c-98f9-44f4075053c8": 403,
+    "f6f145d0-ea54-489d-bf14-28d7e1585e8e": 100,
+    "cf092b7a-cbf8-421a-bd9e-68710dd63a44": 400,
+    "f1f250e1-aded-4bb0-8ace-26c4fde47fd0": 200,
+    "f5b0ce37-db59-4117-aac0-015fc655ae1f": 1000,
+    "6ade4bdb-229d-4371-9754-5358cab9b9ce": 400000,
+    "4576dc0b-298b-4840-bea7-6e2067376aaf": 100,
+    "19005b15-70c0-492b-970b-e4720fd7d90a": 100,
+    "7017e783-be6f-4303-9b11-627d7bcd8e4a": 100000,
+    "527020e2-7683-46f7-b678-3e46b5af681c": 200000,
+    "544c8d7c-2d3c-4af9-9b79-fd6a35fc1afa": 100,
+    "59afd333-caee-43c0-83ed-d80603367ad4": 100,
+    "3d9e3e35-841a-47c0-aec4-7d51cfbfe971": 100,
+    "58e718a5-9d8d-4699-87bc-5a9cea1cf652": 50,
+    "88941327-22b8-4f91-9364-df28ee1d7a73": 200,
+    "8260d387-cd37-47f8-a880-980e22de60a2": 200,
+    "05b0ad25-1d13-402f-99e4-c337bb56694d": 99000,
+    "9ddb2b3c-c4b7-4eac-b1f7-718b42cc4e60": 100,
+    "69f11520-db9b-494d-bec3-8f27468f77ee": 10000,
+    "83a0e9c4-5d2f-40b0-bd0e-357558f847de": 900,
+    "be979978-35bc-491c-8d54-078309a53d2d": 1000,
+    "e250ce86-c629-48a2-b7d6-1e84aafc63be": 100,
+    "f0f567a2-1c76-4c7f-b0d6-14c8c471bac8": 100,
+    "f09e52d7-637c-43c7-b36f-c232949b645c": 200,
+    "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e": 22200,
+    "c42e4a5f-4f5d-4684-b4eb-28001ad5378d": 2000,
+    "03d95499-3b2f-4cf6-be81-d1eea6df98ba": 100,
+    "e96b6ef9-cec4-442c-8dff-bf63c3a26206": 100000,
+    "eafc345a-8d71-421b-93a2-9490b15ee4be": 1101200,
+    "201b017a-e1ad-4256-abdb-292624ea8d90": 199900,
+    "ckb:ckt1qrfrwcdnvssswdwpn3s9v8fp87emat306ctjwsm3nmlkjg8qyza2cqgqqxsk5y0dmezwh6utg6m6pd8yrjtv0074qctqehzp": 160,
+    "fb970111-0d5d-4d65-98fa-305cc5f361c8": 99950,
+    "2feb8b077319777d883981234d6cc5d7": 101500,
+    "ckb:ckt1qrfrwcdnvssswdwpn3s9v8fp87emat306ctjwsm3nmlkjg8qyza2cqgqq99pejtmcuyvn5wmrepgjtu2enk6fjum6y65dnew": 40
+  },
+  "txns": [
+    {
+      "id": "e377cd63-8da5-442e-b78e-fe3711ba16c4",
+      "userId": "0d577215-d9aa-4577-942f-700c4e1c6998",
+      "type": "earn",
+      "amount": 10000,
+      "reason": "demo",
+      "createdAt": "2025-10-18T00:53:09.583Z"
+    },
+    {
+      "id": "cd0081e2-8d72-41be-8178-a5785e97052a",
+      "userId": "0d577215-d9aa-4577-942f-700c4e1c6998",
+      "type": "redeem",
+      "amount": 1000,
+      "videoId": "demo-video",
+      "createdAt": "2025-10-18T00:53:15.236Z"
+    },
+    {
+      "id": "973802df-5b16-4777-b1b0-ec9b1c3ca0fb",
+      "userId": "0d577215-d9aa-4577-942f-700c4e1c6998",
+      "type": "redeem",
+      "amount": 1000,
+      "videoId": "demo-video",
+      "createdAt": "2025-10-18T00:53:26.466Z"
+    },
+    {
+      "id": "1205c8fe-47b2-4b4c-b47d-6a3b6753d1a9",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "buy",
+      "amount": 100,
+      "reason": "购买 100 积分，花费 0.1 USDI",
+      "createdAt": "2025-10-18T13:22:20.672Z"
+    },
+    {
+      "id": "8a69bcae-ab45-4618-9f57-f8c69e03d28f",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "buy",
+      "amount": 100,
+      "reason": "购买 100 积分，花费 0.1 USDI",
+      "createdAt": "2025-10-18T13:22:24.197Z"
+    },
+    {
+      "id": "2f783562-a188-4253-b3b2-dc52ab94331e",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "buy",
+      "amount": 100,
+      "reason": "购买 100 积分，花费 0.1 USDI",
+      "createdAt": "2025-10-18T13:22:26.246Z"
+    },
+    {
+      "id": "6b47ed50-82dc-416b-abaa-746382456e55",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:22:30.049Z"
+    },
+    {
+      "id": "a2164c7f-5540-4fe9-9721-6c1fa5e65b0c",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:22:32.054Z"
+    },
+    {
+      "id": "8e0b7122-9654-4fe6-96ec-d41c2935f6a5",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:22:33.965Z"
+    },
+    {
+      "id": "290edcb2-12b7-499f-b925-887d52792bb5",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:22:36.031Z"
+    },
+    {
+      "id": "47596652-181e-4196-acfd-fc85c32e39eb",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:39:48.422Z"
+    },
+    {
+      "id": "10ee241b-5da5-4944-befd-35c6606f5cc0",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:39:50.872Z"
+    },
+    {
+      "id": "fe560c53-062b-43d3-87bd-b2d4fe4ec07b",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:39:52.702Z"
+    },
+    {
+      "id": "0d36dd22-5133-460e-be4e-fdf4f9d98845",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "redeem",
+      "amount": 1000,
+      "videoId": "demo-video",
+      "createdAt": "2025-10-18T13:40:02.411Z"
+    },
+    {
+      "id": "9a44218a-35e3-4ebb-8b82-46889b9d692d",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:46:30.481Z"
+    },
+    {
+      "id": "373369af-f02c-4764-bd4d-2a7583e8d7bc",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:46:32.847Z"
+    },
+    {
+      "id": "921722c3-34a4-4afa-8b3a-2ec367662b91",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:46:34.472Z"
+    },
+    {
+      "id": "16a1b176-90ec-49bf-a616-691fb336bfc2",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:46:36.055Z"
+    },
+    {
+      "id": "a950532e-2e96-4733-8975-2bac58e2675a",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:46:37.544Z"
+    },
+    {
+      "id": "e6b3c2fb-4a99-4af6-8c97-5f3dae586eb4",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:46:38.984Z"
+    },
+    {
+      "id": "caf325c7-9067-4eec-827f-d04acc2ad434",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:46:40.360Z"
+    },
+    {
+      "id": "368394dc-2f30-4e32-a167-7f1d08544730",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:46:42.025Z"
+    },
+    {
+      "id": "d6a76595-b5ff-405c-bd5c-2d7b8dc75d24",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:46:43.439Z"
+    },
+    {
+      "id": "900a4a46-ae03-4ef3-8425-98b5b0df547c",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "earn",
+      "amount": 100,
+      "reason": "测试发放",
+      "createdAt": "2025-10-18T13:46:45.055Z"
+    },
+    {
+      "id": "cf48d31f-073a-4eec-91bc-8afb2c43de0b",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "buy",
+      "amount": 100,
+      "reason": "购买 100 积分，花费 0.1 USDI",
+      "createdAt": "2025-10-18T13:46:51.830Z"
+    },
+    {
+      "id": "6a2fd229-15e2-45af-a9e5-4eec3307ecf6",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "buy",
+      "amount": 100,
+      "reason": "购买 100 积分，花费 0.1 USDI",
+      "createdAt": "2025-10-18T13:56:59.006Z"
+    },
+    {
+      "id": "9c3be3d3-f2b2-4b80-9ff9-65f7b460475d",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "buy",
+      "amount": 100,
+      "reason": "购买 100 积分，花费 0.1 USDI",
+      "createdAt": "2025-10-18T14:04:30.794Z"
+    },
+    {
+      "id": "e9e99b4d-fb6d-4e8d-b479-30a8566a6026",
+      "userId": "4234ba57-49d9-4a9f-be3b-cf173a458406",
+      "type": "buy",
+      "amount": 100,
+      "reason": "购买 100 积分，花费 0.1 USDI",
+      "createdAt": "2025-10-18T14:07:58.289Z"
+    },
+    {
+      "id": "86e186df-0bd4-4fcd-9a8e-308d2e4863e6",
+      "userId": "380ebffb-e64a-498c-98f9-44f4075053c8",
+      "type": "buy",
+      "amount": 100,
+      "reason": "购买 100 积分，花费 0.1 USDI",
+      "createdAt": "2025-10-19T00:49:14.234Z"
+    },
+    {
+      "id": "6c099e59-9ac1-4eb1-b84a-7742dca8eadb",
+      "userId": "380ebffb-e64a-498c-98f9-44f4075053c8",
+      "type": "buy",
+      "amount": 100,
+      "reason": "购买 100 积分，花费 0.1 USDI",
+      "createdAt": "2025-10-19T01:37:48.712Z"
+    },
+    {
+      "id": "3ba1b9fd-cad2-4975-89b4-80b190c2ee59",
+      "userId": "380ebffb-e64a-498c-98f9-44f4075053c8",
+      "type": "buy",
+      "amount": 100,
+      "reason": "购买 100 积分，花费 0.1 USDI",
+      "createdAt": "2025-10-19T01:37:53.010Z"
+    },
+    {
+      "id": "3330363a-4f16-4a71-bcb1-5eb74deec160",
+      "userId": "380ebffb-e64a-498c-98f9-44f4075053c8",
+      "type": "buy",
+      "amount": 1,
+      "reason": "购买 1 积分，花费 0.001 CKB",
+      "createdAt": "2025-10-19T01:38:02.364Z"
+    },
+    {
+      "id": "32ba341d-ca70-4ffa-9324-fb41af3bb5fc",
+      "userId": "380ebffb-e64a-498c-98f9-44f4075053c8",
+      "type": "buy",
+      "amount": 1,
+      "reason": "购买 1 积分，花费 0.001 CKB",
+      "createdAt": "2025-10-19T01:45:13.129Z"
+    },
+    {
+      "id": "6c02e6a6-85ad-480c-967e-a020293523e8",
+      "userId": "380ebffb-e64a-498c-98f9-44f4075053c8",
+      "type": "buy",
+      "amount": 1,
+      "reason": "购买 1 积分，花费 0.001 CKB",
+      "createdAt": "2025-10-19T01:45:31.745Z"
+    },
+    {
+      "id": "401f3d3e-84e2-4e69-addd-e20012b2dfca",
+      "userId": "380ebffb-e64a-498c-98f9-44f4075053c8",
+      "type": "buy",
+      "amount": 100,
+      "reason": "购买 100 积分，花费 0.1 USDI",
+      "createdAt": "2025-10-19T02:22:49.919Z"
+    },
+    {
+      "id": "baba357a-f2e9-4d00-9e87-7c15eedc664c",
+      "userId": "f6f145d0-ea54-489d-bf14-28d7e1585e8e",
+      "type": "buy",
+      "amount": 100,
+      "reason": "购买 100 积分，花费 0.1 USDI",
+      "createdAt": "2025-10-19T02:42:19.883Z"
+    },
+    {
+      "id": "ec8a821a-ad3c-4f5c-903c-05b5a5a90385",
+      "userId": "cf092b7a-cbf8-421a-bd9e-68710dd63a44",
+      "type": "buy",
+      "amount": 100,
+      "reason": "购买 100 积分，花费 0.1 USDI（JoyID 验签）",
+      "createdAt": "2025-10-19T07:19:30.195Z"
+    },
+    {
+      "id": "151f63cb-20b5-44a4-8a38-e3cb69e9e635",
+      "userId": "cf092b7a-cbf8-421a-bd9e-68710dd63a44",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-19T07:35:59.015Z"
+    },
+    {
+      "id": "efa8b880-b450-4801-b8bf-140a179afdf9",
+      "userId": "cf092b7a-cbf8-421a-bd9e-68710dd63a44",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-19T07:36:01.069Z"
+    },
+    {
+      "id": "bbe9cf1d-d37d-47b9-9b14-d294d1bbd8a8",
+      "userId": "cf092b7a-cbf8-421a-bd9e-68710dd63a44",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-19T07:36:03.181Z"
+    },
+    {
+      "id": "0c843d68-c053-4488-b4e2-a7362073eb95",
+      "userId": "f1f250e1-aded-4bb0-8ace-26c4fde47fd0",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-19T09:42:08.747Z"
+    },
+    {
+      "id": "3c876906-dc33-4664-a97c-2cfeeddfcaff",
+      "userId": "f1f250e1-aded-4bb0-8ace-26c4fde47fd0",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-19T10:19:48.384Z"
+    },
+    {
+      "id": "74b20694-0f16-4038-bd14-5cce4560c6d4",
+      "userId": "f5b0ce37-db59-4117-aac0-015fc655ae1f",
+      "type": "buy",
+      "amount": 1000,
+      "reason": "fiber_paid",
+      "createdAt": "2025-10-19T11:55:25.439Z"
+    },
+    {
+      "id": "b8ca8e3f-4223-443a-a592-7b074d251c4d",
+      "userId": "6ade4bdb-229d-4371-9754-5358cab9b9ce",
+      "type": "buy",
+      "amount": 100000,
+      "reason": "fiber_paid",
+      "createdAt": "2025-10-19T12:20:11.330Z"
+    },
+    {
+      "id": "18763c20-c121-4182-a160-726367574335",
+      "userId": "6ade4bdb-229d-4371-9754-5358cab9b9ce",
+      "type": "buy",
+      "amount": 100000,
+      "reason": "fiber_paid",
+      "createdAt": "2025-10-19T13:06:54.216Z"
+    },
+    {
+      "id": "f4281a8f-bd8a-4d88-88c1-31c460cd5a90",
+      "userId": "6ade4bdb-229d-4371-9754-5358cab9b9ce",
+      "type": "buy",
+      "amount": 100000,
+      "reason": "fiber_paid",
+      "createdAt": "2025-10-19T13:47:27.967Z"
+    },
+    {
+      "id": "2bd2d7d1-f23e-4395-820f-19f6158e7001",
+      "userId": "6ade4bdb-229d-4371-9754-5358cab9b9ce",
+      "type": "buy",
+      "amount": 100000,
+      "reason": "fiber_paid",
+      "createdAt": "2025-10-19T13:47:28.569Z"
+    },
+    {
+      "id": "6b4f670a-f418-4754-b144-2283f66b4aee",
+      "userId": "4576dc0b-298b-4840-bea7-6e2067376aaf",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-21T13:24:24.267Z"
+    },
+    {
+      "id": "26e0ec6d-105f-4036-93a6-0317be18b299",
+      "userId": "19005b15-70c0-492b-970b-e4720fd7d90a",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-23T03:22:28.687Z"
+    },
+    {
+      "id": "5a49bb43-02f0-4483-8a86-aadddcb6f675",
+      "userId": "7017e783-be6f-4303-9b11-627d7bcd8e4a",
+      "type": "buy",
+      "amount": 100000,
+      "reason": "fiber_paid_mock",
+      "createdAt": "2025-10-23T10:55:35.117Z"
+    },
+    {
+      "id": "a01e901a-3984-44f9-8a3c-e7807b12aa30",
+      "userId": "527020e2-7683-46f7-b678-3e46b5af681c",
+      "type": "buy",
+      "amount": 100000,
+      "reason": "fiber_paid_mock",
+      "createdAt": "2025-10-23T10:59:42.483Z"
+    },
+    {
+      "id": "ae1d73d1-568d-454d-a886-855cb8827765",
+      "userId": "527020e2-7683-46f7-b678-3e46b5af681c",
+      "type": "buy",
+      "amount": 100000,
+      "reason": "fiber_paid_mock",
+      "createdAt": "2025-10-23T10:59:55.905Z"
+    },
+    {
+      "id": "91bfc2f0-a437-4ad8-9762-7842603da796",
+      "userId": "544c8d7c-2d3c-4af9-9b79-fd6a35fc1afa",
+      "type": "earn",
+      "amount": 100,
+      "reason": "上传免费视频奖励",
+      "createdAt": "2025-10-24T07:00:15.781Z"
+    },
+    {
+      "id": "dd740e3a-8d30-49da-9857-bca3c8a84660",
+      "userId": "59afd333-caee-43c0-83ed-d80603367ad4",
+      "type": "earn",
+      "amount": 100,
+      "reason": "上传免费视频奖励",
+      "createdAt": "2025-10-24T08:37:34.224Z"
+    },
+    {
+      "id": "7e1e5f6b-43e9-42db-9187-523ff0636f38",
+      "userId": "3d9e3e35-841a-47c0-aec4-7d51cfbfe971",
+      "type": "earn",
+      "amount": 100,
+      "reason": "上传免费视频奖励",
+      "createdAt": "2025-10-24T09:25:18.820Z"
+    },
+    {
+      "id": "424dc97a-02b2-4656-b444-ee1732b20528",
+      "userId": "58e718a5-9d8d-4699-87bc-5a9cea1cf652",
+      "type": "earn",
+      "amount": 50,
+      "createdAt": "2025-10-24T12:15:51.724Z"
+    },
+    {
+      "id": "4c6075ff-3716-4982-943a-4fdf59825f00",
+      "userId": "88941327-22b8-4f91-9364-df28ee1d7a73",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-25T03:52:35.784Z"
+    },
+    {
+      "id": "9d257a09-10b5-4d33-92b5-eb8eb9960e20",
+      "userId": "88941327-22b8-4f91-9364-df28ee1d7a73",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-25T03:52:38.591Z"
+    },
+    {
+      "id": "85ae2853-228c-472f-9d14-ddd9de2b6ec9",
+      "userId": "88941327-22b8-4f91-9364-df28ee1d7a73",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-25T03:52:40.365Z"
+    },
+    {
+      "id": "aeb222ca-59b5-4454-bd0f-0220bd1331c0",
+      "userId": "88941327-22b8-4f91-9364-df28ee1d7a73",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-25T03:52:42.151Z"
+    },
+    {
+      "id": "d6994ca1-78c2-4b58-8494-cd48e5adbf86",
+      "userId": "88941327-22b8-4f91-9364-df28ee1d7a73",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-25T03:52:44.254Z"
+    },
+    {
+      "id": "9bcc0170-4c77-40a5-8c7b-447f5e3d903b",
+      "userId": "88941327-22b8-4f91-9364-df28ee1d7a73",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-25T03:52:46.052Z"
+    },
+    {
+      "id": "262ce69b-1dd4-4fc8-a400-cc8dd7feecae",
+      "userId": "88941327-22b8-4f91-9364-df28ee1d7a73",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-25T03:52:47.720Z"
+    },
+    {
+      "id": "ad90b359-114f-4035-93cc-b1dd7d423402",
+      "userId": "88941327-22b8-4f91-9364-df28ee1d7a73",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-25T03:52:50.351Z"
+    },
+    {
+      "id": "65ac8d18-37d6-4454-88ab-62ee278f9631",
+      "userId": "88941327-22b8-4f91-9364-df28ee1d7a73",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-25T03:52:51.862Z"
+    },
+    {
+      "id": "4a13d433-9e8b-4c11-8628-0271aa1aa462",
+      "userId": "88941327-22b8-4f91-9364-df28ee1d7a73",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-25T03:52:53.829Z"
+    },
+    {
+      "id": "2bae9c8d-b353-422b-b4df-8f40a45b7806",
+      "userId": "88941327-22b8-4f91-9364-df28ee1d7a73",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-25T03:52:55.565Z"
+    },
+    {
+      "id": "1fed5879-9a81-41a1-9d1e-20d0e652e098",
+      "userId": "88941327-22b8-4f91-9364-df28ee1d7a73",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2025-10-25T03:52:57.236Z"
+    },
+    {
+      "id": "7bffe593-2b9f-4a8e-8bac-a4432b087359",
+      "userId": "88941327-22b8-4f91-9364-df28ee1d7a73",
+      "type": "redeem",
+      "amount": 1000,
+      "videoId": "3f262fe2-6605-46f3-a761-dc814a1c6a5c",
+      "createdAt": "2025-10-25T03:53:11.283Z"
+    },
+    {
+      "id": "ca34cb0f-a4a7-470b-858e-9682ab2db97b",
+      "userId": "8260d387-cd37-47f8-a880-980e22de60a2",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-06T12:45:30.563Z"
+    },
+    {
+      "id": "df4623dd-9134-46ae-80c3-c8668039f4bc",
+      "userId": "8260d387-cd37-47f8-a880-980e22de60a2",
+      "type": "buy",
+      "amount": 100,
+      "reason": "购买 100 积分，花费 0.1 USDI（JoyID 验签）",
+      "createdAt": "2026-01-06T12:46:16.863Z"
+    },
+    {
+      "id": "164d5696-a6a2-4d16-bd72-26572f650e6f",
+      "userId": "05b0ad25-1d13-402f-99e4-c337bb56694d",
+      "type": "earn",
+      "amount": 100000,
+      "createdAt": "2026-01-06T13:41:07.689Z"
+    },
+    {
+      "id": "499a4716-97e6-4e50-8bd0-754ed9d23fe7",
+      "userId": "05b0ad25-1d13-402f-99e4-c337bb56694d",
+      "type": "redeem",
+      "amount": 1000,
+      "videoId": "3f262fe2-6605-46f3-a761-dc814a1c6a5c",
+      "createdAt": "2026-01-06T13:41:57.141Z"
+    },
+    {
+      "id": "5cb5688c-5d95-4eac-ae51-98f1db8baa6a",
+      "userId": "9ddb2b3c-c4b7-4eac-b1f7-718b42cc4e60",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-07T00:17:22.261Z"
+    },
+    {
+      "id": "bb6ac7d6-2897-4a64-9e21-9a066b5fefda",
+      "userId": "69f11520-db9b-494d-bec3-8f27468f77ee",
+      "type": "earn",
+      "amount": 10000,
+      "createdAt": "2026-01-07T13:38:58.854Z"
+    },
+    {
+      "id": "99a28596-2e96-40ba-acb4-7f02ad19dd04",
+      "userId": "83a0e9c4-5d2f-40b0-bd0e-357558f847de",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-07T15:27:08.429Z"
+    },
+    {
+      "id": "6651efa8-df1f-4fe4-a5ba-338b2465b923",
+      "userId": "83a0e9c4-5d2f-40b0-bd0e-357558f847de",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-07T15:27:12.414Z"
+    },
+    {
+      "id": "9bfa347b-15f5-4c90-8831-761179a2b9ae",
+      "userId": "83a0e9c4-5d2f-40b0-bd0e-357558f847de",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-07T15:27:12.594Z"
+    },
+    {
+      "id": "b8929e8f-a5e2-4385-a1e1-90d3a134e7dc",
+      "userId": "83a0e9c4-5d2f-40b0-bd0e-357558f847de",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-07T15:27:12.770Z"
+    },
+    {
+      "id": "00c3787f-50f5-46a6-bbd8-90c1c669bc7d",
+      "userId": "83a0e9c4-5d2f-40b0-bd0e-357558f847de",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-07T15:27:12.962Z"
+    },
+    {
+      "id": "24988af7-9945-4c7b-8814-953450aca944",
+      "userId": "83a0e9c4-5d2f-40b0-bd0e-357558f847de",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-07T15:29:43.326Z"
+    },
+    {
+      "id": "86a5e7e8-5f8e-4d30-9c8d-e53c985fa149",
+      "userId": "83a0e9c4-5d2f-40b0-bd0e-357558f847de",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-07T15:29:43.507Z"
+    },
+    {
+      "id": "7df4e8a5-4b61-45b8-8cfa-117d5b1b1ec2",
+      "userId": "83a0e9c4-5d2f-40b0-bd0e-357558f847de",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-07T15:29:43.882Z"
+    },
+    {
+      "id": "2c3ee5c3-71f2-42ed-9eb1-568584b93bd9",
+      "userId": "83a0e9c4-5d2f-40b0-bd0e-357558f847de",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-07T15:29:44.186Z"
+    },
+    {
+      "id": "3bdc3649-f6d2-4292-b3c6-45ede2e3d252",
+      "userId": "be979978-35bc-491c-8d54-078309a53d2d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-08T00:20:02.454Z"
+    },
+    {
+      "id": "5821c524-4db1-4160-a004-87f03737618b",
+      "userId": "be979978-35bc-491c-8d54-078309a53d2d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-08T00:20:02.640Z"
+    },
+    {
+      "id": "6835a9a8-920a-459c-8c84-a25ff935057e",
+      "userId": "be979978-35bc-491c-8d54-078309a53d2d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-08T00:20:02.816Z"
+    },
+    {
+      "id": "afc187df-49d1-4a21-a79f-98d03431feaa",
+      "userId": "be979978-35bc-491c-8d54-078309a53d2d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-08T00:20:02.983Z"
+    },
+    {
+      "id": "4f8ecb61-4a05-4d51-9071-731af3f74cf0",
+      "userId": "be979978-35bc-491c-8d54-078309a53d2d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-08T00:20:03.143Z"
+    },
+    {
+      "id": "e725fc8c-45ec-4824-a9fe-6ecafd78d1e5",
+      "userId": "be979978-35bc-491c-8d54-078309a53d2d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-08T00:20:03.326Z"
+    },
+    {
+      "id": "1b7efa70-e942-4b24-a83f-03fadbca650a",
+      "userId": "be979978-35bc-491c-8d54-078309a53d2d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-08T00:20:03.488Z"
+    },
+    {
+      "id": "9ce16e77-3228-4a3a-84da-db7b4ce25e6d",
+      "userId": "be979978-35bc-491c-8d54-078309a53d2d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-08T00:20:03.654Z"
+    },
+    {
+      "id": "919bd53b-cf0a-48d7-84c8-55784e9252e2",
+      "userId": "be979978-35bc-491c-8d54-078309a53d2d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-08T00:20:03.830Z"
+    },
+    {
+      "id": "4afdf103-8076-490b-8d08-da2bd7088955",
+      "userId": "be979978-35bc-491c-8d54-078309a53d2d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-08T00:20:04.047Z"
+    },
+    {
+      "id": "d6015e79-b744-492a-b4aa-ce64986f4153",
+      "userId": "e250ce86-c629-48a2-b7d6-1e84aafc63be",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-08T15:05:55.705Z"
+    },
+    {
+      "id": "afc101f4-2fb6-44b5-8c6f-cfc67316784d",
+      "userId": "f0f567a2-1c76-4c7f-b0d6-14c8c471bac8",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T14:54:31.846Z"
+    },
+    {
+      "id": "23d9a7bd-b266-4dab-b30e-8ad0b8d54875",
+      "userId": "f09e52d7-637c-43c7-b36f-c232949b645c",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T15:14:33.864Z"
+    },
+    {
+      "id": "c9470a45-3b79-43cb-9777-0f8871997975",
+      "userId": "f09e52d7-637c-43c7-b36f-c232949b645c",
+      "type": "earn",
+      "amount": 100,
+      "reason": "上传免费视频奖励",
+      "createdAt": "2026-01-09T15:40:08.850Z"
+    },
+    {
+      "id": "9a7c103f-0fcc-493b-8394-931e01367a82",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:45.448Z"
+    },
+    {
+      "id": "f4b84c09-5eaf-412c-8224-89338eb95a07",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:45.647Z"
+    },
+    {
+      "id": "8ac1c658-b3a5-4fbe-abe5-1b95ef3740d5",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:45.825Z"
+    },
+    {
+      "id": "51d93f5c-c1e5-470c-8b47-dbcb4b59f978",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:45.992Z"
+    },
+    {
+      "id": "28fa1f2f-3cc1-4735-b275-be6b961a3d2a",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:46.152Z"
+    },
+    {
+      "id": "cda1963e-53e7-486b-860d-049b8a02679f",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:46.328Z"
+    },
+    {
+      "id": "6bd23463-b6ce-4d38-994f-4f5b01076048",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:46.479Z"
+    },
+    {
+      "id": "d9456f8a-1274-4a35-827f-f6ddec52041b",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:46.671Z"
+    },
+    {
+      "id": "1796daa2-7ff3-46ff-9c64-abdf8f5ae122",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:46.825Z"
+    },
+    {
+      "id": "d5093c68-13c2-42ce-8a34-827f42394a6e",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:46.991Z"
+    },
+    {
+      "id": "db529cf4-c719-44f2-bb41-defb6315691b",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:47.160Z"
+    },
+    {
+      "id": "b24635d8-8ad2-4b59-a66a-b1b9acd47567",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:47.328Z"
+    },
+    {
+      "id": "2433f60b-de68-4285-9047-e7727965ba52",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:47.495Z"
+    },
+    {
+      "id": "d7666268-a5ab-44ad-9719-a53e2cb0918b",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:47.679Z"
+    },
+    {
+      "id": "dae8fbf4-2ac7-4b9c-a632-152e24e55be6",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:47.831Z"
+    },
+    {
+      "id": "65bf5738-be79-4066-a47e-75466ce3e4e9",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:48.007Z"
+    },
+    {
+      "id": "fea52f7b-5446-4415-adfe-335353743e5b",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:48.176Z"
+    },
+    {
+      "id": "8fe62f32-2f21-4b74-bd64-ec7e3dd5c677",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:48.353Z"
+    },
+    {
+      "id": "81692a62-0d28-4909-b4b2-1fc0e518c858",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:48.530Z"
+    },
+    {
+      "id": "8c225c21-5c20-4b8b-9d47-20d7eb559b2d",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:48.696Z"
+    },
+    {
+      "id": "f3f46c09-2031-4413-8d74-749fc944a499",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:48.873Z"
+    },
+    {
+      "id": "995d00bc-4fe9-456a-a424-87831a645015",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T17:17:49.024Z"
+    },
+    {
+      "id": "2a1aac09-767c-4b1d-8752-8171b3c448ca",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 10000,
+      "createdAt": "2026-01-09T17:17:53.242Z"
+    },
+    {
+      "id": "28aec97c-27de-4f57-bb68-aac9bea891d2",
+      "userId": "0aeb2b9c-a619-4dcd-8a01-4d04edc6c22e",
+      "type": "earn",
+      "amount": 10000,
+      "createdAt": "2026-01-09T17:17:54.352Z"
+    },
+    {
+      "id": "c7e8bae1-934c-4870-ad94-af2f854cfeba",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:50.929Z"
+    },
+    {
+      "id": "f017ea68-974f-4098-bb46-e43391838a4a",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:51.280Z"
+    },
+    {
+      "id": "ceb8b3d0-1bb5-40bd-be38-fe0ee2ec137c",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:51.285Z"
+    },
+    {
+      "id": "c7ff5ed4-fec2-4788-8fee-0419a75bb60d",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:51.434Z"
+    },
+    {
+      "id": "359bfae9-21f1-4a8f-a15b-6e06b69040d6",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:51.587Z"
+    },
+    {
+      "id": "bf52fbee-0722-4e2e-a745-23c2866c72f6",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:51.745Z"
+    },
+    {
+      "id": "71649ee4-1bcb-4473-963c-ab75bc406f75",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:51.914Z"
+    },
+    {
+      "id": "ecb2dfa1-794c-434d-b4a4-a20fdc18c59f",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:52.083Z"
+    },
+    {
+      "id": "081deb52-bc38-4bdf-937a-437e44831544",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:52.242Z"
+    },
+    {
+      "id": "418de817-b09f-4f91-8340-8d9b5dbdb95a",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:52.405Z"
+    },
+    {
+      "id": "37ebe13e-86e1-470c-ba87-857538d07889",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:52.563Z"
+    },
+    {
+      "id": "87282b55-153b-4238-97d5-5798a4c6b846",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:52.722Z"
+    },
+    {
+      "id": "5e6680c8-383e-4a40-9e09-1fa3956e54fa",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:52.889Z"
+    },
+    {
+      "id": "c8bb37f3-576e-484e-8d71-8501064edfd0",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:53.049Z"
+    },
+    {
+      "id": "8fc87ce5-e64b-4021-8685-37d28c54fef0",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:53.210Z"
+    },
+    {
+      "id": "5c501479-4579-45b8-9356-5d527c68fd40",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:53.386Z"
+    },
+    {
+      "id": "36c9bdfb-415e-4ca8-9d1d-22c8be1ae4d2",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:53.545Z"
+    },
+    {
+      "id": "9d73e6bb-c5f5-4dcf-910e-beb951d8e8e4",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:53.721Z"
+    },
+    {
+      "id": "45a37c21-d61a-4d02-b95e-7eb1a41068d1",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:53.907Z"
+    },
+    {
+      "id": "aef2ab72-d2c8-4128-8950-017285d99234",
+      "userId": "c42e4a5f-4f5d-4684-b4eb-28001ad5378d",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-09T18:00:54.082Z"
+    },
+    {
+      "id": "115c7912-38e5-45f0-b257-aaa67c350977",
+      "userId": "03d95499-3b2f-4cf6-be81-d1eea6df98ba",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-10T02:20:38.521Z"
+    },
+    {
+      "id": "7b2126e4-9b01-4480-85b5-8ed106894e9b",
+      "userId": "e96b6ef9-cec4-442c-8dff-bf63c3a26206",
+      "type": "buy",
+      "amount": 100000,
+      "reason": "CKB购买 100 CKB，交易: 0xc2187b1b97014a87...",
+      "createdAt": "2026-01-10T03:19:23.976Z"
+    },
+    {
+      "id": "65082eae-4880-4e88-a076-c753843c09e2",
+      "userId": "eafc345a-8d71-421b-93a2-9490b15ee4be",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-10T08:19:49.801Z"
+    },
+    {
+      "id": "ace7f3ca-82fd-4e97-a442-57400b657615",
+      "userId": "eafc345a-8d71-421b-93a2-9490b15ee4be",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-10T08:22:55.015Z"
+    },
+    {
+      "id": "64dfaa01-996f-4644-811e-5d038cfea788",
+      "userId": "eafc345a-8d71-421b-93a2-9490b15ee4be",
+      "type": "buy",
+      "amount": 1001000,
+      "reason": "CKB购买 1001 CKB，交易: 0x471a76b41e12d5b9...",
+      "createdAt": "2026-01-10T08:23:24.565Z"
+    },
+    {
+      "id": "1526bde4-882a-4a0c-8c69-c0673e49fdce",
+      "userId": "eafc345a-8d71-421b-93a2-9490b15ee4be",
+      "type": "buy",
+      "amount": 100000,
+      "reason": "CKB购买 100 CKB，交易: 0xcf2e335e2fbc4c33...",
+      "createdAt": "2026-01-10T08:24:55.488Z"
+    },
+    {
+      "id": "40bb409f-cc03-4549-b00d-ccd88334d0c5",
+      "userId": "201b017a-e1ad-4256-abdb-292624ea8d90",
+      "type": "buy",
+      "amount": 100000,
+      "reason": "CKB购买 100 CKB，交易: 0xc64d612d85e401f1...",
+      "createdAt": "2026-01-10T12:25:51.154Z"
+    },
+    {
+      "id": "c4c07d7a-ca58-4659-a282-69f78529ebd7",
+      "userId": "201b017a-e1ad-4256-abdb-292624ea8d90",
+      "type": "buy",
+      "amount": 100000,
+      "reason": "CKB购买 100 CKB，交易: 0x0678bf493e433f46...",
+      "createdAt": "2026-01-10T12:36:07.324Z"
+    },
+    {
+      "id": "a8cbc0dc-963f-462b-a7bc-b94610fa04f8",
+      "userId": "201b017a-e1ad-4256-abdb-292624ea8d90",
+      "type": "redeem",
+      "amount": -50,
+      "reason": "流支付: 视频 b7df801a-5f7d-4881-92b4-4084c56656bb 第 1 段",
+      "createdAt": "2026-01-10T13:47:00.580Z"
+    },
+    {
+      "id": "ed4bc86b-daa1-4235-9976-e13ac315aa02",
+      "userId": "ckb:ckt1qrfrwcdnvssswdwpn3s9v8fp87emat306ctjwsm3nmlkjg8qyza2cqgqqxsk5y0dmezwh6utg6m6pd8yrjtv0074qctqehzp",
+      "type": "earn",
+      "amount": 40,
+      "reason": "流支付收入: 视频 b7df801a-5f7d-4881-92b4-4084c56656bb 第 1 段",
+      "createdAt": "2026-01-10T13:47:00.592Z"
+    },
+    {
+      "id": "f06a7589-a134-4065-8842-f5a73e655c79",
+      "userId": "201b017a-e1ad-4256-abdb-292624ea8d90",
+      "type": "redeem",
+      "amount": -50,
+      "reason": "流支付: 视频 b7df801a-5f7d-4881-92b4-4084c56656bb 第 2 段",
+      "createdAt": "2026-01-10T14:31:45.826Z"
+    },
+    {
+      "id": "93f6116e-b388-462a-86a0-c4178002be68",
+      "userId": "ckb:ckt1qrfrwcdnvssswdwpn3s9v8fp87emat306ctjwsm3nmlkjg8qyza2cqgqqxsk5y0dmezwh6utg6m6pd8yrjtv0074qctqehzp",
+      "type": "earn",
+      "amount": 40,
+      "reason": "流支付收入: 视频 b7df801a-5f7d-4881-92b4-4084c56656bb 第 2 段",
+      "createdAt": "2026-01-10T14:31:45.837Z"
+    },
+    {
+      "id": "9ac1e6e3-6932-4511-b385-36f3b4aadfc0",
+      "userId": "fb970111-0d5d-4d65-98fa-305cc5f361c8",
+      "type": "earn",
+      "amount": 100000,
+      "createdAt": "2026-01-13T13:34:13.033Z"
+    },
+    {
+      "id": "51b5e070-1ec2-4f15-879f-03e665e7a7d3",
+      "userId": "fb970111-0d5d-4d65-98fa-305cc5f361c8",
+      "type": "redeem",
+      "amount": -50,
+      "reason": "流支付: 视频 b7df801a-5f7d-4881-92b4-4084c56656bb 第 1 段",
+      "createdAt": "2026-01-13T13:34:20.718Z"
+    },
+    {
+      "id": "950bac62-d110-4bd9-9e96-80ec0a93d8dd",
+      "userId": "ckb:ckt1qrfrwcdnvssswdwpn3s9v8fp87emat306ctjwsm3nmlkjg8qyza2cqgqqxsk5y0dmezwh6utg6m6pd8yrjtv0074qctqehzp",
+      "type": "earn",
+      "amount": 40,
+      "reason": "流支付收入: 视频 b7df801a-5f7d-4881-92b4-4084c56656bb 第 1 段",
+      "createdAt": "2026-01-13T13:34:20.723Z"
+    },
+    {
+      "id": "723b74ed-10e4-40ab-bdb2-9f28d077cc93",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:48.202Z"
+    },
+    {
+      "id": "3b7ebba2-eedb-4165-b202-69cd71453d5b",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:48.350Z"
+    },
+    {
+      "id": "986a0527-3e65-42ab-8b44-8c594cd71c79",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:48.532Z"
+    },
+    {
+      "id": "b37545aa-9f0f-4de7-b7d2-4c0a0c10fac0",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:48.701Z"
+    },
+    {
+      "id": "9fcfb83c-4267-4d0f-849b-7f5a8a94913a",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:48.884Z"
+    },
+    {
+      "id": "ea5edfce-64ec-4586-81b5-500a004a50ec",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:49.029Z"
+    },
+    {
+      "id": "11a96303-542d-4788-89e6-d17708a478b6",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:49.182Z"
+    },
+    {
+      "id": "17189b51-f139-4b3c-9067-ba3b085ef039",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:49.341Z"
+    },
+    {
+      "id": "cf5a6e24-6aaf-45af-8978-6335f2906a6b",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:49.653Z"
+    },
+    {
+      "id": "60ba5198-6891-4a96-9173-2fb8f3aaf54f",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:49.828Z"
+    },
+    {
+      "id": "3524ad1a-2a66-490a-b957-30efb05825e2",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:50.012Z"
+    },
+    {
+      "id": "15d0e3ab-4cb3-4158-8fa2-ba0e89a1fb26",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:50.165Z"
+    },
+    {
+      "id": "a030b18f-719f-4ba8-bc19-7c40aa728d96",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:50.342Z"
+    },
+    {
+      "id": "cb56151e-7881-44ae-b9aa-8f5277681364",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:50.508Z"
+    },
+    {
+      "id": "8e732f64-a6c3-4380-a4ec-299620d898a3",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:50.684Z"
+    },
+    {
+      "id": "6f0ffd4b-9f8b-4e66-8662-6f1e070cf65e",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100,
+      "createdAt": "2026-01-13T15:12:51.012Z"
+    },
+    {
+      "id": "cca885a7-6605-4260-a1dc-28ec601412d5",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "earn",
+      "amount": 100000,
+      "createdAt": "2026-01-13T15:12:52.982Z"
+    },
+    {
+      "id": "d9a87f21-7cd5-41b4-acf0-03916f39199c",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "redeem",
+      "amount": -50,
+      "reason": "流支付: 视频 b7df801a-5f7d-4881-92b4-4084c56656bb 第 1 段",
+      "createdAt": "2026-01-13T15:12:58.849Z"
+    },
+    {
+      "id": "17d4dcf1-d4a7-4457-85fd-bbb864edc962",
+      "userId": "ckb:ckt1qrfrwcdnvssswdwpn3s9v8fp87emat306ctjwsm3nmlkjg8qyza2cqgqqxsk5y0dmezwh6utg6m6pd8yrjtv0074qctqehzp",
+      "type": "earn",
+      "amount": 40,
+      "reason": "流支付收入: 视频 b7df801a-5f7d-4881-92b4-4084c56656bb 第 1 段",
+      "createdAt": "2026-01-13T15:12:58.853Z"
+    },
+    {
+      "id": "26048a6c-222a-4ec0-88e9-ffc703197a00",
+      "userId": "2feb8b077319777d883981234d6cc5d7",
+      "type": "redeem",
+      "amount": -50,
+      "reason": "流支付: 视频 3f262fe2-6605-46f3-a761-dc814a1c6a5c 第 1 段",
+      "createdAt": "2026-01-13T16:26:02.479Z"
+    },
+    {
+      "id": "d2a32882-b830-4a0e-a2cc-8a095e31efe7",
+      "userId": "ckb:ckt1qrfrwcdnvssswdwpn3s9v8fp87emat306ctjwsm3nmlkjg8qyza2cqgqq99pejtmcuyvn5wmrepgjtu2enk6fjum6y65dnew",
+      "type": "earn",
+      "amount": 40,
+      "reason": "流支付收入: 视频 3f262fe2-6605-46f3-a761-dc814a1c6a5c 第 1 段",
+      "createdAt": "2026-01-13T16:26:02.483Z"
+    }
+  ]
+}

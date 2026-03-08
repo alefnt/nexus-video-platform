@@ -1,0 +1,112 @@
+version: '3.8'
+
+# 开源技术栈 - 全部自托管
+services:
+  # ============== 搜索 ==============
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    container_name: nexus-meilisearch
+    ports:
+      - "7700:7700"
+    environment:
+      MEILI_MASTER_KEY: nexus-search-key-2026
+      MEILI_ENV: development
+    volumes:
+      - meilisearch_data:/meili_data
+    restart: unless-stopped
+
+  # ============== 存储 ==============
+  minio:
+    image: minio/minio:latest
+    container_name: nexus-minio
+    ports:
+      - "9000:9000" # S3 API
+      - "9001:9001" # Web Console
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: nexus
+      MINIO_ROOT_PASSWORD: nexus123456
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+
+  # ============== 推送 ==============
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    container_name: nexus-ntfy
+    ports:
+      - "8070:80"
+    command: serve
+    volumes:
+      - ntfy_data:/var/cache/ntfy
+    restart: unless-stopped
+
+  # ============== 监控 ==============
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: nexus-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.3.0
+    container_name: nexus-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=nexus123
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: nexus-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  # ============== 数据库 (已有可跳过) ==============
+  # postgres:
+  #   image: postgres:16
+  #   container_name: nexus-postgres
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     POSTGRES_USER: nexus
+  #     POSTGRES_PASSWORD: password
+  #     POSTGRES_DB: nexus_video
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+
+  # ============== Redis (队列/缓存) ==============
+  redis:
+    image: redis:7-alpine
+    container_name: nexus-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  meilisearch_data:
+  minio_data:
+  ntfy_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  redis_data: # postgres_data:

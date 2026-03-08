@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: 'Nexus'
+    folder: 'Nexus'
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

@@ -1,0 +1,180 @@
+# PostgreSQL 主从复制配置
+# FILE: /video-platform/deploy/database/docker-compose.yml
+#
+# 运行方式: docker-compose -f deploy/database/docker-compose.yml up -d
+
+version: '3.8'
+
+services:
+  # ============== PostgreSQL 主节点 ==============
+  postgres-master:
+    image: postgres:16-alpine
+    container_name: postgres-master
+    hostname: postgres-master
+    restart: always
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: nexus_video
+      # 主节点配置
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - postgres-master-data:/var/lib/postgresql/data
+      - ./init-master.sh:/docker-entrypoint-initdb.d/init-master.sh
+      - ./pg_hba.conf:/etc/postgresql/pg_hba.conf
+    ports:
+      - "5432:5432"
+    command: |
+      postgres
+      -c wal_level=replica
+      -c max_wal_senders=3
+      -c max_replication_slots=3
+      -c hot_standby=on
+      -c synchronous_commit=on
+      -c archive_mode=on
+      -c archive_command='test ! -f /var/lib/postgresql/archive/%f && cp %p /var/lib/postgresql/archive/%f'
+    networks:
+      - db-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U nexus -d nexus_video" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============== PostgreSQL 从节点 1 ==============
+  postgres-replica1:
+    image: postgres:16-alpine
+    container_name: postgres-replica1
+    hostname: postgres-replica1
+    restart: always
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: nexus_video
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - postgres-replica1-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    command: |
+      bash -c "
+        # 等待主节点准备好
+        until pg_isready -h postgres-master -p 5432 -U nexus; do
+          echo 'Waiting for master...';
+          sleep 2;
+        done;
+        
+        # 如果数据目录为空，从主节点同步
+        if [ ! -f /var/lib/postgresql/data/PG_VERSION ]; then
+          echo 'Syncing from master...';
+          PGPASSWORD=${POSTGRES_PASSWORD:-password} pg_basebackup -h postgres-master -U replication -D /var/lib/postgresql/data -Fp -Xs -P -R;
+        fi;
+        
+        # 启动从节点
+        postgres -c hot_standby=on
+      "
+    networks:
+      - db-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U nexus -d nexus_video" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============== PostgreSQL 从节点 2 (可选) ==============
+  postgres-replica2:
+    image: postgres:16-alpine
+    container_name: postgres-replica2
+    hostname: postgres-replica2
+    restart: always
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: nexus_video
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - postgres-replica2-data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    command: |
+      bash -c "
+        until pg_isready -h postgres-master -p 5432 -U nexus; do
+          echo 'Waiting for master...';
+          sleep 2;
+        done;
+        
+        if [ ! -f /var/lib/postgresql/data/PG_VERSION ]; then
+          PGPASSWORD=${POSTGRES_PASSWORD:-password} pg_basebackup -h postgres-master -U replication -D /var/lib/postgresql/data -Fp -Xs -P -R;
+        fi;
+        
+        postgres -c hot_standby=on
+      "
+    networks:
+      - db-network
+    profiles:
+      - full # 只在 full profile 启用
+
+  # ============== PgBouncer 连接池 ==============
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: pgbouncer
+    restart: always
+    environment:
+      DATABASE_URL: postgres://nexus:${POSTGRES_PASSWORD:-password}@postgres-master:5432/nexus_video
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 50
+      MIN_POOL_SIZE: 10
+      RESERVE_POOL_SIZE: 10
+      RESERVE_POOL_TIMEOUT: 5
+    ports:
+      - "6432:5432"
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    networks:
+      - db-network
+
+  # ============== PgPool-II 负载均衡 (可选) ==============
+  pgpool:
+    image: bitnami/pgpool:latest
+    container_name: pgpool
+    restart: always
+    environment:
+      PGPOOL_BACKEND_NODES: 0:postgres-master:5432,1:postgres-replica1:5432
+      PGPOOL_SR_CHECK_USER: nexus
+      PGPOOL_SR_CHECK_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      PGPOOL_POSTGRES_USERNAME: nexus
+      PGPOOL_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      PGPOOL_ADMIN_USERNAME: admin
+      PGPOOL_ADMIN_PASSWORD: ${PGPOOL_ADMIN_PASSWORD:-admin123}
+      PGPOOL_ENABLE_LOAD_BALANCING: "yes"
+      PGPOOL_NUM_INIT_CHILDREN: 32
+      PGPOOL_MAX_POOL: 4
+    ports:
+      - "9999:5432"
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+      postgres-replica1:
+        condition: service_healthy
+    networks:
+      - db-network
+    profiles:
+      - full
+
+volumes:
+  postgres-master-data:
+  postgres-replica1-data:
+  postgres-replica2-data:
+
+
+networks:
+  db-network:
+    driver: bridge

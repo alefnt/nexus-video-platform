@@ -1,0 +1,25 @@
+{
+    "name": "@video-platform/service-messaging",
+    "version": "0.1.0",
+    "type": "module",
+    "scripts": {
+        "dev": "tsx src/server.ts",
+        "dev:unified": "tsx src/unified.ts",
+        "start": "node dist/server.js",
+        "build": "tsc -p tsconfig.json"
+    },
+    "dependencies": {
+        "fastify": "^4.25.2",
+        "@fastify/cors": "^8.4.0",
+        "@fastify/websocket": "^8.3.0",
+        "@video-platform/database": "file:../../packages/database",
+        "@video-platform/shared": "file:../../shared",
+        "prom-client": "^15.1.0"
+    },
+    "devDependencies": {
+        "tsx": "^4.7.0",
+        "typescript": "^5.5.0",
+        "@types/node": "^20.11.0",
+        "@types/ws": "^8.5.10"
+    }
+}

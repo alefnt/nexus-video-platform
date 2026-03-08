@@ -1,0 +1,41 @@
+version: '3.8'
+# Temporal.io — Workflow Engine for complex business process orchestration
+# Run with: docker-compose -f docker-compose.temporal.yml up -d
+services:
+  temporal-postgresql:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: temporal_pwd
+      POSTGRES_USER: temporal
+      POSTGRES_DB: temporal
+    volumes:
+      - temporal-pg-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+  temporal:
+    image: temporalio/auto-setup:latest
+    depends_on:
+      - temporal-postgresql
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal_pwd
+      - POSTGRES_SEEDS=temporal-postgresql
+    ports:
+      - "7233:7233" # Temporal gRPC
+    restart: unless-stopped
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+    ports:
+      - "8233:8080" # Temporal Web UI
+    restart: unless-stopped
+
+volumes:
+  temporal-pg-data:

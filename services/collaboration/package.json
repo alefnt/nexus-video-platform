@@ -1,0 +1,21 @@
+{
+    "name": "@video-platform/collaboration",
+    "version": "0.1.0",
+    "type": "module",
+    "scripts": {
+        "dev": "tsx watch src/server.ts",
+        "build": "tsc -p tsconfig.json",
+        "start": "node dist/server.js"
+    },
+    "dependencies": {
+        "@video-platform/database": "file:../../packages/database",
+        "@video-platform/shared": "file:../../shared",
+        "fastify": "^4.28.0",
+        "prom-client": "^14.2.0"
+    },
+    "devDependencies": {
+        "tsx": "^4.7.0",
+        "typescript": "^5.5.0",
+        "@types/node": "^20.11.0"
+    }
+}

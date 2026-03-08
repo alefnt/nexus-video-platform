@@ -1,0 +1,22 @@
+version: "3.9"
+services:
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --config /livekit.yaml
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "50000-50050:50000-50050/udp"
+    volumes:
+      - ./livekit.yaml:/livekit.yaml
+    depends_on:
+      - redis
+    environment:
+      - LIVEKIT_KEYS_API7G63Reip94z9=g7BEIVLH21JoHX2flUaeuAq7eBtDbqIwKXGIVPQDhepC
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  redis:
+    image: redis:6-alpine
+    ports:
+      - "6378:6379"

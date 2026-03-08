@@ -1,0 +1,371 @@
+/* FILE: /client-web/src/styles/article.css */
+/* Nexus Articles - Premium Reading Experience */
+
+/* --- Reading Progress Bar --- */
+.reading-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan));
+    z-index: 9999;
+    transition: width 0.1s linear;
+    box-shadow: 0 0 10px rgba(162, 103, 255, 0.5);
+}
+
+/* --- Article Container --- */
+.article-container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: var(--space-2xl) var(--space-lg);
+}
+
+/* --- Article Header --- */
+.article-header {
+    margin-bottom: var(--space-2xl);
+    padding-bottom: var(--space-xl);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.article-title {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: var(--space-md);
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+.article-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.article-meta-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+/* --- Article Content Typography --- */
+.article-content {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 18px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+}
+
+.article-content h1,
+.article-content h2,
+.article-content h3 {
+    font-family: var(--font-display);
+    color: var(--text-primary);
+    margin-top: var(--space-2xl);
+    margin-bottom: var(--space-md);
+}
+
+.article-content h1 {
+    font-size: 2rem;
+}
+
+.article-content h2 {
+    font-size: 1.5rem;
+}
+
+.article-content h3 {
+    font-size: 1.25rem;
+}
+
+.article-content p {
+    margin-bottom: var(--space-lg);
+}
+
+.article-content blockquote {
+    margin: var(--space-xl) 0;
+    padding: var(--space-lg);
+    padding-left: var(--space-xl);
+    border-left: 4px solid var(--accent-purple);
+    background: rgba(162, 103, 255, 0.05);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    font-style: italic;
+    color: var(--text-primary);
+}
+
+.article-content code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    color: var(--accent-cyan);
+}
+
+.article-content pre {
+    margin: var(--space-xl) 0;
+    padding: var(--space-lg);
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+}
+
+.article-content pre code {
+    padding: 0;
+    background: none;
+}
+
+.article-content a {
+    color: var(--accent-cyan);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    transition: color var(--duration-fast);
+}
+
+.article-content a:hover {
+    color: var(--accent-purple);
+}
+
+/* --- Drop Cap --- */
+.article-content>p:first-of-type::first-letter {
+    float: left;
+    font-size: 4em;
+    line-height: 0.8;
+    padding-right: var(--space-md);
+    padding-top: 4px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--accent-purple);
+}
+
+/* --- Chapter Navigation --- */
+.chapter-nav {
+    position: fixed;
+    left: var(--space-lg);
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    z-index: 100;
+}
+
+.chapter-nav-item {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border-subtle);
+    cursor: pointer;
+    transition: all var(--duration-normal);
+}
+
+.chapter-nav-item:hover {
+    background: var(--text-muted);
+    transform: scale(1.5);
+}
+
+.chapter-nav-item.active {
+    background: var(--accent-purple);
+    box-shadow: 0 0 10px rgba(162, 103, 255, 0.5);
+}
+
+@media (max-width: 1200px) {
+    .chapter-nav {
+        display: none;
+    }
+}
+
+/* --- Article Card --- */
+.article-card {
+    display: flex;
+    gap: var(--space-lg);
+    padding: var(--space-lg);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-out-expo);
+}
+
+.article-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-3d);
+}
+
+.article-card-cover {
+    width: 120px;
+    height: 160px;
+    border-radius: var(--radius-md);
+    background-size: cover;
+    background-position: center;
+    flex-shrink: 0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.article-card-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.article-card-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: var(--space-sm);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.article-card-excerpt {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: var(--space-md);
+}
+
+.article-card-meta {
+    display: flex;
+    gap: var(--space-md);
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: auto;
+}
+
+/* --- Genre Tags --- */
+.genre-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: var(--radius-full);
+    background: rgba(162, 103, 255, 0.15);
+    color: var(--accent-purple);
+    border: 1px solid rgba(162, 103, 255, 0.3);
+}
+
+.genre-tag.fantasy {
+    background: rgba(0, 245, 212, 0.15);
+    color: var(--accent-cyan);
+    border-color: rgba(0, 245, 212, 0.3);
+}
+
+.genre-tag.sci-fi {
+    background: rgba(77, 97, 252, 0.15);
+    color: var(--accent-blue);
+    border-color: rgba(77, 97, 252, 0.3);
+}
+
+.genre-tag.history {
+    background: rgba(255, 217, 61, 0.15);
+    color: #FFD93D;
+    border-color: rgba(255, 217, 61, 0.3);
+}
+
+/* --- Reading Mode Toggle --- */
+.reading-mode-toggle {
+    position: fixed;
+    bottom: var(--space-xl);
+    right: var(--space-xl);
+    display: flex;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-full);
+    z-index: 100;
+}
+
+.mode-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--duration-normal);
+}
+
+.mode-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.mode-btn.active {
+    background: var(--accent-purple);
+    color: white;
+}
+
+/* --- Estimated Read Time --- */
+.read-time {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: 4px 10px;
+    font-size: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-full);
+    color: var(--text-muted);
+}
+
+/* --- Scroll Indicator --- */
+.scroll-indicator {
+    position: fixed;
+    right: var(--space-xl);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 100px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-full);
+    z-index: 50;
+}
+
+.scroll-indicator-fill {
+    width: 100%;
+    background: linear-gradient(to bottom, var(--accent-purple), var(--accent-cyan));
+    border-radius: var(--radius-full);
+    transition: height 0.1s linear;
+}
+
+@media (max-width: 768px) {
+    .article-container {
+        padding: var(--space-lg) var(--space-md);
+    }
+
+    .article-content {
+        font-size: 16px;
+    }
+
+    .article-card {
+        flex-direction: column;
+    }
+
+    .article-card-cover {
+        width: 100%;
+        height: 180px;
+    }
+
+    .scroll-indicator,
+    .reading-mode-toggle {
+        display: none;
+    }
+}

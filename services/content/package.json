@@ -1,0 +1,24 @@
+{
+  "name": "@video-platform/service-content",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "dev:unified": "tsx src/unified.ts",
+    "start": "node dist/server.js",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "fastify": "^4.25.2",
+    "@fastify/static": "^6.0.0",
+    "@video-platform/database": "file:../../packages/database",
+    "@video-platform/shared": "file:../../shared"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.0",
+    "vitest": "^1.5.0",
+    "@types/node": "^20.11.0"
+  }
+}
