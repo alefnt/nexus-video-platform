@@ -191,6 +191,7 @@ export default function Sidebar() {
                             { path: '/creator/nft', icon: '🖼️', label: 'NFT Mint' },
                             { path: '/settings/platforms', icon: '🔗', label: 'Platform Connections' },
                             { path: '/studio/ai/music', icon: '🎼', label: 'AI Music Lab' },
+                            { path: '/studio/ai/article', icon: '📝', label: 'AI Article Lab' },
                         ].map(item => (
                             <button
                                 key={item.path}
