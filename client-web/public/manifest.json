@@ -1,84 +1,90 @@
 {
-    "name": "Nexus Video",
+    "name": "Nexus Video Platform",
     "short_name": "Nexus",
-    "description": "去中心化视频社交平台 - 创作者优先, Web3 确权",
+    "description": "Next-generation decentralized video platform with Web3 payments and creator monetization",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#0a0a1a",
-    "theme_color": "#8b5cf6",
-    "orientation": "any",
+    "background_color": "#0f0f23",
+    "theme_color": "#6366f1",
+    "orientation": "portrait-primary",
+    "scope": "/",
     "icons": [
         {
-            "src": "/icons/icon-192.png",
+            "src": "/icons/icon-72x72.png",
+            "sizes": "72x72",
+            "type": "image/png"
+        },
+        {
+            "src": "/icons/icon-96x96.png",
+            "sizes": "96x96",
+            "type": "image/png"
+        },
+        {
+            "src": "/icons/icon-128x128.png",
+            "sizes": "128x128",
+            "type": "image/png"
+        },
+        {
+            "src": "/icons/icon-144x144.png",
+            "sizes": "144x144",
+            "type": "image/png"
+        },
+        {
+            "src": "/icons/icon-192x192.png",
             "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icons/icon-384x384.png",
+            "sizes": "384x384",
             "type": "image/png"
         },
         {
-            "src": "/icons/icon-512.png",
-            "sizes": "512x512",
-            "type": "image/png"
-        },
-        {
-            "src": "/icons/icon-512-maskable.png",
+            "src": "/icons/icon-512x512.png",
             "sizes": "512x512",
             "type": "image/png",
-            "purpose": "maskable"
+            "purpose": "any maskable"
         }
     ],
     "categories": [
         "entertainment",
-        "social"
+        "social",
+        "video"
     ],
-    "screenshots": [
-        {
-            "src": "/screenshots/home.png",
-            "sizes": "1280x720",
-            "type": "image/png",
-            "label": "首页推荐"
-        }
-    ],
+    "screenshots": [],
     "shortcuts": [
         {
-            "name": "上传视频",
-            "short_name": "上传",
-            "description": "上传新内容",
-            "url": "/upload",
+            "name": "Browse Videos",
+            "url": "/#/videos",
             "icons": [
                 {
-                    "src": "/icons/upload.png",
+                    "src": "/icons/icon-96x96.png",
                     "sizes": "96x96"
                 }
             ]
         },
         {
-            "name": "直播",
-            "short_name": "开播",
-            "description": "开始直播",
-            "url": "/live/studio",
+            "name": "Live Streams",
+            "url": "/#/live",
             "icons": [
                 {
-                    "src": "/icons/live.png",
+                    "src": "/icons/icon-96x96.png",
+                    "sizes": "96x96"
+                }
+            ]
+        },
+        {
+            "name": "Points Center",
+            "url": "/#/points",
+            "icons": [
+                {
+                    "src": "/icons/icon-96x96.png",
                     "sizes": "96x96"
                 }
             ]
         }
     ],
-    "share_target": {
-        "action": "/upload",
-        "method": "POST",
-        "enctype": "multipart/form-data",
-        "params": {
-            "title": "title",
-            "text": "description",
-            "url": "url",
-            "files": [
-                {
-                    "name": "video",
-                    "accept": [
-                        "video/*"
-                    ]
-                }
-            ]
-        }
-    }
+    "related_applications": [],
+    "prefer_related_applications": false
 }

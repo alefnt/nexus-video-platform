@@ -1,0 +1,233 @@
+{
+    "annotations": {
+        "list": []
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+        {
+            "title": "Service Health Overview",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 24,
+                "x": 0,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "expr": "count(up == 1)",
+                    "legendFormat": "Healthy Services"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": 0
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 10
+                            },
+                            {
+                                "color": "green",
+                                "value": 15
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "title": "Request Rate (per service)",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 4
+            },
+            "targets": [
+                {
+                    "expr": "sum(rate(http_request_duration_seconds_count[5m])) by (job)",
+                    "legendFormat": "{{ job }}"
+                }
+            ]
+        },
+        {
+            "title": "Error Rate (per service)",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 4
+            },
+            "targets": [
+                {
+                    "expr": "sum(rate(http_request_duration_seconds_count{status=~\"5..\"}[5m])) by (job)",
+                    "legendFormat": "{{ job }} errors"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "fillOpacity": 30
+                    }
+                }
+            }
+        },
+        {
+            "title": "P95 Latency (per service)",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 12
+            },
+            "targets": [
+                {
+                    "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))",
+                    "legendFormat": "{{ job }} P95"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s"
+                }
+            }
+        },
+        {
+            "title": "Memory Usage (per service)",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 12
+            },
+            "targets": [
+                {
+                    "expr": "process_resident_memory_bytes / 1024 / 1024",
+                    "legendFormat": "{{ job }} MB"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "decmbytes"
+                }
+            }
+        },
+        {
+            "title": "Message Queue Status",
+            "type": "bargauge",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 20
+            },
+            "targets": [
+                {
+                    "expr": "queue_waiting_count",
+                    "legendFormat": "{{ queue }} waiting"
+                },
+                {
+                    "expr": "queue_active_count",
+                    "legendFormat": "{{ queue }} active"
+                }
+            ]
+        },
+        {
+            "title": "Payment Transactions",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 20
+            },
+            "targets": [
+                {
+                    "expr": "rate(payment_transactions_total[5m])",
+                    "legendFormat": "{{ type }}"
+                }
+            ]
+        },
+        {
+            "title": "Active Stream Sessions",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 8,
+                "x": 0,
+                "y": 28
+            },
+            "targets": [
+                {
+                    "expr": "active_stream_sessions",
+                    "legendFormat": "Active Sessions"
+                }
+            ]
+        },
+        {
+            "title": "Connected Users",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 8,
+                "x": 8,
+                "y": 28
+            },
+            "targets": [
+                {
+                    "expr": "connected_users_total",
+                    "legendFormat": "Connected Users"
+                }
+            ]
+        },
+        {
+            "title": "Content Moderation Queue",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 8,
+                "x": 16,
+                "y": 28
+            },
+            "targets": [
+                {
+                    "expr": "moderation_review_queue_size",
+                    "legendFormat": "Review Queue"
+                }
+            ]
+        }
+    ],
+    "schemaVersion": 39,
+    "style": "dark",
+    "tags": [
+        "nexus",
+        "overview"
+    ],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "title": "Nexus Video Platform — Overview Dashboard",
+    "uid": "nexus-overview",
+    "version": 1
+}
