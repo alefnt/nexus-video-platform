@@ -1,7 +1,7 @@
 {
   "name": "@video-platform/monorepo",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "workspaces": [
     "shared",
@@ -10,6 +10,10 @@
     "services/*"
   ],
   "scripts": {
+    "lint": "eslint . --ext .ts,.tsx --max-warnings 100",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,css,md}\"",
     "playwright:install": "playwright install",
     "test:e2e": "npm run playwright:install && playwright test",
     "test:services": "npm -w services/identity test && npm -w services/payment test && npm -w services/content test && npm -w services/metadata test && npm -w services/royalty test",
@@ -20,8 +24,12 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
     "concurrently": "^8.2.2",
     "dotenv-cli": "^11.0.0",
+    "eslint": "^10.0.3",
+    "prettier": "^3.8.1",
     "rollup-plugin-visualizer": "^6.0.5",
     "tsx": "^4.0.0",
     "wait-on": "^7.2.0"
