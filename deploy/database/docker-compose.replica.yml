@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  postgres-primary:
+    image: postgres:16
+    container_name: nexus-pg-primary
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: nexus_secret
+      POSTGRES_DB: nexus_video
+    volumes:
+      - pg_primary_data:/var/lib/postgresql/data
+      - ./init-replication.sh:/docker-entrypoint-initdb.d/init-replication.sh
+    command: >
+      postgres
+        -c wal_level=replica
+        -c max_wal_senders=5
+        -c max_replication_slots=5
+        -c hot_standby=on
+    restart: unless-stopped
+
+  postgres-replica:
+    image: postgres:16
+    container_name: nexus-pg-replica
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: nexus_secret
+      POSTGRES_DB: nexus_video
+    depends_on:
+      - postgres-primary
+    volumes:
+      - pg_replica_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  pgbouncer:
+    image: edoburu/pgbouncer:1.22.0
+    container_name: nexus-pgbouncer
+    ports:
+      - "6432:6432"
+    volumes:
+      - ./pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
+    depends_on:
+      - postgres-primary
+    restart: unless-stopped
+
+volumes:
+  pg_primary_data:
+  pg_replica_data:

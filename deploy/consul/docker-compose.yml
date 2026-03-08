@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  consul:
+    image: hashicorp/consul:1.17
+    container_name: nexus-consul
+    ports:
+      - "8500:8500" # HTTP API + UI
+      - "8600:8600/udp" # DNS
+    environment:
+      - CONSUL_BIND_INTERFACE=eth0
+    command: agent -server -bootstrap-expect=1 -ui -client=0.0.0.0
+    volumes:
+      - consul_data:/consul/data
+    restart: unless-stopped
+
+  consul-registrator:
+    image: gliderlabs/registrator:latest
+    container_name: nexus-registrator
+    depends_on:
+      - consul
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock
+    command: -internal consul://consul:8500
+    restart: unless-stopped
+
+volumes:
+  consul_data:
