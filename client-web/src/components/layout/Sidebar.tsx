@@ -192,6 +192,7 @@ export default function Sidebar() {
                             { path: '/settings/platforms', icon: '🔗', label: 'Platform Connections' },
                             { path: '/studio/ai/music', icon: '🎼', label: 'AI Music Lab' },
                             { path: '/studio/ai/article', icon: '📝', label: 'AI Article Lab' },
+                            { path: '/studio/ai/video', icon: '🎬', label: 'AI Video Lab' },
                         ].map(item => (
                             <button
                                 key={item.path}
