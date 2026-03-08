@@ -56,6 +56,7 @@ const PlatformBindings = React.lazy(() => import("./pages/PlatformBindings"));
 const AIMusicLab = React.lazy(() => import("./pages/AIMusicLab"));
 const AIArticleLab = React.lazy(() => import("./pages/AIArticleLab"));
 const AIVideoLab = React.lazy(() => import("./pages/AIVideoLab"));
+const MyAITools = React.lazy(() => import("./pages/MyAITools"));
 const CreatorUpload = React.lazy(() => import("./pages/CreatorUpload"));
 const UserCenter = React.lazy(() => import("./pages/UserCenter"));
 const PointsCenter = React.lazy(() => import("./pages/PointsCenter"));
@@ -305,6 +306,7 @@ const router = createBrowserRouter(
         <Route path="/studio/ai/video" element={<AIVideoLab />} />
         <Route path="/ai-tools" element={<AIToolMarketplace />} />
         <Route path="/ai-tools/submit" element={<AIToolSubmit />} />
+        <Route path="/my-ai-tools" element={<MyAITools />} />
 
         {/* User & Economy */}
         <Route path="/user" element={<UserCenter />} />

@@ -100,6 +100,46 @@ export default function Sidebar() {
                     </span>
                 </button>
 
+                {/* AI Studio expandable section */}
+                <button
+                    onClick={() => handleNav("/ai-tools")}
+                    className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all group w-full text-left ${isActive(["/ai-tools", "/studio/ai", "/settings/ai"])
+                        ? "bg-gradient-to-r from-nexusCyan/20 to-transparent text-nexusCyan border-l-2 border-nexusCyan"
+                        : "text-gray-500 hover:text-white hover:bg-white/5"
+                        }`}
+                >
+                    <svg className={`w-5 h-5 flex-shrink-0 ${isActive(["/ai-tools", "/studio/ai", "/settings/ai"]) ? "" : "group-hover:text-nexusCyan transition-colors"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    <span className={`font-bold text-sm ${isActive(["/ai-tools", "/studio/ai", "/settings/ai"]) ? "" : "group-hover:translate-x-1 transition-transform"}`}>
+                        {t("sidebar.aiStudio", "AI Studio")}
+                    </span>
+                    <svg className={`w-4 h-4 ml-auto transition-transform ${isActive(["/ai-tools", "/studio/ai", "/settings/ai"]) ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                {isActive(["/ai-tools", "/studio/ai", "/settings/ai"]) && (
+                    <div className="flex flex-col gap-0.5 pl-7 mt-1 mb-1">
+                        {[
+                            { path: '/ai-tools', icon: '🛒', label: 'Tool Marketplace' },
+                            { path: '/studio/ai/article', icon: '📝', label: 'AI Article Lab' },
+                            { path: '/studio/ai/video', icon: '🎬', label: 'AI Video Lab' },
+                            { path: '/studio/ai/music', icon: '🎵', label: 'AI Music Lab' },
+                            { path: '/settings/ai', icon: '⚙️', label: 'AI Settings' },
+                        ].map(({ path, icon, label }) => (
+                            <button
+                                key={path}
+                                onClick={() => handleNav(path)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-all w-full text-left ${location.pathname === path ? 'text-nexusCyan bg-nexusCyan/10' : 'text-gray-500 hover:text-white hover:bg-white/5'
+                                    }`}
+                            >
+                                <span>{icon}</span>
+                                <span className="font-medium">{label}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+
                 <p className="px-4 text-xs font-bold text-gray-500 uppercase tracking-wider mt-6 mb-2">
                     {t("sidebar.myAsset", "My Asset")}
                 </p>
@@ -180,17 +220,17 @@ export default function Sidebar() {
                 </button>
 
                 <button
-                    onClick={() => handleNav("/ai-tools")}
-                    className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all group w-full text-left ${isActive(["/ai-tools"])
+                    onClick={() => handleNav("/my-ai-tools")}
+                    className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all group w-full text-left ${isActive(["/my-ai-tools"])
                         ? "bg-gradient-to-r from-nexusCyan/20 to-transparent text-nexusCyan border-l-2 border-nexusCyan"
                         : "text-gray-500 hover:text-white hover:bg-white/5"
                         }`}
                 >
-                    <svg className={`w-5 h-5 flex-shrink-0 ${isActive(["/ai-tools"]) ? "" : "group-hover:text-nexusCyan transition-colors"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    <svg className={`w-5 h-5 flex-shrink-0 ${isActive(["/my-ai-tools"]) ? "" : "group-hover:text-nexusCyan transition-colors"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
                     </svg>
-                    <span className={`font-bold text-sm ${isActive(["/ai-tools"]) ? "" : "group-hover:translate-x-1 transition-transform"}`}>
-                        {t("sidebar.aiTools", "AI Tool Market")}
+                    <span className={`font-bold text-sm ${isActive(["/my-ai-tools"]) ? "" : "group-hover:translate-x-1 transition-transform"}`}>
+                        {t("sidebar.myAiTools", "My AI Tools")}
                     </span>
                 </button>
             </nav>

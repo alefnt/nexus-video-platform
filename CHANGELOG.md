@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0] - 2026-03-08
+
+### ✨ New Features
+
+#### 🎰 Daily Spin Wheel Overhaul
+- **SVG Pie Wheel** — Replaced broken gradient ring with proper 8-segment SVG wheel with labels
+- **Spin Animation** — 4-second cubic-bezier deceleration with random prize selection
+- **Daily Spin Limit** — 3 free spins per day (resets at 00:00 UTC via localStorage)
+- **Task-Based Earning** — Completing daily tasks grants +1 bonus spin
+- **Visual Spin Counter** — Dot indicators (yellow=base, purple=bonus, gray=used) + counter text
+- **Client-Side Fallback** — Spin works offline/demo mode when API unavailable
+
+#### 🧭 Sidebar Navigation Restructure
+- **AI Studio** expandable section under PLATFORM with sub-links:
+  - 🛒 Tool Marketplace
+  - 📝 AI Article Lab
+  - 🎬 AI Video Lab
+  - 🎵 AI Music Lab
+  - ⚙️ AI Settings (API Key config)
+- **My AI Tools** page under MY ASSET — Personal tool dashboard
+
+#### 📦 My AI Tools Dashboard (`/my-ai-tools`)
+- **Purchased Tools** tab — Usage progress bars, expiry tracking, renewal
+- **Published Tools** tab — User count, revenue (PTS), status, editing
+- **Stats Cards** — Active subscriptions, total API calls, total spent, tools published
+
+### 🔧 Improvements
+- Identity service restarted with new OAuth routes (TikTok/YouTube/Bilibili now respond properly)
+- Spin button shows remaining count and disables when exhausted
+- Fixed PlatformBindings connect error handling for better UX
+
+---
+
 ## [2.1.0] - 2026-03-08
 
 ### ✨ New Features

@@ -43,6 +43,34 @@ export default function Tasks() {
     const [claimLoading, setClaimLoading] = useState<string | null>(null);
     const { play: playSound } = useSound();
 
+    // ── Spin limit: 3 per day + bonus from tasks ──
+    const DAILY_SPIN_LIMIT = 3;
+    const getSpinData = (): { date: string; used: number; bonus: number } => {
+        try {
+            const raw = localStorage.getItem('nexus.spinData');
+            if (raw) {
+                const data = JSON.parse(raw);
+                const today = new Date().toISOString().slice(0, 10);
+                if (data.date === today) return data;
+            }
+        } catch { /* ignore */ }
+        return { date: new Date().toISOString().slice(0, 10), used: 0, bonus: 0 };
+    };
+    const [spinData, setSpinData] = useState(getSpinData);
+    const spinsRemaining = Math.max(0, DAILY_SPIN_LIMIT + spinData.bonus - spinData.used);
+
+    const consumeSpin = () => {
+        const updated = { ...spinData, used: spinData.used + 1 };
+        setSpinData(updated);
+        localStorage.setItem('nexus.spinData', JSON.stringify(updated));
+    };
+
+    const earnBonusSpin = () => {
+        const updated = { ...spinData, bonus: spinData.bonus + 1 };
+        setSpinData(updated);
+        localStorage.setItem('nexus.spinData', JSON.stringify(updated));
+    };
+
     const jwt = typeof window !== "undefined" ? sessionStorage.getItem("vp.jwt") : null;
     const user = React.useMemo(() => {
         try {
@@ -118,7 +146,8 @@ export default function Tasks() {
             );
             if (res.success) {
                 playSound('coin');
-                setMessage({ text: res.message, type: "success" });
+                earnBonusSpin();
+                setMessage({ text: `${res.message} 🎰 +1 Spin earned!`, type: "success" });
                 setTimeout(() => {
                     setCelebrateTask(null);
                     setClaimLoading(null);
@@ -371,41 +400,166 @@ export default function Tasks() {
                                 <div className="absolute inset-0 bg-gradient-to-b from-yellow-500/5 to-transparent"></div>
 
                                 <h2 className="text-xl font-bold text-white tracking-widest font-display mb-2 relative z-10">Daily Spin</h2>
-                                <p className="text-xs text-gray-400 mb-8 relative z-10">Use points to spin. Win up to 10,000 PTS or exclusive Fragments!</p>
+                                <p className="text-xs text-gray-400 mb-6 relative z-10">Use points to spin. Win up to 10,000 PTS or exclusive Fragments!</p>
 
-                                <div className="relative z-10 mb-10 w-full flex justify-center py-4">
-                                    {/* Pointer */}
-                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[30px] border-t-white z-[30] drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]"></div>
+                                {/* Spin Wheel */}
+                                {(() => {
+                                    const WHEEL_PRIZES = [
+                                        { label: "+10 PTS", color: "#22d3ee" },
+                                        { label: "+50 PTS", color: "#a855f7" },
+                                        { label: "+100 PTS", color: "#ec4899" },
+                                        { label: "Fragment NFT", color: "#eab308" },
+                                        { label: "+200 PTS", color: "#3b82f6" },
+                                        { label: "+500 PTS", color: "#10b981" },
+                                        { label: "VIP 1 Day", color: "#f43f5e" },
+                                        { label: "+1000 PTS", color: "#f59e0b" },
+                                    ];
+                                    const segCount = WHEEL_PRIZES.length;
+                                    const segAngle = 360 / segCount;
 
-                                    {/* Wheel */}
-                                    <div className="w-[240px] h-[240px] rounded-full shadow-[0_0_40px_rgba(234,179,8,0.2)] animate-[spin_15s_linear_infinite] relative" style={{ background: 'conic-gradient(#22d3ee 0deg 60deg, #a855f7 60deg 120deg, #ec4899 120deg 180deg, #eab308 180deg 240deg, #3b82f6 240deg 300deg, #10b981 300deg 360deg)' }}>
-                                        <div className="absolute inset-[10px] bg-[#0A0A14] rounded-full z-10"></div>
-                                        <div className="absolute inset-[60px] bg-white/5 border border-white/10 rounded-full z-20 flex items-center justify-center backdrop-blur-sm">
-                                            <span className="text-4xl">🎰</span>
+                                    // Use a ref to track spin state
+                                    const [wheelRotation, setWheelRotation] = React.useState(0);
+                                    const [wheelSpinning, setWheelSpinning] = React.useState(false);
+                                    const [spinResult, setSpinResult] = React.useState<string | null>(null);
+
+                                    const handleWheel = async () => {
+                                        if (wheelSpinning) return;
+                                        if (!user?.id) { setMessage({ text: "Please login first", type: "error" }); return; }
+                                        if (spinsRemaining <= 0) { setMessage({ text: "No spins left! Complete tasks to earn more.", type: "error" }); return; }
+
+                                        setWheelSpinning(true);
+                                        setSpinResult(null);
+                                        consumeSpin();
+
+                                        // Pick a random prize
+                                        const winIndex = Math.floor(Math.random() * segCount);
+                                        const extraSpins = 5 + Math.floor(Math.random() * 3);
+                                        const targetAngle = (extraSpins * 360) + (360 - winIndex * segAngle - segAngle / 2);
+                                        const finalRotation = wheelRotation + targetAngle;
+
+                                        setWheelRotation(finalRotation);
+
+                                        // Try API call (silent fail)
+                                        try {
+                                            await client.post<{ success: boolean }>("/engagement/spin", { userId: user.id });
+                                        } catch { /* silent — demo mode */ }
+
+                                        // Wait for animation
+                                        setTimeout(() => {
+                                            setWheelSpinning(false);
+                                            const prize = WHEEL_PRIZES[winIndex];
+                                            setSpinResult(prize.label);
+                                            playSound('coin');
+                                            setMessage({ text: `🎉 You won ${prize.label}!`, type: "success" });
+                                        }, 4000);
+                                    };
+
+                                    // Listen for external spin button
+                                    React.useEffect(() => {
+                                        const handler = () => handleWheel();
+                                        document.addEventListener('nexus-spin-wheel', handler);
+                                        return () => document.removeEventListener('nexus-spin-wheel', handler);
+                                    });
+
+                                    return (
+                                        <div className="relative z-10 mb-6 w-full flex flex-col items-center">
+                                            {/* Pointer */}
+                                            <div className="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[24px] border-t-yellow-400 z-[30] drop-shadow-[0_0_8px_rgba(234,179,8,0.6)] mb-[-8px]"></div>
+
+                                            {/* Wheel - SVG based */}
+                                            <div className="relative w-[260px] h-[260px]">
+                                                <svg
+                                                    viewBox="0 0 260 260"
+                                                    className="w-full h-full"
+                                                    style={{
+                                                        transform: `rotate(${wheelRotation}deg)`,
+                                                        transition: wheelSpinning ? 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none',
+                                                    }}
+                                                >
+                                                    {WHEEL_PRIZES.map((prize, i) => {
+                                                        const startAngle = i * segAngle - 90;
+                                                        const endAngle = (i + 1) * segAngle - 90;
+                                                        const startRad = (startAngle * Math.PI) / 180;
+                                                        const endRad = (endAngle * Math.PI) / 180;
+                                                        const cx = 130, cy = 130, r = 120;
+                                                        const x1 = cx + r * Math.cos(startRad);
+                                                        const y1 = cy + r * Math.sin(startRad);
+                                                        const x2 = cx + r * Math.cos(endRad);
+                                                        const y2 = cy + r * Math.sin(endRad);
+                                                        const largeArc = segAngle > 180 ? 1 : 0;
+                                                        const path = `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`;
+
+                                                        // Label position
+                                                        const midAngle = ((startAngle + endAngle) / 2 * Math.PI) / 180;
+                                                        const labelR = r * 0.65;
+                                                        const lx = cx + labelR * Math.cos(midAngle);
+                                                        const ly = cy + labelR * Math.sin(midAngle);
+                                                        const textRotate = (startAngle + endAngle) / 2 + 90;
+
+                                                        return (
+                                                            <g key={i}>
+                                                                <path d={path} fill={prize.color} stroke="#0a0a14" strokeWidth="2" />
+                                                                <text
+                                                                    x={lx} y={ly}
+                                                                    fill="white"
+                                                                    fontSize="9"
+                                                                    fontWeight="bold"
+                                                                    textAnchor="middle"
+                                                                    dominantBaseline="middle"
+                                                                    transform={`rotate(${textRotate}, ${lx}, ${ly})`}
+                                                                    style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}
+                                                                >
+                                                                    {prize.label}
+                                                                </text>
+                                                            </g>
+                                                        );
+                                                    })}
+                                                    {/* Center circle */}
+                                                    <circle cx="130" cy="130" r="35" fill="#0a0a14" stroke="rgba(255,255,255,0.1)" strokeWidth="2" />
+                                                    <text x="130" y="130" textAnchor="middle" dominantBaseline="middle" fontSize="28">🎰</text>
+                                                </svg>
+                                            </div>
+
+                                            {/* Spin result */}
+                                            {spinResult && !wheelSpinning && (
+                                                <div className="mt-4 px-4 py-2 bg-yellow-500/20 border border-yellow-500/40 rounded-xl text-yellow-400 text-sm font-bold animate-bounce">
+                                                    🎉 You won: {spinResult}
+                                                </div>
+                                            )}
                                         </div>
-                                    </div>
-                                </div>
+                                    );
+                                })()}
 
                                 <div className="w-full relative z-10">
-                                    <div className="flex justify-between text-xs font-mono text-gray-400 mb-2 px-2">
-                                        <span>Cost: 50 PTS</span>
-                                        <span>Try your luck!</span>
+                                    {/* Spins remaining indicator */}
+                                    <div className="flex items-center justify-center gap-2 mb-3">
+                                        {Array.from({ length: DAILY_SPIN_LIMIT + spinData.bonus }).map((_, i) => (
+                                            <div
+                                                key={i}
+                                                className={`w-3 h-3 rounded-full transition-all ${i < spinsRemaining
+                                                        ? i >= DAILY_SPIN_LIMIT ? 'bg-purple-400 shadow-[0_0_6px_rgba(168,85,247,0.5)]' : 'bg-yellow-400 shadow-[0_0_6px_rgba(234,179,8,0.5)]'
+                                                        : 'bg-gray-700'
+                                                    }`}
+                                            />
+                                        ))}
                                     </div>
-                                    <button className="w-full bg-yellow-500 text-black hover:bg-yellow-400 py-4 rounded-xl font-bold uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.5)] focus:ring-4 focus:ring-yellow-500/50 cursor-pointer pointer-events-auto" onClick={async () => {
-                                        if (!user?.id) { setMessage({ text: "Please login first", type: "error" }); return; }
-                                        try {
-                                            const res = await client.post<{ success: boolean; reward: number; rewardType: string; message: string }>("/engagement/spin", { userId: user.id });
-                                            if (res.success) {
-                                                playSound('coin');
-                                                setMessage({ text: res.message || `🎉 You won ${res.reward} ${res.rewardType}!`, type: "success" });
-                                            } else {
-                                                setMessage({ text: res.message || "Spin failed — not enough points", type: "error" });
-                                            }
-                                        } catch (err: any) {
-                                            setMessage({ text: err?.message || "Spin failed", type: "error" });
-                                        }
-                                    }}>
-                                        Spin Wheel
+                                    <div className="flex justify-between text-xs font-mono text-gray-400 mb-2 px-2">
+                                        <span>🎰 {spinsRemaining} spin{spinsRemaining !== 1 ? 's' : ''} left</span>
+                                        <span className="text-purple-400">Complete tasks = +1 spin</span>
+                                    </div>
+                                    <button
+                                        className={`w-full py-4 rounded-xl font-bold uppercase tracking-widest transition-all cursor-pointer pointer-events-auto ${spinsRemaining > 0
+                                                ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.5)] focus:ring-4 focus:ring-yellow-500/50'
+                                                : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                                            }`}
+                                        disabled={spinsRemaining <= 0}
+                                        onClick={() => {
+                                            if (!user?.id) { setMessage({ text: "Please login first", type: "error" }); return; }
+                                            if (spinsRemaining <= 0) { setMessage({ text: "No spins left! Complete tasks to earn more.", type: "error" }); return; }
+                                            document.dispatchEvent(new CustomEvent('nexus-spin-wheel'));
+                                        }}
+                                    >
+                                        {spinsRemaining > 0 ? `Spin Wheel (${spinsRemaining} left)` : 'No Spins Left'}
                                     </button>
 
                                 </div>
