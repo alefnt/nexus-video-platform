@@ -20,7 +20,16 @@
     "dev:services": "dotenv -e .env.local -- concurrently -n gateway,content-group,payment-group,social-group \"npm -w services/identity run dev\" \"npm -w services/content run dev:unified\" \"npm -w services/payment run dev:unified\" \"npm -w services/messaging run dev:unified\"",
     "dev:services:legacy": "dotenv -e .env.local -- concurrently -n identity,payment,content,metadata,royalty,nft,live,achievement,governance,bridge,transcode,search,moderation,messaging,engagement,recommendation \"npm -w services/identity run dev\" \"npm -w services/payment run dev\" \"npm -w services/content run dev\" \"npm -w services/metadata run dev\" \"npm -w services/royalty run dev\" \"npm -w services/nft run dev\" \"npm -w services/live run dev\" \"npm -w services/achievement run dev\" \"npm -w services/governance run dev\" \"npm -w services/bridge run dev\" \"npm -w services/transcode run dev\" \"npm -w services/search run dev\" \"npm -w services/moderation run dev\" \"npm -w services/messaging run dev\" \"npm -w services/engagement run dev\" \"npm -w services/recommendation run dev\"",
     "dev:web": "npm -w client-web run dev",
-    "dev:all": "concurrently -n services,web \"npm run dev:services\" \"wait-on http://localhost:8080/health && npm run dev:web\""
+    "dev:all": "concurrently -n services,web \"npm run dev:services\" \"wait-on http://localhost:8080/health && npm run dev:web\"",
+    "start": "powershell -ExecutionPolicy Bypass -File scripts/dev-start.ps1",
+    "stop": "powershell -ExecutionPolicy Bypass -File scripts/dev-stop.ps1",
+    "restart": "powershell -ExecutionPolicy Bypass -File scripts/dev-stop.ps1 -KeepDocker && powershell -ExecutionPolicy Bypass -File scripts/dev-start.ps1 -SkipDocker",
+    "health": "powershell -ExecutionPolicy Bypass -File scripts/health-check.ps1",
+    "db:migrate": "powershell -ExecutionPolicy Bypass -File scripts/db.ps1 -Action migrate",
+    "db:reset": "powershell -ExecutionPolicy Bypass -File scripts/db.ps1 -Action reset",
+    "db:seed": "powershell -ExecutionPolicy Bypass -File scripts/db.ps1 -Action seed",
+    "db:studio": "powershell -ExecutionPolicy Bypass -File scripts/db.ps1 -Action studio",
+    "db:status": "powershell -ExecutionPolicy Bypass -File scripts/db.ps1 -Action status"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
