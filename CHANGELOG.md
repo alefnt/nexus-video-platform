@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.0] - 2026-03-09
+
+### 🤖 Business Workflow Automation
+
+#### Pipeline 1: Content Lifecycle (Upload → NFT → Royalty)
+- **`POST /content/publish`** — One-call pipeline: Upload → Metadata → NFT Ownership Mint → RGB++ Royalty Contract
+- Returns step-by-step pipeline status for each stage (upload, metadata, nft_mint, royalty_contract)
+- Auto-creates DB records with `moderationStatus: "approved"` for pipeline publishes
+
+#### Pipeline 2: AI Content → Platform Publish
+- Upgraded `AIArticleLab`, `AIVideoLab`, `AIMusicLab` to use `/content/publish` pipeline
+- Added `autoMintNFT` toggle (default: on) to AI content publish flow
+- Auto-populates metadata (title, genre, tags) from AI generation parameters
+- Converts AI-generated blobs to base64 for server-side upload
+
+#### Pipeline 5: Daily Task Auto-Claim
+- Tasks now **auto-claim** rewards on completion — no manual "Claim" button needed
+- `POST /engagement/tasks/progress` returns `autoClaimed` and `autoClaimedPoints`
+- Auto-awards points to user immediately when task requirement is met
+
+### 🔧 Dev Automation Scripts
+- `npm start` — One-click startup (kill → Docker → deps → Prisma → services)
+- `npm stop` / `npm restart` — Stop/restart all services
+- `npm run health` — Check all 17 services + Docker containers
+- `scripts/release.ps1` — Automated version bump + CHANGELOG + tag + push
+- `scripts/db.ps1` — Database operations (migrate/reset/seed/studio/status)
+
+---
+
 ## [2.2.0] - 2026-03-08
 
 ### ✨ New Features

@@ -206,36 +206,56 @@ export default function AIArticleLab() {
         if (draft.params?.language) setLanguage(draft.params.language);
     };
 
-    // ── Publish to Platform (only now goes to server) ──────────────
+    // ── Publish to Platform (Pipeline: Upload → Metadata → NFT → Royalty) ──────────────
+    const [autoMintNFT, setAutoMintNFT] = useState(true);
+    const [pipelineSteps, setPipelineSteps] = useState<Array<{ step: string; status: string }>>([]);
+
     const handlePublish = useCallback(async () => {
         if (!editorContent.trim()) return;
         setPublishing(true);
+        setPipelineSteps([{ step: 'upload', status: 'running' }]);
         try {
             // Save final version locally first
             await handleSaveLocal();
 
-            // Now upload to platform storage
-            const res = await api.post<any>('/content/upload', {
-                type: 'article',
-                title: title || 'Untitled',
+            // Get user info for CKB address
+            const userRaw = sessionStorage.getItem('vp.user');
+            const user = userRaw ? JSON.parse(userRaw) : null;
+            const ckbAddress = user?.ckbAddress || '';
+
+            // Convert content to base64
+            const base64Content = btoa(unescape(encodeURIComponent(editorContent)));
+
+            // Call unified publish pipeline
+            const res = await api.post<any>('/content/publish', {
+                base64Content,
+                contentType: 'article',
+                title: title || 'Untitled AI Article',
                 description: editorContent.slice(0, 200),
-                body: editorContent,
-                language, tone,
-                aiGenerated: true,
-                aiProvider: providerName,
+                genre: 'Technology',
+                language,
+                creatorCkbAddress: ckbAddress,
+                autoMintNFT,
+                tags: ['ai-generated', tone.toLowerCase()],
             });
+
+            // Update pipeline steps from response
+            if (res?.pipeline) {
+                setPipelineSteps(res.pipeline);
+            }
 
             // Mark as published in local DB
             if (currentDraftId) {
-                await markPublished(currentDraftId, res?.id || 'published');
+                await markPublished(currentDraftId, res?.videoId || 'published');
             }
             setPublished(true);
             loadDrafts();
-            setTimeout(() => setPublished(false), 4000);
+            setTimeout(() => { setPublished(false); setPipelineSteps([]); }, 5000);
         } catch (err: any) {
+            setPipelineSteps(prev => [...prev, { step: 'error', status: err?.error || err?.message || 'Failed' }]);
             alert('发布失败: ' + (err?.error || err?.message || ''));
         } finally { setPublishing(false); }
-    }, [editorContent, title, language, tone, providerName, currentDraftId, handleSaveLocal]);
+    }, [editorContent, title, language, tone, providerName, currentDraftId, handleSaveLocal, autoMintNFT]);
 
     // ── Delete draft ──────────────
     const handleDeleteDraft = useCallback(async (id: string) => {

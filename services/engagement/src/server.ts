@@ -242,11 +242,24 @@ app.post<{ Body: { userId: string; taskType: string; increment?: number } }>("/e
 
     // 检查是否完成
     const completed = progress.progress >= task.requirement;
+    let autoClaimed = false;
+    let autoClaimedPoints = 0;
     if (completed && !progress.completed) {
+        // Mark completed AND auto-claim reward in one step
         await prisma.userTaskProgress.update({
             where: { id: progress.id },
-            data: { completed: true },
+            data: { completed: true, rewardClaimed: true },
         });
+
+        // Auto-award points
+        await prisma.user.update({
+            where: { id: userId },
+            data: { points: { increment: task.points } },
+        });
+
+        autoClaimed = true;
+        autoClaimedPoints = task.points;
+        app.log.info({ userId, taskType, points: task.points }, "Task auto-claimed");
     }
 
     return reply.send({
@@ -255,6 +268,9 @@ app.post<{ Body: { userId: string; taskType: string; increment?: number } }>("/e
         requirement: task.requirement,
         completed,
         remaining: rateCheck.remaining,
+        autoClaimed,
+        autoClaimedPoints,
+        message: autoClaimed ? `任务完成! 自动获得 ${autoClaimedPoints} 积分 🎉` : undefined,
     });
 });
 

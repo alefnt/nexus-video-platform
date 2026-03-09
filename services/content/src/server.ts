@@ -764,6 +764,196 @@ app.post("/content/:id/cooldown", async (req, reply) => {
   }
 });
 
+// ─── PUBLISH PIPELINE: Upload → Metadata → NFT → Royalty (One-Click) ───
+app.post("/content/publish", async (req, reply) => {
+  const startTime = Date.now();
+  const steps: Array<{ step: string; status: string; result?: any; error?: string }> = [];
+
+  try {
+    const body = req.body as {
+      // Content
+      base64Content: string;
+      contentType?: "video" | "audio" | "article";
+      // Metadata
+      title: string;
+      description?: string;
+      genre?: string;
+      language?: string;
+      tags?: string[];
+      // Blockchain
+      creatorCkbAddress: string;
+      autoMintNFT?: boolean;
+      // Royalty
+      collaborators?: Array<{ address: string; percentage: number; role?: string }>;
+      // Pricing
+      paymentMode?: "free" | "buy_once" | "stream" | "both";
+      pointsPrice?: number;
+      streamPricePerSecond?: number;
+    };
+
+    const userId = (req.user as any)?.sub;
+    if (!userId) return reply.status(401).send({ error: "未授权", code: "unauthorized" });
+
+    if (!body.base64Content || !body.title?.trim() || !body.creatorCkbAddress) {
+      return reply.status(400).send({
+        error: "缺少必填参数: base64Content, title, creatorCkbAddress",
+        code: "bad_request"
+      });
+    }
+
+    const videoId = uuidv4();
+    const contentType = body.contentType || "video";
+
+    // ── Step 1: Upload Content ──
+    steps.push({ step: "upload", status: "running" });
+    const keyHash = generateEncryptionKeyHash(body.creatorCkbAddress, videoId);
+    const fileBuf = Buffer.from(body.base64Content, "base64");
+    const sha = crypto.createHash("sha256").update(fileBuf).digest("hex");
+
+    // File storage
+    let ext = contentType === "audio" ? "mp3" : contentType === "article" ? "pdf" : "mp4";
+    const base64Path = resolve(STORAGE_DIR, `${videoId}.base64`);
+    writeFileSync(base64Path, body.base64Content);
+    const filePath = resolve(FILES_DIR, `${videoId}.${ext}`);
+    writeFileSync(filePath, fileBuf);
+
+    // DB record
+    if (contentType === "audio") {
+      await prisma.music.create({
+        data: { id: videoId, title: body.title.trim(), audioUrl: `file://${videoId}`, sha256: sha, creatorId: userId, duration: 0, size: fileBuf.length, moderationStatus: "approved" }
+      });
+    } else if (contentType === "article") {
+      let contentStr = ""; try { contentStr = fileBuf.toString("utf-8"); } catch { }
+      await prisma.article.create({
+        data: { id: videoId, title: body.title.trim(), content: contentStr.substring(0, 10000), textHash: sha, creatorId: userId, moderationStatus: "approved" }
+      });
+    } else {
+      await prisma.video.upsert({
+        where: { id: videoId },
+        update: { sha256: sha, encryptionKeyHash: keyHash, moderationStatus: "approved" },
+        create: { id: videoId, title: body.title.trim(), videoUrl: `file://${videoId}`, sha256: sha, encryptionKeyHash: keyHash, creatorId: userId, moderationStatus: "approved" }
+      });
+    }
+
+    // HybridStorage async push
+    const hybridContentType: HybridContentType = contentType === 'audio' ? 'music' : contentType === 'article' ? 'article' : 'video';
+    hybridStorage.upload(fileBuf, { contentId: videoId, contentType: hybridContentType, title: body.title.trim(), creatorAddress: body.creatorCkbAddress, encryptionKeyHash: keyHash }).catch(() => { });
+
+    steps[steps.length - 1].status = "done";
+    steps[steps.length - 1].result = { videoId, sha256: sha, size: fileBuf.length };
+
+    // ── Step 2: Write Metadata ──
+    steps.push({ step: "metadata", status: "running" });
+    try {
+      const metadataUrl = process.env.METADATA_URL || "http://localhost:8093";
+      const jwt = req.headers.authorization || "";
+      await fetch(`${metadataUrl}/metadata/write`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: jwt },
+        body: JSON.stringify({
+          meta: {
+            id: videoId,
+            title: body.title.trim(),
+            description: body.description || "",
+            genre: body.genre || "Other",
+            language: body.language || "English",
+            creatorCkbAddress: body.creatorCkbAddress,
+            creatorBitDomain: "",
+            priceUSDI: "0",
+            pointsPrice: body.pointsPrice || 0,
+            streamPricePerSecond: body.streamPricePerSecond || 0,
+            createdAt: new Date().toISOString(),
+            collaborators: (body.collaborators || []).map(c => ({ userId: c.address, percentage: c.percentage, role: c.role || "collaborator" })),
+          }
+        })
+      });
+      steps[steps.length - 1].status = "done";
+    } catch (err: any) {
+      steps[steps.length - 1].status = "skipped";
+      steps[steps.length - 1].error = err?.message || "metadata write failed (non-blocking)";
+    }
+
+    // ── Step 3: Auto-Mint NFT ──
+    let nftResult: { sporeId?: string; txHash?: string } | undefined;
+    if (body.autoMintNFT) {
+      steps.push({ step: "nft_mint", status: "running" });
+      try {
+        const nftUrl = process.env.NFT_URL || "http://localhost:8095";
+        const jwt = req.headers.authorization || "";
+        const nftRes = await fetch(`${nftUrl}/nft/ownership/mint`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: jwt },
+          body: JSON.stringify({ videoId, contentType })
+        });
+        if (nftRes.ok) {
+          nftResult = await nftRes.json() as any;
+          steps[steps.length - 1].status = "done";
+          steps[steps.length - 1].result = nftResult;
+        } else {
+          const err = await nftRes.text();
+          steps[steps.length - 1].status = "failed";
+          steps[steps.length - 1].error = err;
+        }
+      } catch (err: any) {
+        steps[steps.length - 1].status = "failed";
+        steps[steps.length - 1].error = err?.message || "NFT mint failed";
+      }
+    }
+
+    // ── Step 4: Royalty Contract ──
+    let royaltyResult: any;
+    const validCollabs = (body.collaborators || []).filter(c => c.address?.trim());
+    if (validCollabs.length > 0) {
+      steps.push({ step: "royalty_contract", status: "running" });
+      try {
+        const paymentUrl = process.env.PAYMENT_URL || "http://localhost:8091";
+        const jwt = req.headers.authorization || "";
+        const royaltyRes = await fetch(`${paymentUrl}/payment/rgbpp/auto-split`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: jwt },
+          body: JSON.stringify({
+            contentId: videoId,
+            contentType,
+            title: body.title.trim(),
+            collaborators: validCollabs.map(c => ({ address: c.address, percentage: c.percentage, role: c.role || "collaborator" })),
+            creatorAddress: body.creatorCkbAddress,
+          })
+        });
+        if (royaltyRes.ok) {
+          royaltyResult = await royaltyRes.json();
+          steps[steps.length - 1].status = "done";
+          steps[steps.length - 1].result = royaltyResult;
+        } else {
+          steps[steps.length - 1].status = "failed";
+          steps[steps.length - 1].error = await royaltyRes.text();
+        }
+      } catch (err: any) {
+        steps[steps.length - 1].status = "failed";
+        steps[steps.length - 1].error = err?.message || "Royalty contract failed";
+      }
+    }
+
+    const elapsed = Date.now() - startTime;
+    return reply.send({
+      ok: true,
+      videoId,
+      contentType,
+      pipeline: steps,
+      nft: nftResult,
+      royalty: royaltyResult,
+      elapsed: `${elapsed}ms`,
+    });
+
+  } catch (err: any) {
+    req.log.error(err);
+    return reply.status(500).send({
+      error: err?.message || "发布流程失败",
+      code: "publish_pipeline_error",
+      pipeline: steps,
+    });
+  }
+});
+
 const port = CONTENT_PORT;
 app.listen({ port }).then(() => app.log.info(`Content listening on ${PUBLIC_CONTENT_BASEURL}`));
 export default app;

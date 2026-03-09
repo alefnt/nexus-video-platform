@@ -212,25 +212,58 @@ export default function AIVideoLab() {
         }
     }, []);
 
+    const [autoMintNFT, setAutoMintNFT] = useState(true);
+    const [pipelineSteps, setPipelineSteps] = useState<Array<{ step: string; status: string }>>([]);
+
     const handlePublish = useCallback(async () => {
         if (!currentGen) return;
         setPublishing(true);
+        setPipelineSteps([{ step: 'upload', status: 'running' }]);
         try {
-            const res = await api.post<any>('/content/upload', {
-                type: 'video', title: currentGen.prompt.slice(0, 60),
+            const userRaw = sessionStorage.getItem('vp.user');
+            const user = userRaw ? JSON.parse(userRaw) : null;
+            const ckbAddress = user?.ckbAddress || '';
+
+            // Fetch video blob and convert to base64
+            let base64Content = '';
+            if (currentGen.resultBlobKey) {
+                const url = await getBlobUrl(currentGen.resultBlobKey);
+                if (url) {
+                    const resp = await fetch(url);
+                    const blob = await resp.blob();
+                    const reader = new FileReader();
+                    base64Content = await new Promise<string>((resolve) => {
+                        reader.onloadend = () => {
+                            const result = reader.result as string;
+                            resolve(result.split(',')[1] || result);
+                        };
+                        reader.readAsDataURL(blob);
+                    });
+                }
+            }
+
+            const res = await api.post<any>('/content/publish', {
+                base64Content,
+                contentType: 'video',
+                title: currentGen.prompt.slice(0, 60),
                 description: currentGen.prompt,
-                sourceUrl: currentGen.resultUrl || '',
-                style: currentGen.params?.style || '',
-                resolution: currentGen.params?.resolution || '1080p',
-                aiGenerated: true, aiProvider: providerName,
+                genre: 'Other',
+                language: 'English',
+                creatorCkbAddress: ckbAddress,
+                autoMintNFT,
+                tags: ['ai-generated', currentGen.params?.style || ''].filter(Boolean),
             });
-            await markPublished(currentGen.id, res?.id || 'published');
+
+            if (res?.pipeline) setPipelineSteps(res.pipeline);
+            await markPublished(currentGen.id, res?.videoId || 'published');
             setCurrentGen(prev => prev ? { ...prev, published: true, publishedAt: Date.now() } : null);
             loadHistory();
+            setTimeout(() => setPipelineSteps([]), 5000);
         } catch (err: any) {
+            setPipelineSteps(prev => [...prev, { step: 'error', status: err?.error || err?.message || 'Failed' }]);
             alert('发布失败: ' + (err?.error || err?.message || ''));
         } finally { setPublishing(false); }
-    }, [currentGen, providerName]);
+    }, [currentGen, providerName, autoMintNFT]);
 
     const handleDelete = useCallback(async (id: string) => {
         await deleteGeneration(id);

@@ -215,33 +215,59 @@ export default function AIMusicLab() {
         }
     }, []);
 
-    // ── Publish to Platform ──────────────
+    const [autoMintNFT, setAutoMintNFT] = useState(true);
+    const [pipelineSteps, setPipelineSteps] = useState<Array<{ step: string; status: string }>>([]);
+
     const handlePublish = useCallback(async () => {
         if (!currentGen || !localAudioUrl) return;
         setPublishing(true);
+        setPipelineSteps([{ step: 'upload', status: 'running' }]);
         try {
-            // Upload to platform storage
-            const res = await api.post<any>('/content/upload', {
-                type: 'audio',
+            const userRaw = sessionStorage.getItem('vp.user');
+            const user = userRaw ? JSON.parse(userRaw) : null;
+            const ckbAddress = user?.ckbAddress || '';
+
+            // Fetch audio blob and convert to base64
+            let base64Content = '';
+            if (currentGen.resultBlobKey) {
+                const url = await getBlobUrl(currentGen.resultBlobKey);
+                if (url) {
+                    const resp = await fetch(url);
+                    const blob = await resp.blob();
+                    const reader = new FileReader();
+                    base64Content = await new Promise<string>((resolve) => {
+                        reader.onloadend = () => {
+                            const result = reader.result as string;
+                            resolve(result.split(',')[1] || result);
+                        };
+                        reader.readAsDataURL(blob);
+                    });
+                }
+            }
+
+            const res = await api.post<any>('/content/publish', {
+                base64Content,
+                contentType: 'audio',
                 title: currentGen.resultMeta?.title || currentGen.prompt.slice(0, 60),
                 description: currentGen.prompt,
-                style: currentGen.params?.style || '',
-                genre: currentGen.params?.genre || '',
-                sourceUrl: currentGen.resultUrl || '',
-                aiGenerated: true,
-                aiProvider: providerName,
+                genre: currentGen.params?.genre || 'Other',
+                language: 'English',
+                creatorCkbAddress: ckbAddress,
+                autoMintNFT,
+                tags: ['ai-generated', currentGen.params?.genre || ''].filter(Boolean),
             });
 
-            // Mark as published in local DB
-            await markPublished(currentGen.id, res?.id || res?.contentId || 'published');
+            if (res?.pipeline) setPipelineSteps(res.pipeline);
+            await markPublished(currentGen.id, res?.videoId || res?.contentId || 'published');
             setPublishedId(currentGen.id);
             setCurrentGen(prev => prev ? { ...prev, published: true, publishedAt: Date.now() } : null);
             loadHistory();
-            setTimeout(() => setPublishedId(null), 4000);
+            setTimeout(() => { setPublishedId(null); setPipelineSteps([]); }, 5000);
         } catch (err: any) {
+            setPipelineSteps(prev => [...prev, { step: 'error', status: err?.error || err?.message || 'Failed' }]);
             alert('发布失败: ' + (err?.error || err?.message || ''));
         } finally { setPublishing(false); }
-    }, [currentGen, localAudioUrl, providerName]);
+    }, [currentGen, localAudioUrl, providerName, autoMintNFT]);
 
     // ── Delete local generation ──────────────
     const handleDelete = useCallback(async (id: string) => {
