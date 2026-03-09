@@ -819,6 +819,160 @@ async function processVideoGeneration(task: AiTask, config: any) {
 }
 
 // ══════════════════════════════════════════════════════
+// ═══ AI Tool Marketplace Registry ════════════════════
+// ══════════════════════════════════════════════════════
+
+interface AiTool {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    icon: string;
+    version: string;
+    author: string;
+    authorId: string;
+    pricing: "free" | "paid" | "freemium";
+    price: number;
+    downloads: number;
+    rating: number;
+    ratingCount: number;
+    status: "pending" | "approved" | "rejected";
+    capabilities: string[];
+    apiEndpoint?: string;
+    configSchema?: any;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+// In-memory tool registry (would be DB in production)
+const toolRegistry = new Map<string, AiTool>();
+
+// Submit a new AI tool
+app.post("/ai/tools/submit", async (req, reply) => {
+    const userId = getUserId(req);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+    const body = req.body as any;
+    if (!body.name?.trim() || !body.description?.trim() || !body.category) {
+        return reply.status(400).send({ error: "Missing required fields: name, description, category" });
+    }
+
+    const toolId = `tool_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const tool: AiTool = {
+        id: toolId,
+        name: body.name.trim(),
+        description: body.description.trim(),
+        category: body.category,
+        icon: body.icon || "🤖",
+        version: body.version || "1.0.0",
+        author: body.authorName || "Anonymous",
+        authorId: userId,
+        pricing: body.pricing || "free",
+        price: body.price || 0,
+        downloads: 0,
+        rating: 0,
+        ratingCount: 0,
+        status: "pending",
+        capabilities: body.capabilities || [],
+        apiEndpoint: body.apiEndpoint,
+        configSchema: body.configSchema,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    };
+
+    // Auto-approve (in production, would go to review queue)
+    tool.status = "approved";
+
+    toolRegistry.set(toolId, tool);
+
+    // If autoMintNFT is set, mint an NFT for this tool
+    if (body.autoMintNFT) {
+        const nftUrl = process.env.NFT_URL || "http://localhost:8095";
+        fetch(`${nftUrl}/nft/ownership/mint`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: req.headers.authorization || "" },
+            body: JSON.stringify({ videoId: toolId, contentType: "tool" }),
+        }).catch(() => { });
+    }
+
+    return reply.send({ ok: true, toolId, status: tool.status });
+});
+
+// List marketplace tools
+app.get("/ai/tools/marketplace", async (req, reply) => {
+    const query = req.query as any;
+    let tools = Array.from(toolRegistry.values()).filter(t => t.status === "approved");
+
+    if (query.category) tools = tools.filter(t => t.category === query.category);
+    if (query.pricing) tools = tools.filter(t => t.pricing === query.pricing);
+    if (query.search) {
+        const s = query.search.toLowerCase();
+        tools = tools.filter(t => t.name.toLowerCase().includes(s) || t.description.toLowerCase().includes(s));
+    }
+
+    const sortBy = query.sortBy || "downloads";
+    tools.sort((a: any, b: any) => (b[sortBy] || 0) - (a[sortBy] || 0));
+
+    return reply.send({
+        tools: tools.slice(0, parseInt(query.limit || "50")),
+        total: tools.length,
+        categories: ["text", "image", "video", "music", "code", "data", "other"],
+    });
+});
+
+// Get tool details
+app.get("/ai/tools/:toolId", async (req, reply) => {
+    const { toolId } = req.params as any;
+    const tool = toolRegistry.get(toolId);
+    if (!tool) return reply.status(404).send({ error: "Tool not found" });
+    return reply.send({ tool });
+});
+
+// Install/buy a tool
+app.post("/ai/tools/:toolId/install", async (req, reply) => {
+    const userId = getUserId(req);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+    const { toolId } = req.params as any;
+    const tool = toolRegistry.get(toolId);
+    if (!tool) return reply.status(404).send({ error: "Tool not found" });
+
+    // Record install
+    tool.downloads++;
+    tool.updatedAt = new Date();
+
+    return reply.send({ ok: true, toolId, name: tool.name, message: `Installed ${tool.name}` });
+});
+
+// Rate a tool
+app.post("/ai/tools/:toolId/rate", async (req, reply) => {
+    const userId = getUserId(req);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+    const { toolId } = req.params as any;
+    const { rating } = req.body as any;
+    const tool = toolRegistry.get(toolId);
+    if (!tool) return reply.status(404).send({ error: "Tool not found" });
+    if (!rating || rating < 1 || rating > 5) return reply.status(400).send({ error: "Rating must be 1-5" });
+
+    // Update average rating
+    tool.rating = ((tool.rating * tool.ratingCount) + rating) / (tool.ratingCount + 1);
+    tool.ratingCount++;
+    tool.updatedAt = new Date();
+
+    return reply.send({ ok: true, rating: tool.rating, ratingCount: tool.ratingCount });
+});
+
+// My published tools
+app.get("/ai/tools/my/published", async (req, reply) => {
+    const userId = getUserId(req);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+    const myTools = Array.from(toolRegistry.values()).filter(t => t.authorId === userId);
+    return reply.send({ tools: myTools, total: myTools.length });
+});
+
+// ══════════════════════════════════════════════════════
 // ═══ Health & Start ══════════════════════════════════
 // ══════════════════════════════════════════════════════
 

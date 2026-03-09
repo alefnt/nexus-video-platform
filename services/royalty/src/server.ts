@@ -116,6 +116,83 @@ app.post<{ Body: RoyaltyDistributionRequest }>("/royalty/distribute", async (req
   }
 });
 
+// ─── Royalty Distribution Scheduling ───
+
+// In-memory pending distributions (would be Redis/DB in production)
+const pendingDistributions: Array<{
+  id: string;
+  videoId: string;
+  totalAmount: number;
+  participants: SplitParticipant[];
+  scheduledAt: Date;
+  status: "pending" | "processing" | "done" | "failed";
+  error?: string;
+}> = [];
+
+// Queue a distribution for scheduled processing
+app.post("/royalty/schedule", async (req, reply) => {
+  try {
+    const body = req.body as { videoId: string; totalAmount: number; participants: any[]; executeAt?: string };
+    if (!body.videoId || !body.totalAmount || !body.participants?.length) {
+      return reply.status(400).send({ error: "缺少参数: videoId, totalAmount, participants" });
+    }
+
+    const dist = {
+      id: uuidv4(),
+      videoId: body.videoId,
+      totalAmount: body.totalAmount,
+      participants: body.participants.map((p: any) => ({
+        address: p.address,
+        label: p.address.slice(0, 8),
+        percentage: p.percentage || (p.ratio ? p.ratio * 100 : 0),
+        role: p.role || "collaborator" as const,
+      })),
+      scheduledAt: body.executeAt ? new Date(body.executeAt) : new Date(),
+      status: "pending" as const,
+    };
+
+    pendingDistributions.push(dist);
+    app.log.info({ id: dist.id, videoId: dist.videoId }, "Royalty distribution scheduled");
+
+    return reply.send({ ok: true, distributionId: dist.id, scheduledAt: dist.scheduledAt });
+  } catch (err: any) {
+    return reply.status(500).send({ error: err?.message || "调度失败" });
+  }
+});
+
+// View pending distributions
+app.get("/royalty/pending", async (_req, reply) => {
+  return reply.send({
+    pending: pendingDistributions.filter(d => d.status === "pending"),
+    processing: pendingDistributions.filter(d => d.status === "processing"),
+    completed: pendingDistributions.filter(d => d.status === "done").slice(-20),
+    failed: pendingDistributions.filter(d => d.status === "failed").slice(-10),
+  });
+});
+
+// Cron: Process pending distributions every 60 seconds
+async function processScheduledDistributions() {
+  const now = new Date();
+  const due = pendingDistributions.filter(d => d.status === "pending" && d.scheduledAt <= now);
+
+  for (const dist of due) {
+    dist.status = "processing";
+    try {
+      const splitResult = await rgbppClient.executeSplit(dist.videoId, dist.totalAmount, dist.participants);
+      dist.status = "done";
+      app.log.info({ id: dist.id, videoId: dist.videoId, txHash: splitResult.txHash }, "Scheduled royalty executed");
+    } catch (err: any) {
+      dist.status = "failed";
+      dist.error = err?.message;
+      app.log.warn({ id: dist.id, error: err?.message }, "Scheduled royalty failed");
+    }
+  }
+}
+
+// Start scheduler cron (every 60 seconds)
+setInterval(processScheduledDistributions, 60_000);
+app.log.info("Royalty distribution scheduler started (60s interval)");
+
 const port = Number(process.env.ROYALTY_PORT || 8094);
 app.listen({ port }).then(() => app.log.info(`Royalty listening on http://localhost:${port}`));
 export default app;

@@ -933,6 +933,68 @@ app.post("/content/publish", async (req, reply) => {
       }
     }
 
+    // ── Step 5: Auto-Moderation ──
+    steps.push({ step: "moderation", status: "running" });
+    try {
+      const moderationUrl = process.env.MODERATION_URL || "http://localhost:8102";
+      // Text moderation on title + description
+      const textToCheck = `${body.title} ${body.description || ""}`.trim();
+      const modRes = await fetch(`${moderationUrl}/moderation/text`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: textToCheck })
+      });
+      if (modRes.ok) {
+        const modResult = await modRes.json() as any;
+        const modStatus = modResult.passed ? "approved" : "flagged";
+        // Update DB record moderation status
+        if (contentType === "video") {
+          await prisma.video.update({ where: { id: videoId }, data: { moderationStatus: modStatus, moderationNote: modResult.label || null } }).catch(() => { });
+        } else if (contentType === "audio") {
+          await prisma.music.update({ where: { id: videoId }, data: { moderationStatus: modStatus } }).catch(() => { });
+        } else if (contentType === "article") {
+          await prisma.article.update({ where: { id: videoId }, data: { moderationStatus: modStatus } }).catch(() => { });
+        }
+        steps[steps.length - 1].status = "done";
+        steps[steps.length - 1].result = { passed: modResult.passed, label: modResult.label };
+      } else {
+        steps[steps.length - 1].status = "skipped";
+        steps[steps.length - 1].error = "moderation service unavailable";
+      }
+    } catch (err: any) {
+      steps[steps.length - 1].status = "skipped";
+      steps[steps.length - 1].error = err?.message || "moderation failed (non-blocking)";
+    }
+
+    // ── Step 6: Achievement Auto-Check ──
+    steps.push({ step: "achievement_check", status: "running" });
+    try {
+      const achievementUrl = process.env.ACHIEVEMENT_URL || "http://localhost:8097";
+      const jwtHeader = req.headers.authorization || "";
+      // Update stats: increment totalVideos for the creator
+      await fetch(`${achievementUrl}/achievement/stats/update`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: jwtHeader },
+        body: JSON.stringify({ userId, field: "totalVideos", increment: 1 })
+      });
+      // Check and auto-unlock achievements
+      const checkRes = await fetch(`${achievementUrl}/achievement/check`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: jwtHeader },
+        body: JSON.stringify({})
+      });
+      if (checkRes.ok) {
+        const checkResult = await checkRes.json() as any;
+        steps[steps.length - 1].status = "done";
+        steps[steps.length - 1].result = { newlyUnlocked: checkResult.count || 0, achievements: checkResult.newlyUnlocked?.map((a: any) => a.achievement?.name) };
+      } else {
+        steps[steps.length - 1].status = "skipped";
+      }
+    } catch (err: any) {
+      steps[steps.length - 1].status = "skipped";
+      steps[steps.length - 1].error = err?.message || "achievement check failed (non-blocking)";
+    }
+
     const elapsed = Date.now() - startTime;
     return reply.send({
       ok: true,

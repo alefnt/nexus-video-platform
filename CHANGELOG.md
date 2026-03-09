@@ -2,7 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.3.0] - 2026-03-09
+## [2.4.0] - 2026-03-09
+
+### 🔄 P1-P3 Business Automation Pipelines
+
+#### P1: Auto-Moderation (Pipeline 6)
+- Publish pipeline now runs text moderation (Step 5) on title + description
+- Auto-approves safe content, flags suspicious content in DB
+
+#### P2: Achievement Auto-Detection (Pipeline 4)
+- Publish pipeline auto-checks achievements (Step 6) after each content upload
+- Auto-increments `totalVideos` stat and unlocks earned achievements + SBT mint
+
+#### P2: Scheduled Royalty Distribution (Pipeline 3)
+- `POST /royalty/schedule` — Queue distributions for scheduled execution
+- `GET /royalty/pending` — View pending/processing/completed/failed distributions
+- Cron worker processes due distributions every 60 seconds via RGB++
+
+#### P2: Fan Engagement Auto-Tracking (Pipeline 8)
+- `POST /engagement/track` — Unified webhook for all user actions
+- Chains: rate-limit → task progress (auto-claim) → fan level update → achievement stats
+
+#### P3: AI Tool Marketplace (Pipeline 7)
+- `POST /ai/tools/submit` — Submit AI tool with auto-approve + optional NFT mint
+- `GET /ai/tools/marketplace` — Browse with category/search/sort filters
+- `POST /ai/tools/:id/install` — Install/buy tools
+- `POST /ai/tools/:id/rate` — Rate tools (1-5 stars)
+- `GET /ai/tools/my/published` — View own published tools
+
+---
+
+
 
 ### 🤖 Business Workflow Automation
 
