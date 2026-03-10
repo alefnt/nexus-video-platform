@@ -1090,9 +1090,9 @@ app.post("/payment/stream/tick", async (req, reply) => {
     const prevSeconds = session.actualUsedSeconds || 0;
     const deltaSeconds = Math.max(0, body.elapsedSeconds - prevSeconds);
 
-    // Calculate cost for this delta
+    // Calculate cost for this delta — integer PTS (no fractional cents)
     const pricePerSecond = Number(session.pricePerMinute) / 60;
-    const costThisTick = Math.round(pricePerSecond * deltaSeconds * 100) / 100; // 2 decimal precision
+    const costThisTick = Math.round(pricePerSecond * deltaSeconds); // Integer PTS
 
     // Check user balance
     const user = await prisma.user.findUnique({ where: { id: userId } });

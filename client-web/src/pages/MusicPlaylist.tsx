@@ -33,7 +33,7 @@ export default function MusicPlaylist() {
                 title: t.title,
                 artist: t.description || t.creatorBitDomain || 'Unknown',
                 coverUrl: t.posterUrl,
-                audioUrl: t.cdnUrl,
+                audioUrl: t.cdnUrl || '',
             }));
             globalMusic.setPlaylist(globalPlaylist);
         }
@@ -316,6 +316,13 @@ export default function MusicPlaylist() {
                             <div className="text-center">TIME</div>
                             <div className="text-center"></div>
                         </div>
+
+                        {/* Payment Status Bar */}
+                        {payStatus && (
+                            <div className="mx-8 mt-4 py-2 px-4 bg-nexusCyan/10 border border-nexusCyan/20 rounded-lg text-center">
+                                <span className="text-nexusCyan font-mono text-sm">{payStatus}</span>
+                            </div>
+                        )}
 
                         {/* Track List */}
                         <div className="p-2">
