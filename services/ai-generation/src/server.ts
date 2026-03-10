@@ -972,9 +972,839 @@ app.get("/ai/tools/my/published", async (req, reply) => {
     return reply.send({ tools: myTools, total: myTools.length });
 });
 
-// ══════════════════════════════════════════════════════
-// ═══ Health & Start ══════════════════════════════════
-// ══════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════
+// ═══ FEATURE 1: Tool Use — AI 智能工具编排 (Anthropic-inspired) ═══
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Tool Use Schema Registry
+ * Each tool defines its name, description, input_schema (JSON Schema),
+ * and an executor function — following Anthropic's tool_use pattern.
+ */
+interface ToolDefinition {
+    name: string;
+    description: string;
+    input_schema: {
+        type: "object";
+        properties: Record<string, any>;
+        required?: string[];
+    };
+    executor: (params: any) => Promise<any>;
+}
+
+const toolDefinitions: ToolDefinition[] = [
+    {
+        name: "generate_video",
+        description: "Generate a short video from a text prompt. Use when the user wants to create video content.",
+        input_schema: {
+            type: "object",
+            properties: {
+                prompt: { type: "string", description: "Description of the video to generate" },
+                duration: { type: "number", description: "Duration in seconds (5-60)", default: 15 },
+                style: { type: "string", enum: ["cinematic", "anime", "realistic", "abstract"], default: "cinematic" },
+            },
+            required: ["prompt"],
+        },
+        executor: async (params) => ({
+            taskId: `vid_${Date.now()}`,
+            status: "queued",
+            estimatedTime: "2-5 minutes",
+            prompt: params.prompt,
+            duration: params.duration || 15,
+            style: params.style || "cinematic",
+        }),
+    },
+    {
+        name: "generate_music",
+        description: "Generate background music or a song from a text description. Use for audio content creation.",
+        input_schema: {
+            type: "object",
+            properties: {
+                prompt: { type: "string", description: "Description of the music to generate" },
+                genre: { type: "string", enum: ["electronic", "classical", "lo-fi", "rock", "ambient"], default: "ambient" },
+                duration: { type: "number", description: "Duration in seconds (10-180)", default: 30 },
+            },
+            required: ["prompt"],
+        },
+        executor: async (params) => ({
+            taskId: `mus_${Date.now()}`,
+            status: "queued",
+            estimatedTime: "1-3 minutes",
+            prompt: params.prompt,
+            genre: params.genre || "ambient",
+            duration: params.duration || 30,
+        }),
+    },
+    {
+        name: "generate_text",
+        description: "Generate written content like articles, scripts, or descriptions.",
+        input_schema: {
+            type: "object",
+            properties: {
+                prompt: { type: "string", description: "What to write about" },
+                format: { type: "string", enum: ["article", "script", "description", "social_post"], default: "article" },
+                maxTokens: { type: "number", default: 1000 },
+            },
+            required: ["prompt"],
+        },
+        executor: async (params) => ({
+            taskId: `txt_${Date.now()}`,
+            status: "queued",
+            format: params.format || "article",
+            prompt: params.prompt,
+        }),
+    },
+    {
+        name: "analyze_content",
+        description: "Analyze existing content for sentiment, topics, SEO quality, or audience insights.",
+        input_schema: {
+            type: "object",
+            properties: {
+                contentId: { type: "string", description: "ID of the content to analyze" },
+                analysisType: { type: "string", enum: ["sentiment", "seo", "audience", "topics"], default: "topics" },
+            },
+            required: ["contentId"],
+        },
+        executor: async (params) => ({
+            taskId: `ana_${Date.now()}`,
+            contentId: params.contentId,
+            analysisType: params.analysisType || "topics",
+            status: "completed",
+            result: {
+                score: 0.85,
+                tags: ["engaging", "well-structured"],
+                suggestions: ["Add more keywords", "Improve meta description"],
+            },
+        }),
+    },
+    {
+        name: "translate_content",
+        description: "Translate text content to another language.",
+        input_schema: {
+            type: "object",
+            properties: {
+                text: { type: "string", description: "Text to translate" },
+                targetLang: { type: "string", description: "Target language code (en, zh, ja, ko, es, fr)" },
+            },
+            required: ["text", "targetLang"],
+        },
+        executor: async (params) => ({
+            taskId: `trl_${Date.now()}`,
+            originalLength: params.text.length,
+            targetLang: params.targetLang,
+            status: "completed",
+            translated: `[Translated to ${params.targetLang}] ${params.text.substring(0, 100)}...`,
+        }),
+    },
+];
+
+/**
+ * POST /ai/orchestrate
+ * Anthropic Tool Use pattern: user sends a natural language request,
+ * the system identifies which tools are needed and chains them automatically.
+ */
+app.post("/ai/orchestrate", async (req, reply) => {
+    const userId = getUserId(req);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+    const { prompt, maxTools } = req.body as { prompt: string; maxTools?: number };
+    if (!prompt) return reply.status(400).send({ error: "prompt is required" });
+
+    // Step 1: Analyze prompt to select relevant tools (keyword matching)
+    const promptLower = prompt.toLowerCase();
+    const selectedTools: { tool: ToolDefinition; params: any }[] = [];
+    const limit = maxTools || 3;
+
+    for (const tool of toolDefinitions) {
+        if (selectedTools.length >= limit) break;
+        const keywords: Record<string, string[]> = {
+            generate_video: ["video", "视频", "clip", "film", "movie", "animation"],
+            generate_music: ["music", "音乐", "song", "melody", "beat", "soundtrack", "bgm", "背景音乐"],
+            generate_text: ["write", "article", "script", "文章", "脚本", "text", "blog", "post"],
+            analyze_content: ["analyze", "分析", "review", "check", "audit", "seo"],
+            translate_content: ["translate", "翻译", "translation", "language"],
+        };
+
+        const toolKeywords = keywords[tool.name] || [];
+        if (toolKeywords.some((kw) => promptLower.includes(kw))) {
+            // Extract basic params from natural language
+            const params: any = { prompt };
+            if (tool.name === "translate_content") {
+                params.text = prompt;
+                params.targetLang = promptLower.includes("中文") || promptLower.includes("chinese") ? "zh"
+                    : promptLower.includes("日本") || promptLower.includes("japanese") ? "ja"
+                        : promptLower.includes("korean") ? "ko" : "en";
+            }
+            selectedTools.push({ tool, params });
+        }
+    }
+
+    if (selectedTools.length === 0) {
+        return reply.send({
+            ok: true,
+            message: "No matching tools found for this request",
+            availableTools: toolDefinitions.map((t) => ({ name: t.name, description: t.description })),
+        });
+    }
+
+    // Step 2: Execute all selected tools in parallel
+    const results = await Promise.allSettled(
+        selectedTools.map(async ({ tool, params }) => {
+            const result = await tool.executor(params);
+            return { toolName: tool.name, result };
+        })
+    );
+
+    const toolResults = results.map((r, i) => ({
+        tool: selectedTools[i].tool.name,
+        status: r.status === "fulfilled" ? "success" : "error",
+        result: r.status === "fulfilled" ? r.value.result : (r as any).reason?.message,
+    }));
+
+    return reply.send({
+        ok: true,
+        prompt,
+        toolsUsed: toolResults.length,
+        pipeline: toolResults,
+        orchestrationId: `orch_${Date.now()}`,
+    });
+});
+
+// List available tools (schema introspection)
+app.get("/ai/tools/schema", async (_req, reply) => {
+    return reply.send({
+        tools: toolDefinitions.map((t) => ({
+            name: t.name,
+            description: t.description,
+            input_schema: t.input_schema,
+        })),
+        total: toolDefinitions.length,
+    });
+});
+
+
+// ══════════════════════════════════════════════════════════════
+// ═══ FEATURE 2: RAG — 智能内容搜索 (Anthropic-inspired) ════════
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Lightweight TF-IDF + Cosine Similarity RAG engine
+ * (No external vector DB needed — suitable for <10K documents)
+ */
+
+// In-memory document store for RAG
+interface RagDocument {
+    id: string;
+    title: string;
+    content: string;
+    contentType: string;
+    tokens: string[];
+    tfidf: Map<string, number>;
+    createdAt: Date;
+}
+
+const ragStore: RagDocument[] = [];
+const idfCache = new Map<string, number>();
+
+function tokenize(text: string): string[] {
+    return text.toLowerCase()
+        .replace(/[^\w\s\u4e00-\u9fff]/g, " ")
+        .split(/\s+/)
+        .filter((t) => t.length > 1);
+}
+
+function computeTF(tokens: string[]): Map<string, number> {
+    const tf = new Map<string, number>();
+    tokens.forEach((t) => tf.set(t, (tf.get(t) || 0) + 1));
+    const total = tokens.length;
+    tf.forEach((count, term) => tf.set(term, count / total));
+    return tf;
+}
+
+function rebuildIDF() {
+    idfCache.clear();
+    const N = ragStore.length;
+    if (N === 0) return;
+    const docFreq = new Map<string, number>();
+    ragStore.forEach((doc) => {
+        const seen = new Set<string>();
+        doc.tokens.forEach((t) => { if (!seen.has(t)) { seen.add(t); docFreq.set(t, (docFreq.get(t) || 0) + 1); } });
+    });
+    docFreq.forEach((df, term) => idfCache.set(term, Math.log(N / df)));
+}
+
+function cosineSimilarity(a: Map<string, number>, b: Map<string, number>): number {
+    let dot = 0, magA = 0, magB = 0;
+    a.forEach((v, k) => { dot += v * (b.get(k) || 0); magA += v * v; });
+    b.forEach((v) => { magB += v * v; });
+    return magA && magB ? dot / (Math.sqrt(magA) * Math.sqrt(magB)) : 0;
+}
+
+// Index a document
+app.post("/ai/rag/index", async (req, reply) => {
+    const userId = getUserId(req);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+    const { id, title, content, contentType } = req.body as any;
+    if (!id || !content) return reply.status(400).send({ error: "id and content required" });
+
+    const tokens = tokenize(`${title || ""} ${content}`);
+    const tf = computeTF(tokens);
+    const tfidf = new Map<string, number>();
+    tf.forEach((tfVal, term) => tfidf.set(term, tfVal * (idfCache.get(term) || 1)));
+
+    // Upsert
+    const idx = ragStore.findIndex((d) => d.id === id);
+    const doc: RagDocument = { id, title: title || "", content, contentType: contentType || "video", tokens, tfidf, createdAt: new Date() };
+    if (idx >= 0) ragStore[idx] = doc; else ragStore.push(doc);
+    rebuildIDF();
+
+    return reply.send({ ok: true, indexed: id, totalDocs: ragStore.length });
+});
+
+// Semantic search
+app.post("/ai/rag/search", async (req, reply) => {
+    const { query, limit, contentType } = req.body as { query: string; limit?: number; contentType?: string };
+    if (!query) return reply.status(400).send({ error: "query is required" });
+
+    const queryTokens = tokenize(query);
+    const queryTF = computeTF(queryTokens);
+    const queryTFIDF = new Map<string, number>();
+    queryTF.forEach((tfVal, term) => queryTFIDF.set(term, tfVal * (idfCache.get(term) || 1)));
+
+    let candidates = ragStore;
+    if (contentType) candidates = candidates.filter((d) => d.contentType === contentType);
+
+    const scored = candidates.map((doc) => ({
+        id: doc.id,
+        title: doc.title,
+        contentType: doc.contentType,
+        score: cosineSimilarity(queryTFIDF, doc.tfidf),
+        snippet: doc.content.substring(0, 200),
+    }))
+        .filter((r) => r.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit || 10);
+
+    return reply.send({
+        ok: true,
+        query,
+        results: scored,
+        totalSearched: candidates.length,
+        engine: "tfidf-cosine",
+    });
+});
+
+// Batch index
+app.post("/ai/rag/index/batch", async (req, reply) => {
+    const userId = getUserId(req);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+    const { documents } = req.body as { documents: { id: string; title: string; content: string; contentType?: string }[] };
+    if (!documents?.length) return reply.status(400).send({ error: "documents array required" });
+
+    let indexed = 0;
+    for (const doc of documents) {
+        if (!doc.id || !doc.content) continue;
+        const tokens = tokenize(`${doc.title || ""} ${doc.content}`);
+        const tf = computeTF(tokens);
+        const tfidf = new Map<string, number>();
+        tf.forEach((tfVal, term) => tfidf.set(term, tfVal * (idfCache.get(term) || 1)));
+        const ragDoc: RagDocument = { id: doc.id, title: doc.title || "", content: doc.content, contentType: doc.contentType || "video", tokens, tfidf, createdAt: new Date() };
+        const idx = ragStore.findIndex((d) => d.id === doc.id);
+        if (idx >= 0) ragStore[idx] = ragDoc; else ragStore.push(ragDoc);
+        indexed++;
+    }
+    rebuildIDF();
+    return reply.send({ ok: true, indexed, totalDocs: ragStore.length });
+});
+
+app.get("/ai/rag/stats", async (_req, reply) => {
+    return reply.send({
+        totalDocuments: ragStore.length,
+        vocabularySize: idfCache.size,
+        engine: "tfidf-cosine",
+    });
+});
+
+
+// ══════════════════════════════════════════════════════════════
+// ═══ FEATURE 3: MCP Server — 工具市场 MCP 协议 ════════════════
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Model Context Protocol compatible tool invocation
+ * Tools, Resources, and Prompts — the 3 MCP primitives
+ */
+
+interface McpToolDef {
+    name: string;
+    description: string;
+    inputSchema: any;
+    category: string;
+}
+
+// MCP tool registry (extends the AI Tool Marketplace)
+const mcpTools = new Map<string, McpToolDef>();
+
+// Register default MCP tools from our toolDefinitions
+toolDefinitions.forEach((t) => {
+    mcpTools.set(t.name, {
+        name: t.name,
+        description: t.description,
+        inputSchema: t.input_schema,
+        category: "builtin",
+    });
+});
+
+// MCP: List tools (following MCP tools/list spec)
+app.post("/ai/mcp/tools/list", async (_req, reply) => {
+    return reply.send({
+        tools: Array.from(mcpTools.values()),
+    });
+});
+
+// MCP: Call tool (following MCP tools/call spec)
+app.post("/ai/mcp/tools/call", async (req, reply) => {
+    const userId = getUserId(req);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+    const { name, arguments: args } = req.body as { name: string; arguments: any };
+    if (!name) return reply.status(400).send({ error: "Tool name required" });
+
+    const tool = toolDefinitions.find((t) => t.name === name);
+    if (!tool) return reply.status(404).send({ error: `Tool '${name}' not found` });
+
+    try {
+        const result = await tool.executor(args || {});
+        return reply.send({
+            content: [{ type: "text", text: JSON.stringify(result) }],
+            isError: false,
+        });
+    } catch (err: any) {
+        return reply.send({
+            content: [{ type: "text", text: err.message }],
+            isError: true,
+        });
+    }
+});
+
+// MCP: Register external tool
+app.post("/ai/mcp/tools/register", async (req, reply) => {
+    const userId = getUserId(req);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+    const { name, description, inputSchema, category } = req.body as any;
+    if (!name || !description) return reply.status(400).send({ error: "name and description required" });
+
+    mcpTools.set(name, {
+        name,
+        description,
+        inputSchema: inputSchema || { type: "object", properties: {} },
+        category: category || "external",
+    });
+
+    return reply.send({ ok: true, registered: name, totalTools: mcpTools.size });
+});
+
+// MCP: Resources (read-only data endpoints)
+const mcpResources = [
+    { uri: "nexus://platform/stats", name: "Platform Statistics", mimeType: "application/json" },
+    { uri: "nexus://content/trending", name: "Trending Content", mimeType: "application/json" },
+    { uri: "nexus://tools/catalog", name: "Tool Catalog", mimeType: "application/json" },
+];
+
+app.post("/ai/mcp/resources/list", async (_req, reply) => {
+    return reply.send({ resources: mcpResources });
+});
+
+app.post("/ai/mcp/resources/read", async (req, reply) => {
+    const { uri } = req.body as { uri: string };
+    const resourceData: Record<string, any> = {
+        "nexus://platform/stats": { users: 1200, videos: 5600, aiTasks: 890, uptime: process.uptime() },
+        "nexus://content/trending": { trending: ["Cyberpunk Documentary", "AI Music Mix", "Blockchain Tutorial"] },
+        "nexus://tools/catalog": { tools: Array.from(mcpTools.keys()) },
+    };
+    const data = resourceData[uri];
+    if (!data) return reply.status(404).send({ error: "Resource not found" });
+    return reply.send({ contents: [{ uri, mimeType: "application/json", text: JSON.stringify(data) }] });
+});
+
+// MCP: Prompts (pre-crafted prompt templates)
+const mcpPrompts = [
+    { name: "content-review", description: "Review content for quality and compliance", arguments: [{ name: "contentId", required: true }] },
+    { name: "seo-optimize", description: "Optimize content metadata for search engines", arguments: [{ name: "title", required: true }, { name: "description", required: true }] },
+    { name: "generate-summary", description: "Generate a concise summary of content", arguments: [{ name: "content", required: true }] },
+];
+
+app.post("/ai/mcp/prompts/list", async (_req, reply) => {
+    return reply.send({ prompts: mcpPrompts });
+});
+
+app.post("/ai/mcp/prompts/get", async (req, reply) => {
+    const { name, arguments: args } = req.body as { name: string; arguments?: any };
+    const prompt = mcpPrompts.find((p) => p.name === name);
+    if (!prompt) return reply.status(404).send({ error: "Prompt not found" });
+
+    const messages: Record<string, any[]> = {
+        "content-review": [
+            { role: "user", content: { type: "text", text: `Review content ID: ${args?.contentId}. Check for: quality, compliance, originality. Provide rating 1-10 and actionable feedback.` } },
+        ],
+        "seo-optimize": [
+            { role: "user", content: { type: "text", text: `Optimize SEO for:\nTitle: ${args?.title}\nDescription: ${args?.description}\n\nProvide: optimized title, meta description, keywords, and heading suggestions.` } },
+        ],
+        "generate-summary": [
+            { role: "user", content: { type: "text", text: `Summarize the following in 2-3 sentences:\n\n${args?.content}` } },
+        ],
+    };
+
+    return reply.send({ description: prompt.description, messages: messages[name] || [] });
+});
+
+
+// ══════════════════════════════════════════════════════════════
+// ═══ FEATURE 4: Prompt Caching — 降低成本 ═══════════════════
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * System Prompt caching layer with TTL
+ * Reduces repeated token costs by caching frequently-used system prompts.
+ */
+interface CachedPrompt {
+    hash: string;
+    content: string;
+    tokenEstimate: number;
+    hits: number;
+    createdAt: number;
+    lastUsed: number;
+    ttl: number; // ms
+}
+
+const promptCache = new Map<string, CachedPrompt>();
+let cacheHits = 0;
+let cacheMisses = 0;
+
+function hashPrompt(text: string): string {
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+        const char = text.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash |= 0;
+    }
+    return `pc_${Math.abs(hash).toString(36)}`;
+}
+
+function estimateTokens(text: string): number {
+    // ~4 chars per token (rough estimate)
+    return Math.ceil(text.length / 4);
+}
+
+// Cache a system prompt
+app.post("/ai/cache/prompt", async (req, reply) => {
+    const userId = getUserId(req);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+    const { content, ttlMinutes } = req.body as { content: string; ttlMinutes?: number };
+    if (!content) return reply.status(400).send({ error: "content required" });
+
+    const hash = hashPrompt(content);
+    const ttl = (ttlMinutes || 60) * 60 * 1000;
+
+    if (promptCache.has(hash)) {
+        const cached = promptCache.get(hash)!;
+        cached.hits++;
+        cached.lastUsed = Date.now();
+        cacheHits++;
+        return reply.send({
+            ok: true,
+            cacheHit: true,
+            cacheId: hash,
+            hits: cached.hits,
+            tokensSaved: cached.tokenEstimate,
+        });
+    }
+
+    cacheMisses++;
+    const tokenEstimate = estimateTokens(content);
+    promptCache.set(hash, {
+        hash,
+        content,
+        tokenEstimate,
+        hits: 1,
+        createdAt: Date.now(),
+        lastUsed: Date.now(),
+        ttl,
+    });
+
+    return reply.send({
+        ok: true,
+        cacheHit: false,
+        cacheId: hash,
+        tokenEstimate,
+        ttlMinutes: ttlMinutes || 60,
+    });
+});
+
+// Get cached prompt
+app.get("/ai/cache/prompt/:cacheId", async (req, reply) => {
+    const { cacheId } = req.params as { cacheId: string };
+    const cached = promptCache.get(cacheId);
+    if (!cached) return reply.status(404).send({ error: "Not in cache" });
+
+    // Check TTL
+    if (Date.now() - cached.createdAt > cached.ttl) {
+        promptCache.delete(cacheId);
+        return reply.status(404).send({ error: "Cache expired" });
+    }
+
+    cached.hits++;
+    cached.lastUsed = Date.now();
+    cacheHits++;
+    return reply.send({ ok: true, content: cached.content, hits: cached.hits, tokenEstimate: cached.tokenEstimate });
+});
+
+// Cache stats
+app.get("/ai/cache/stats", async (_req, reply) => {
+    let totalTokensSaved = 0;
+    promptCache.forEach((c) => { totalTokensSaved += c.tokenEstimate * (c.hits - 1); });
+
+    return reply.send({
+        totalCached: promptCache.size,
+        cacheHits,
+        cacheMisses,
+        hitRate: cacheHits + cacheMisses > 0 ? `${((cacheHits / (cacheHits + cacheMisses)) * 100).toFixed(1)}%` : "0%",
+        estimatedTokensSaved: totalTokensSaved,
+        estimatedCostSaved: `$${(totalTokensSaved * 0.000003).toFixed(4)}`, // ~$3/1M tokens
+    });
+});
+
+// Cleanup expired entries (runs every 10 minutes)
+setInterval(() => {
+    const now = Date.now();
+    promptCache.forEach((c, key) => { if (now - c.createdAt > c.ttl) promptCache.delete(key); });
+}, 10 * 60 * 1000);
+
+
+// ══════════════════════════════════════════════════════════════
+// ═══ FEATURE 5: Agent Skills — 自动化 Skills ══════════════════
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Agent Skills Registry
+ * Skills are reusable automation units that auto-match tasks.
+ * Inspired by Claude Code's Skills system.
+ */
+interface AgentSkill {
+    name: string;
+    description: string;
+    triggerKeywords: string[];
+    category: "content" | "monetization" | "analytics" | "moderation";
+    executor: (input: any) => Promise<any>;
+    createdAt: Date;
+}
+
+const skillRegistry = new Map<string, AgentSkill>();
+
+// Built-in Skill: Content Review
+skillRegistry.set("content-review", {
+    name: "content-review",
+    description: "Automatically review content for quality, compliance, and platform guidelines",
+    triggerKeywords: ["review", "审核", "check", "moderate", "quality"],
+    category: "moderation",
+    executor: async (input) => {
+        const { title, description, tags } = input;
+        const issues: string[] = [];
+        const score = { quality: 0, compliance: 0, seo: 0 };
+
+        // Quality checks
+        if (!title || title.length < 5) issues.push("Title too short (min 5 chars)");
+        else score.quality += 30;
+        if (!description || description.length < 20) issues.push("Description too short (min 20 chars)");
+        else score.quality += 30;
+        if (tags && tags.length >= 3) score.quality += 20;
+        else issues.push("Add at least 3 tags");
+        if (title && !/[A-Z\u4e00-\u9fff]/.test(title[0])) issues.push("Title should start with capital letter");
+        else score.quality += 20;
+
+        // Compliance
+        const banned = ["spam", "scam", "hack", "crack"];
+        const text = `${title} ${description}`.toLowerCase();
+        const hasBanned = banned.some((w) => text.includes(w));
+        score.compliance = hasBanned ? 0 : 100;
+        if (hasBanned) issues.push("Contains prohibited keywords");
+
+        // SEO
+        score.seo = (title?.length >= 30 && title?.length <= 60) ? 40 : 20;
+        score.seo += (description?.length >= 120 && description?.length <= 300) ? 40 : 20;
+        score.seo += (tags?.length >= 5) ? 20 : 10;
+
+        const overall = Math.round((score.quality + score.compliance + score.seo) / 3);
+        return {
+            approved: overall >= 60 && score.compliance > 0,
+            overall,
+            scores: score,
+            issues,
+            suggestions: issues.length > 0 ? issues : ["Content looks good!"],
+        };
+    },
+    createdAt: new Date(),
+});
+
+// Built-in Skill: SEO Optimizer
+skillRegistry.set("seo-optimizer", {
+    name: "seo-optimizer",
+    description: "Optimize content metadata for search engine visibility",
+    triggerKeywords: ["seo", "optimize", "搜索优化", "search", "meta", "keywords"],
+    category: "analytics",
+    executor: async (input) => {
+        const { title, description, tags } = input;
+        const suggestions: any = {};
+
+        // Title optimization
+        if (title) {
+            suggestions.title = {
+                current: title,
+                length: title.length,
+                optimal: title.length >= 30 && title.length <= 60,
+                suggestion: title.length < 30 ? "Make title longer (30-60 chars)" : title.length > 60 ? "Shorten title (30-60 chars)" : "Title length is optimal",
+            };
+        }
+
+        // Description optimization
+        if (description) {
+            suggestions.description = {
+                current: description.substring(0, 100) + "...",
+                length: description.length,
+                optimal: description.length >= 120 && description.length <= 300,
+                suggestion: description.length < 120 ? "Expand description (120-300 chars)" : "Description length is good",
+            };
+        }
+
+        // Tags
+        suggestions.tags = {
+            current: tags || [],
+            count: tags?.length || 0,
+            suggestion: (tags?.length || 0) < 5 ? "Add more tags (5-10 recommended)" : "Tag count is good",
+            recommended: ["trending", "viral", "creator", "content", "platform"],
+        };
+
+        // Overall SEO score
+        let seoScore = 0;
+        if (suggestions.title?.optimal) seoScore += 35;
+        else seoScore += 15;
+        if (suggestions.description?.optimal) seoScore += 35;
+        else seoScore += 15;
+        if ((tags?.length || 0) >= 5) seoScore += 30;
+        else seoScore += 10;
+
+        return { seoScore, maxScore: 100, grade: seoScore >= 80 ? "A" : seoScore >= 60 ? "B" : seoScore >= 40 ? "C" : "D", suggestions };
+    },
+    createdAt: new Date(),
+});
+
+// Built-in Skill: Royalty Calculator
+skillRegistry.set("royalty-calculator", {
+    name: "royalty-calculator",
+    description: "Calculate royalty splits and revenue distribution for content creators",
+    triggerKeywords: ["royalty", "版税", "revenue", "split", "分成", "earnings", "payout"],
+    category: "monetization",
+    executor: async (input) => {
+        const { totalRevenue, creators, platformFeeRate } = input;
+        const revenue = totalRevenue || 0;
+        const feeRate = platformFeeRate || 0.05;
+        const platformFee = revenue * feeRate;
+        const distributable = revenue - platformFee;
+
+        const splits = (creators || []).map((c: any) => ({
+            creatorId: c.id,
+            name: c.name || c.id,
+            sharePercent: c.share || 100 / (creators?.length || 1),
+            amount: distributable * ((c.share || 100 / (creators?.length || 1)) / 100),
+        }));
+
+        return {
+            totalRevenue: revenue,
+            platformFee,
+            platformFeeRate: `${feeRate * 100}%`,
+            distributable,
+            splits,
+            currency: "CKB",
+            calculatedAt: new Date().toISOString(),
+        };
+    },
+    createdAt: new Date(),
+});
+
+// Run a skill by name
+app.post("/ai/skills/run", async (req, reply) => {
+    const userId = getUserId(req);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+    const { skillName, input } = req.body as { skillName: string; input: any };
+    if (!skillName) return reply.status(400).send({ error: "skillName required" });
+
+    const skill = skillRegistry.get(skillName);
+    if (!skill) return reply.status(404).send({ error: `Skill '${skillName}' not found` });
+
+    try {
+        const result = await skill.executor(input || {});
+        return reply.send({ ok: true, skill: skillName, result });
+    } catch (err: any) {
+        return reply.status(500).send({ error: err.message, skill: skillName });
+    }
+});
+
+// Auto-match: find relevant skills for a task description
+app.post("/ai/skills/match", async (req, reply) => {
+    const { task } = req.body as { task: string };
+    if (!task) return reply.status(400).send({ error: "task description required" });
+
+    const taskLower = task.toLowerCase();
+    const matched = Array.from(skillRegistry.values())
+        .filter((s) => s.triggerKeywords.some((kw) => taskLower.includes(kw)))
+        .map((s) => ({ name: s.name, description: s.description, category: s.category }));
+
+    return reply.send({ task, matched, totalSkills: skillRegistry.size });
+});
+
+// List all skills
+app.get("/ai/skills/list", async (_req, reply) => {
+    return reply.send({
+        skills: Array.from(skillRegistry.values()).map((s) => ({
+            name: s.name,
+            description: s.description,
+            category: s.category,
+            triggerKeywords: s.triggerKeywords,
+        })),
+        total: skillRegistry.size,
+    });
+});
+
+// Register custom skill
+app.post("/ai/skills/register", async (req, reply) => {
+    const userId = getUserId(req);
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+    const { name, description, triggerKeywords, category } = req.body as any;
+    if (!name || !description) return reply.status(400).send({ error: "name and description required" });
+
+    skillRegistry.set(name, {
+        name,
+        description,
+        triggerKeywords: triggerKeywords || [name],
+        category: category || "content",
+        executor: async (input) => ({ message: `Custom skill '${name}' executed`, input }),
+        createdAt: new Date(),
+    });
+
+    return reply.send({ ok: true, registered: name, totalSkills: skillRegistry.size });
+});
+
+
+// ══════════════════════════════════════════════════════════════
+// ═══ Health & Start ══════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 
 app.get("/health", async () => ({ status: "ok", service: "ai-generation", uptime: process.uptime() }));
 

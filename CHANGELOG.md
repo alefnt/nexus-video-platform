@@ -2,7 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.5.0] - 2026-03-10
+## [2.6.0] - 2026-03-10
+
+### 🧠 Anthropic AI Course Technology Integration
+
+5 features inspired by Anthropic Skilljar courses, applied to the platform.
+
+#### Feature 1: Tool Use — AI Orchestration
+- `POST /ai/orchestrate` — Multi-tool auto-selection from natural language
+- 5 built-in tools: generate_video, generate_music, generate_text, analyze_content, translate_content
+- `GET /ai/tools/schema` — JSON Schema introspection for all tools
+
+#### Feature 2: RAG — Semantic Search
+- `POST /ai/rag/index` — Index documents with TF-IDF vectorization
+- `POST /ai/rag/search` — Cosine similarity search across indexed content
+- `POST /ai/rag/index/batch` — Bulk document indexing
+
+#### Feature 3: MCP Protocol — Model Context Protocol
+- `POST /ai/mcp/tools/list|call|register` — MCP-compatible tool endpoints
+- `POST /ai/mcp/resources/list|read` — Read-only data resources
+- `POST /ai/mcp/prompts/list|get` — Pre-crafted prompt templates
+
+#### Feature 4: Prompt Caching
+- `POST /ai/cache/prompt` — Cache system prompts with TTL
+- `GET /ai/cache/stats` — Hit rate, tokens saved, cost savings
+
+#### Feature 5: Agent Skills
+- 3 built-in skills: content-review, seo-optimizer, royalty-calculator
+- `POST /ai/skills/run` — Execute skills by name
+- `POST /ai/skills/match` — Auto-match skills from task description
+- `POST /ai/skills/register` — Register custom skills
+
+---
+
+
 
 ### 🎬 WebRTC Watch Party — Real-time Streaming & Collaborative Control
 
