@@ -233,7 +233,7 @@ export function usePayment(options: UsePaymentOptions): UsePaymentReturn {
                     videoId: contentId,
                     pointsPrice: buyOncePrice > 0 ? buyOncePrice : undefined,
                 }),
-                updateStatus, 8, 1500, true
+                updateStatus, 3, 1000, true
             );
 
             if (result.ok) {

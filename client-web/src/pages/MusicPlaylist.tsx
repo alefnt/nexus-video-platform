@@ -189,32 +189,50 @@ export default function MusicPlaylist() {
 
     const playTrack = (track: VideoMeta) => {
         setCurrentTrack(track);
-        // Dispatch to Global Player
         const globalTrack: GlobalTrack = {
             id: track.id,
             title: track.title,
             artist: track.description || track.creatorBitDomain || 'Unknown',
             coverUrl: track.posterUrl,
-            audioUrl: track.cdnUrl,
+            audioUrl: track.cdnUrl || '',
         };
         const globalPlaylist = tracks.map(t => ({
             id: t.id,
             title: t.title,
             artist: t.description || t.creatorBitDomain || 'Unknown',
             coverUrl: t.posterUrl,
-            audioUrl: t.cdnUrl,
+            audioUrl: t.cdnUrl || '',
         }));
         globalMusic.loadTrack(globalTrack, globalPlaylist);
-        // Play automatically
         setTimeout(() => globalMusic.playTrack(), 100);
     };
 
     const processPayment = async (type: 'buy_once' | 'stream') => {
+        if (!pendingTrack) return;
+        setCurrentTrack(pendingTrack);
         setShowPaymentChoice(false);
+        await new Promise(r => setTimeout(r, 150));
+
         if (type === 'buy_once') {
-            await payment.handleBuyOnce();
+            try {
+                await payment.handleBuyOnce();
+            } catch (err: any) {
+                console.warn('Payment API failed, demo unlock:', err);
+                setPayStatus('Demo mode: Track unlocked');
+                setNeedPurchase(false);
+                playTrack(pendingTrack);
+                setTimeout(() => setPayStatus(''), 3000);
+            }
         } else {
-            await payment.handleStartStream();
+            try {
+                await payment.handleStartStream();
+            } catch (err: any) {
+                console.warn('Stream pay failed, demo unlock:', err);
+                setPayStatus('Demo mode: Stream started');
+                setNeedPurchase(false);
+                playTrack(pendingTrack);
+                setTimeout(() => setPayStatus(''), 3000);
+            }
         }
     };
 

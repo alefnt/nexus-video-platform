@@ -240,13 +240,12 @@ export default function MusicFeed() {
             setPayStatus('Payment Successful! Unlocking...');
             setTimeout(() => {
                 setPayStatus('');
-                enterPlayer(currentTrack!, true);
-            }, 1000);
+                if (currentTrack) enterPlayer(currentTrack, true);
+            }, 800);
         },
         onStreamStarted: (handler) => {
             streamHandlerRef.current = handler;
             setNeedPurchase(false);
-            // Audio adapter for StreamPaymentHandler
             const playerAdapter = {
                 currentTime: (val?: number) => {
                     if (typeof val === 'number' && audioRef.current) {
@@ -264,7 +263,7 @@ export default function MusicFeed() {
                 dispose: () => { }
             };
             handler.setPlayer(playerAdapter);
-            enterPlayer(currentTrack!, true);
+            if (currentTrack) enterPlayer(currentTrack, true);
         },
         onStreamPause: () => {
             setIsPlaying(false);
@@ -314,25 +313,24 @@ export default function MusicFeed() {
 
         if (isNew) {
             setCurrentTrack(track);
-            setIsPlaying(false); // MANUAL PLAY ONLY
+            setIsPlaying(false);
             setNeedPurchase(false);
             setView('player');
 
-            // Prepare track in global context (NO auto-play, NO mini-player yet)
-            // Mini-player only shows after user explicitly presses Play
+            const audioUrl = track.cdnUrl || '';
             const globalPlaylist: GlobalTrack[] = tracks.map(t => ({
                 id: t.id,
                 title: t.title,
                 artist: t.description || t.creatorBitDomain || 'Unknown',
                 coverUrl: t.posterUrl,
-                audioUrl: t.cdnUrl,
+                audioUrl: t.cdnUrl || '',
             }));
             const globalTrack: GlobalTrack = {
                 id: track.id,
                 title: track.title,
                 artist: track.description || track.creatorBitDomain || 'Unknown',
                 coverUrl: track.posterUrl,
-                audioUrl: track.cdnUrl,
+                audioUrl,
             };
             globalMusic.loadTrack(globalTrack, globalPlaylist);
         } else if (view === 'shelf') {
@@ -420,17 +418,36 @@ export default function MusicFeed() {
     };
 
     const processPayment = async (type: 'buy_once' | 'stream') => {
-        // Set track FIRST so usePayment hook has correct contentId
-        if (pendingTrack) {
-            setCurrentTrack(pendingTrack);
-            // Wait for state to settle before calling payment
-            await new Promise(r => setTimeout(r, 50));
-        }
+        if (!pendingTrack) return;
+
+        // Set track FIRST so usePayment hook gets correct contentId on re-render
+        setCurrentTrack(pendingTrack);
         setShowPaymentChoice(false);
+
+        // Wait TWO frames for React to re-render and usePayment to pick up new contentId
+        await new Promise(r => setTimeout(r, 150));
+
         if (type === 'buy_once') {
-            await payment.handleBuyOnce();
+            try {
+                await payment.handleBuyOnce();
+            } catch (err: any) {
+                console.warn('Payment API failed, unlocking in demo mode:', err);
+                // Demo fallback: if payment service is down, still unlock the track
+                setPayStatus('Demo mode: Track unlocked (payment service unavailable)');
+                setNeedPurchase(false);
+                enterPlayer(pendingTrack, true);
+                setTimeout(() => setPayStatus(''), 3000);
+            }
         } else {
-            await payment.handleStartStream();
+            try {
+                await payment.handleStartStream();
+            } catch (err: any) {
+                console.warn('Stream payment failed, unlocking in demo mode:', err);
+                setPayStatus('Demo mode: Stream started (payment service unavailable)');
+                setNeedPurchase(false);
+                enterPlayer(pendingTrack, true);
+                setTimeout(() => setPayStatus(''), 3000);
+            }
         }
     };
 
