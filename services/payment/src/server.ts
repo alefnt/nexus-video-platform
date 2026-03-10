@@ -2323,6 +2323,256 @@ app.post("/payment/rgbpp/auto-split", async (req, reply) => {
   }
 });
 
+// ============== FIBER NETWORK API ENDPOINTS ==============
+// Dual-track: Points (default) + Fiber (optional on-chain settlement)
+
+const fiberClient = new FiberRPCClient();
+
+// F1. Check Fiber Node connection status
+app.get("/payment/fiber/status", async (_req, reply) => {
+  const configured = fiberClient.isConfigured();
+  if (!configured) {
+    return reply.send({
+      ok: false,
+      mode: "points_only",
+      message: "Fiber Network not configured. Using Points system.",
+      fiberUrl: null,
+    });
+  }
+  try {
+    const status = await fiberClient.getStatus();
+    return reply.send({
+      ok: status.ok,
+      mode: status.ok ? "dual" : "points_only",
+      nodeInfo: status.info || null,
+      message: status.ok ? "Fiber Network connected. Dual-mode available." : "Fiber node unreachable. Falling back to Points.",
+      fiberUrl: process.env.FIBER_RPC_URL || null,
+    });
+  } catch (err: any) {
+    return reply.send({
+      ok: false,
+      mode: "points_only",
+      message: `Fiber error: ${err.message}`,
+      fiberUrl: process.env.FIBER_RPC_URL || null,
+    });
+  }
+});
+
+// F2. Create a real Fiber invoice for content payment
+app.post("/payment/fiber/invoice", async (req, reply) => {
+  const userId = (req.user as RequestUser)?.sub;
+  if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+  const body = req.body as {
+    contentId: string;
+    contentType?: string;
+    amount: string;
+    memo?: string;
+    expiry?: number;
+  };
+
+  if (!body.contentId || !body.amount) {
+    return reply.status(400).send({ error: "contentId and amount required" });
+  }
+
+  try {
+    // Try real Fiber first
+    if (fiberClient.isConfigured()) {
+      const invoice = await fiberClient.createInvoice({
+        amount: body.amount,
+        memo: body.memo || `Nexus: ${body.contentType || 'content'} ${body.contentId}`,
+        expiry: body.expiry || 300,
+      });
+
+      // Record in database
+      await prisma.pointsTransaction.create({
+        data: {
+          userId,
+          type: "fiber_invoice_created",
+          amount: 0,
+          reason: `Fiber invoice for ${body.contentType || 'content'} ${body.contentId} | hash: ${invoice.paymentHash}`,
+        },
+      });
+
+      return reply.send({
+        ok: true,
+        backend: "fiber",
+        paymentHash: invoice.paymentHash,
+        paymentRequest: invoice.paymentRequest,
+        amount: invoice.amount,
+        currency: invoice.currency,
+        expiry: invoice.expiry,
+      });
+    }
+
+    // Fallback: create a points-based "invoice" (for demo/dev)
+    const mockHash = `pts_${Date.now()}_${body.contentId.slice(0, 8)}`;
+    return reply.send({
+      ok: true,
+      backend: "points",
+      paymentHash: mockHash,
+      paymentRequest: null,
+      amount: body.amount,
+      currency: "PTS",
+      expiry: 300,
+      message: "Fiber not available. Use Points to pay.",
+    });
+  } catch (err: any) {
+    return reply.status(500).send({ error: `Invoice creation failed: ${err.message}` });
+  }
+});
+
+// F3. Send payment via Fiber (or fallback to Points deduction)
+app.post("/payment/fiber/pay", async (req, reply) => {
+  const userId = (req.user as RequestUser)?.sub;
+  if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+  const body = req.body as {
+    paymentRequest?: string;
+    paymentHash?: string;
+    amount?: string;
+    contentId?: string;
+    usePoints?: boolean;
+  };
+
+  // Points fallback
+  if (body.usePoints || !fiberClient.isConfigured()) {
+    const amount = parseInt(body.amount || "0", 10);
+    if (amount <= 0) return reply.status(400).send({ error: "Invalid amount" });
+
+    try {
+      const newBalance = await updateUserPoints(userId, -amount, "fiber_fallback_pay",
+        `Points payment for content ${body.contentId || 'unknown'}`);
+      return reply.send({
+        ok: true,
+        backend: "points",
+        status: "succeeded",
+        newBalance,
+        paymentHash: body.paymentHash || `pts_${Date.now()}`,
+      });
+    } catch (err: any) {
+      return reply.status(400).send({ error: err.message });
+    }
+  }
+
+  // Real Fiber payment
+  try {
+    const result = await fiberClient.sendPayment({
+      invoice: body.paymentRequest,
+      amount: body.amount,
+      timeout: 30,
+    });
+
+    if (result.status === "succeeded") {
+      await prisma.pointsTransaction.create({
+        data: {
+          userId,
+          type: "fiber_payment",
+          amount: -parseInt(body.amount || "0", 10),
+          reason: `Fiber payment | hash: ${result.paymentHash} | preimage: ${result.preimage || 'n/a'}`,
+        },
+      });
+    }
+
+    return reply.send({
+      ok: result.status === "succeeded",
+      backend: "fiber",
+      status: result.status,
+      paymentHash: result.paymentHash,
+      preimage: result.preimage,
+      fee: result.fee,
+    });
+  } catch (err: any) {
+    return reply.status(500).send({ error: `Fiber payment failed: ${err.message}` });
+  }
+});
+
+// F4. List open Fiber channels
+app.get("/payment/fiber/channels", async (req, reply) => {
+  const userId = (req.user as RequestUser)?.sub;
+  if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+  if (!fiberClient.isConfigured()) {
+    return reply.send({ ok: true, channels: [], message: "Fiber not configured" });
+  }
+
+  try {
+    const channels = await fiberClient.listChannels();
+    return reply.send({
+      ok: true,
+      channels: channels.map(ch => ({
+        channelId: ch.channelId,
+        peerId: ch.peerId,
+        state: ch.state,
+        localBalance: ch.localBalance,
+        remoteBalance: ch.remoteBalance,
+        asset: ch.asset,
+      })),
+    });
+  } catch (err: any) {
+    return reply.send({ ok: false, channels: [], error: err.message });
+  }
+});
+
+// F5. Settle stream payment via Fiber (close channel → on-chain)
+app.post("/payment/fiber/settle", async (req, reply) => {
+  const userId = (req.user as RequestUser)?.sub;
+  if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+  const body = req.body as { sessionId: string; channelId?: string };
+  if (!body.sessionId) return reply.status(400).send({ error: "sessionId required" });
+
+  try {
+    // Find the stream session
+    const session = await prisma.streamSession.findFirst({
+      where: { id: body.sessionId, userId },
+    });
+    if (!session) return reply.status(404).send({ error: "Session not found" });
+
+    // If Fiber is configured and channelId is provided, close channel on-chain
+    if (fiberClient.isConfigured() && body.channelId) {
+      const closeResult = await fiberClient.closeChannel({
+        channelId: body.channelId,
+        closingFeeRate: "1000",
+        force: false,
+      });
+
+      // Update session as settled on-chain
+      await prisma.streamSession.update({
+        where: { id: body.sessionId },
+        data: { status: "settled" },
+      });
+
+      return reply.send({
+        ok: true,
+        backend: "fiber",
+        settled: true,
+        channelClosed: true,
+        sessionId: body.sessionId,
+        closeResult,
+      });
+    }
+
+    // Points-mode settle: just mark session complete
+    await prisma.streamSession.update({
+      where: { id: body.sessionId },
+      data: { status: "settled" },
+    });
+
+    return reply.send({
+      ok: true,
+      backend: "points",
+      settled: true,
+      channelClosed: false,
+      sessionId: body.sessionId,
+    });
+  } catch (err: any) {
+    return reply.status(500).send({ error: `Settlement failed: ${err.message}` });
+  }
+});
+
+// ============== APP LISTEN ==============
+
 app.listen({ port: Number(process.env.PAYMENT_PORT || 8091), host: "0.0.0.0" }, (err, address) => {
   if (err) {
     console.error(err);
@@ -2339,7 +2589,7 @@ app.listen({ port: Number(process.env.PAYMENT_PORT || 8091), host: "0.0.0.0" }, 
   }
 });
 
-// --- Fiber Payout Cron Job ---
+// --- Fiber Payout Cron Job (Real Fiber RPC with mock fallback) ---
 setInterval(async () => {
   try {
     const pendingTasks = await prisma.fiberPayoutTask.findMany({
@@ -2355,26 +2605,39 @@ setInterval(async () => {
       });
 
       try {
-        // [Fiber Network RPC] Dispatch actual CKB payment to task.fiberAddress
-        // In full production, this bridges to native Fiber `sendPayment` RPC
-        const mockTxHash = `0xfiber_${Date.now()}_${task.id.slice(0, 6)}`;
+        let txHash: string;
+
+        // Try real Fiber payment
+        if (fiberClient.isConfigured()) {
+          const result = await fiberClient.sendPayment({
+            dest: task.fiberAddress,
+            amount: String(task.amount),
+            timeout: 30,
+          });
+          txHash = result.paymentHash || `fiber_${Date.now()}_${task.id.slice(0, 6)}`;
+          logger.info({ msg: "Fiber payout succeeded", taskId: task.id, txHash });
+        } else {
+          // Mock fallback for development
+          txHash = `0xmock_fiber_${Date.now()}_${task.id.slice(0, 6)}`;
+          logger.warn({ msg: "Fiber payout (mock mode)", taskId: task.id, txHash });
+        }
 
         await prisma.fiberPayoutTask.update({
           where: { id: task.id },
-          data: { status: "completed", txHash: mockTxHash }
+          data: { status: "completed", txHash }
         });
-        console.log(`⚡ [FiberPayout] Dispatched ${task.amount} points/CKB to node ${task.fiberAddress}. Tx: ${mockTxHash}`);
+        console.log(`⚡ [FiberPayout] Dispatched ${task.amount} to ${task.fiberAddress}. Tx: ${txHash}`);
       } catch (err: any) {
         await prisma.fiberPayoutTask.update({
           where: { id: task.id },
           data: { status: "failed", errorReason: err.message }
         });
-        console.error(`⚡ [FiberPayout] Failed to dispatch to node ${task.fiberAddress}:`, err.message);
+        console.error(`⚡ [FiberPayout] Failed to dispatch to ${task.fiberAddress}:`, err.message);
       }
     }
   } catch (err) {
     console.error("⚡ [FiberPayout Cron Error]", err);
   }
-}, 30000); // 30 second interval for testing
+}, 30000);
 
 export default app;

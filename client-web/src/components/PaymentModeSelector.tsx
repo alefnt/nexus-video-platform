@@ -16,7 +16,7 @@ const client = getApiClient();
 
 interface PaymentModeSelectorProps {
     video: VideoMeta;
-    onSelect: (mode: 'buy_once' | 'stream' | 'skip') => void;
+    onSelect: (mode: 'buy_once' | 'stream' | 'fiber' | 'skip') => void;
     onClose: () => void;
     contentType?: 'video' | 'article' | 'music';
 }
@@ -25,6 +25,8 @@ export default function PaymentModeSelector({ video, onSelect, onClose, contentT
     const [balance, setBalance] = useState<number>(0);
     const [loading, setLoading] = useState(true);
     const [purchasing, setPurchasing] = useState(false);
+    const [fiberAvailable, setFiberAvailable] = useState(false);
+    const [fiberMode, setFiberMode] = useState<string>('points_only');
 
     useEffect(() => {
         const jwt = sessionStorage.getItem("vp.jwt");
@@ -36,6 +38,14 @@ export default function PaymentModeSelector({ video, onSelect, onClose, contentT
                 setLoading(false);
             })
             .catch(() => setLoading(false));
+
+        // Check Fiber Network availability
+        client.get<{ ok: boolean; mode: string }>("/payment/fiber/status")
+            .then(res => {
+                setFiberAvailable(res?.ok || false);
+                setFiberMode(res?.mode || 'points_only');
+            })
+            .catch(() => { /* Fiber unavailable, stay on points */ });
     }, []);
 
     const buyOncePrice = video.buyOncePrice || 0;
@@ -158,9 +168,14 @@ export default function PaymentModeSelector({ video, onSelect, onClose, contentT
                     border: "1px solid rgba(255, 217, 61, 0.3)"
                 }}>
                     <span style={{ color: "var(--text-muted)" }}>BALANCE</span>
-                    <span style={{ fontSize: 20, fontWeight: 700, color: "var(--accent-yellow)" }}>
-                        {loading ? "..." : `${balance} PTS`}
-                    </span>
+                    <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: 20, fontWeight: 700, color: "var(--accent-yellow)" }}>
+                            {loading ? "..." : `${balance} PTS`}
+                        </span>
+                        {fiberAvailable && (
+                            <div style={{ fontSize: 10, color: '#00ff88', marginTop: 2 }}>⚡ Fiber Network Connected</div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Payment Options */}
@@ -232,6 +247,34 @@ export default function PaymentModeSelector({ video, onSelect, onClose, contentT
                                         {streamDisplayPrice}
                                     </div>
                                     <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{streamUnit}</div>
+                                </div>
+                            </div>
+                        </button>
+                    )}
+
+                    {/* Fiber On-Chain Option */}
+                    {fiberAvailable && (
+                        <button
+                            onClick={() => onSelect('fiber')}
+                            style={{
+                                padding: 20,
+                                borderRadius: 12,
+                                border: '2px solid #00ff88',
+                                background: 'linear-gradient(135deg, rgba(0, 255, 136, 0.15), rgba(0,0,0,0.3))',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ textAlign: 'left' }}>
+                                    <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>⚡ Fiber Network</div>
+                                    <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                                        On-chain settlement via CKB L2 payment channel
+                                    </div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: '#00ff88' }}>ON-CHAIN</div>
+                                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Real-time</div>
                                 </div>
                             </div>
                         </button>
