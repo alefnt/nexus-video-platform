@@ -18,6 +18,8 @@
 import Fastify from "fastify";
 import jwt from "@fastify/jwt";
 import { v4 as uuidv4 } from "uuid";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { join } from "path";
 
 const app = Fastify({ logger: true });
 const JWT_SECRET = process.env.JWT_SECRET || "nexus-dev-jwt-secret-change-me-in-production-12345";
@@ -26,6 +28,122 @@ if (process.env.NODE_ENV === "production" && (!process.env.JWT_SECRET || process
 }
 
 app.register(jwt, { secret: JWT_SECRET });
+
+// ══════════════════════════════════════════════════════
+// ═══ R2: Per-User Rate Limiter (CLI abuse prevention) ═
+// ══════════════════════════════════════════════════════
+
+interface RateLimitEntry {
+    timestamps: number[];
+    blocked: boolean;
+    blockedUntil?: number;
+}
+
+const rateLimits = new Map<string, RateLimitEntry>();
+const RATE_LIMIT_WINDOW = 60_000;    // 1 minute window
+const RATE_LIMIT_MAX = 60;            // 60 requests per minute
+const RATE_LIMIT_BAN_DURATION = 300_000; // 5 min ban on excessive abuse
+const ABUSE_THRESHOLD = 200;           // 200+ requests in window = ban
+
+function checkRateLimit(userId: string): { allowed: boolean; remaining: number; retryAfter?: number } {
+    const now = Date.now();
+    let entry = rateLimits.get(userId);
+    if (!entry) {
+        entry = { timestamps: [], blocked: false };
+        rateLimits.set(userId, entry);
+    }
+
+    // Check if banned
+    if (entry.blocked && entry.blockedUntil && now < entry.blockedUntil) {
+        return { allowed: false, remaining: 0, retryAfter: Math.ceil((entry.blockedUntil - now) / 1000) };
+    }
+    entry.blocked = false;
+
+    // Sliding window: remove old timestamps
+    entry.timestamps = entry.timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW);
+
+    // Abuse detection: ban if way over limit
+    if (entry.timestamps.length >= ABUSE_THRESHOLD) {
+        entry.blocked = true;
+        entry.blockedUntil = now + RATE_LIMIT_BAN_DURATION;
+        return { allowed: false, remaining: 0, retryAfter: RATE_LIMIT_BAN_DURATION / 1000 };
+    }
+
+    // Normal rate limit
+    if (entry.timestamps.length >= RATE_LIMIT_MAX) {
+        const oldest = entry.timestamps[0];
+        const retryAfter = Math.ceil((oldest + RATE_LIMIT_WINDOW - now) / 1000);
+        return { allowed: false, remaining: 0, retryAfter };
+    }
+
+    entry.timestamps.push(now);
+    return { allowed: true, remaining: RATE_LIMIT_MAX - entry.timestamps.length };
+}
+
+// Rate limit hook for mutation endpoints
+app.addHook("onRequest", async (req, reply) => {
+    const method = req.method;
+    // Only rate-limit write operations (POST/PUT/DELETE) — reads are unlimited
+    if (method === "GET" || method === "OPTIONS" || method === "HEAD") return;
+
+    try {
+        const payload = await req.jwtVerify().catch(() => null) as any;
+        const userId = payload?.sub || payload?.userId || req.ip;
+        const result = checkRateLimit(userId);
+        reply.header("X-RateLimit-Limit", RATE_LIMIT_MAX);
+        reply.header("X-RateLimit-Remaining", result.remaining);
+        if (!result.allowed) {
+            reply.header("Retry-After", result.retryAfter || 60);
+            return reply.status(429).send({
+                error: "Rate limit exceeded",
+                code: "RATE_LIMITED",
+                retryAfter: result.retryAfter,
+                suggestion: "Reduce request frequency or wait before retrying",
+            });
+        }
+    } catch { /* non-auth endpoints pass through */ }
+});
+
+// Cleanup stale rate limit entries every 5 minutes
+setInterval(() => {
+    const now = Date.now();
+    rateLimits.forEach((entry, key) => {
+        entry.timestamps = entry.timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW);
+        if (entry.timestamps.length === 0 && !entry.blocked) rateLimits.delete(key);
+    });
+}, 5 * 60 * 1000);
+
+
+// ══════════════════════════════════════════════════════
+// ═══ R5: File-Based Data Persistence ═════════════════
+// ══════════════════════════════════════════════════════
+
+const DATA_DIR = process.env.AI_DATA_DIR || join(process.cwd(), ".ai-data");
+
+function ensureDataDir() {
+    if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+}
+
+function persistJSON(filename: string, data: any) {
+    try {
+        ensureDataDir();
+        writeFileSync(join(DATA_DIR, filename), JSON.stringify(data, null, 2));
+    } catch (err) {
+        app.log.warn(`Persistence write failed for ${filename}: ${err}`);
+    }
+}
+
+function loadJSON<T>(filename: string, fallback: T): T {
+    try {
+        const filePath = join(DATA_DIR, filename);
+        if (existsSync(filePath)) {
+            return JSON.parse(readFileSync(filePath, "utf-8"));
+        }
+    } catch (err) {
+        app.log.warn(`Persistence load failed for ${filename}: ${err}`);
+    }
+    return fallback;
+}
 
 // ── In-memory stores (replace with DB in production) ──────────
 

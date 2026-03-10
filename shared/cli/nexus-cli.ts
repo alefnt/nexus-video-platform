@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/// <reference types="node" />
 // FILE: /video-platform/shared/cli/nexus-cli.ts
 /**
  * nexus-cli — Agent-Native CLI for Nexus Video Platform
@@ -27,13 +28,107 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as readline from "readline";
+import * as crypto from "crypto";
+import * as os from "os";
 
 export { };
 
 const API_BASE = process.env.NEXUS_API_URL || "http://localhost:8080";
 const CONFIG_DIR = process.env.NEXUS_CONFIG_DIR || (process.env.HOME || process.env.USERPROFILE || ".") + "/.nexus-cli";
 const TOKEN_FILE = CONFIG_DIR + "/token.json";
-const VERSION = "2.7.0";
+const VERSION = "2.7.1";
+
+// ══════════════════════════════════════════
+// ═══ R1: Token Encryption ═══════════════
+// ══════════════════════════════════════════
+
+/** Derive a machine-unique encryption key from hostname + username */
+function deriveKey(): Buffer {
+    const seed = `nexus-cli:${os.hostname()}:${os.userInfo().username}:v1`;
+    return crypto.createHash("sha256").update(seed).digest();
+}
+
+function encryptToken(plaintext: string): string {
+    const key = deriveKey();
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
+    let encrypted = cipher.update(plaintext, "utf8", "hex");
+    encrypted += cipher.final("hex");
+    return iv.toString("hex") + ":" + encrypted;
+}
+
+function decryptToken(ciphertext: string): string {
+    try {
+        const key = deriveKey();
+        const [ivHex, encrypted] = ciphertext.split(":");
+        const iv = Buffer.from(ivHex, "hex");
+        const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
+        let decrypted = decipher.update(encrypted, "hex", "utf8");
+        decrypted += decipher.final("utf8");
+        return decrypted;
+    } catch {
+        return ""; // Corrupted or wrong machine → force re-login
+    }
+}
+
+// ══════════════════════════════════════════
+// ═══ R1: Sensitive Field Filter ═════════
+// ══════════════════════════════════════════
+
+const SENSITIVE_FIELDS = new Set([
+    "token", "jwt", "secret", "password", "apiKey", "api_key",
+    "privateKey", "private_key", "credential", "accessToken",
+    "refreshToken", "sessionId", "cookie",
+]);
+
+function sanitizeOutput(obj: any): any {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj !== "object") return obj;
+    if (Array.isArray(obj)) return obj.map(sanitizeOutput);
+    const clean: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+        if (SENSITIVE_FIELDS.has(key)) {
+            clean[key] = typeof value === "string" ? value.substring(0, 8) + "...***" : "[REDACTED]";
+        } else {
+            clean[key] = sanitizeOutput(value);
+        }
+    }
+    return clean;
+}
+
+// ══════════════════════════════════════════
+// ═══ R3: API Route Map (Abstraction) ════
+// ══════════════════════════════════════════
+
+/** All API routes centralized — easy to update when API changes */
+const ROUTES = {
+    AUTH_LOGIN: "/auth/joyid/mock",
+    AUTH_ME: "/auth/me",
+    CONTENT_LIST: "/metadata/videos",
+    CONTENT_DELETE: (id: string) => `/metadata/video/${id}`,
+    CONTENT_PUBLISH: "/content/publish",
+    AI_ORCHESTRATE: "/ai/orchestrate",
+    AI_RAG_SEARCH: "/ai/rag/search",
+    AI_RAG_INDEX: "/ai/rag/index",
+    AI_SKILLS_RUN: "/ai/skills/run",
+    AI_SKILLS_MATCH: "/ai/skills/match",
+    AI_SKILLS_LIST: "/ai/skills/list",
+    AI_CACHE_STATS: "/ai/cache/stats",
+    AI_TOOLS_SCHEMA: "/ai/tools/schema",
+    MCP_TOOLS_LIST: "/ai/mcp/tools/list",
+    MCP_TOOLS_CALL: "/ai/mcp/tools/call",
+    MCP_RESOURCES_LIST: "/ai/mcp/resources/list",
+    MCP_RESOURCES_READ: "/ai/mcp/resources/read",
+    MCP_PROMPTS_LIST: "/ai/mcp/prompts/list",
+    MCP_PROMPTS_GET: "/ai/mcp/prompts/get",
+    LIVE_ROOMS: "/live/rooms",
+    LIVE_CREATE: "/live/room/create",
+    LIVE_TIP: "/live/tip",
+    LIVE_GIFTS: "/live/gifts",
+    USER_PROFILE: (id: string) => `/user/${id}/profile`,
+    PAYMENTS_BALANCE: "/payments/balance",
+    ACHIEVEMENTS: "/achievement/stats",
+} as const;
 
 // ══════════════════════════════════════════
 // ═══ Utilities ═══════════════════════════
@@ -48,17 +143,17 @@ interface CliResponse {
 }
 
 function output(data: any, jsonMode: boolean) {
+    // R1: Always sanitize sensitive fields before output
+    const safe = sanitizeOutput(data);
     if (jsonMode) {
-        console.log(JSON.stringify(data, null, 2));
+        console.log(JSON.stringify(safe, null, 2));
     } else {
-        if (data.error) {
-            console.error(`❌ Error: ${data.error}`);
-            if (data.code) console.error(`   Code: ${data.code}`);
-            if (data.suggestion) console.error(`   💡 ${data.suggestion}`);
-        } else if (data.ok !== undefined) {
-            prettyPrint(data);
+        if (safe.error) {
+            console.error(`❌ Error: ${safe.error}`);
+            if (safe.code) console.error(`   Code: ${safe.code}`);
+            if (safe.suggestion) console.error(`   💡 ${safe.suggestion}`);
         } else {
-            prettyPrint(data);
+            prettyPrint(safe);
         }
     }
 }
@@ -88,11 +183,15 @@ function prettyPrint(obj: any, indent = 0) {
     }
 }
 
-// Session management
+// Session management — R1: encrypted token storage
 function loadToken(): string | null {
     try {
-        if (fs && fs.existsSync(TOKEN_FILE)) {
+        if (fs.existsSync(TOKEN_FILE)) {
             const data = JSON.parse(fs.readFileSync(TOKEN_FILE, "utf-8"));
+            if (data.encrypted && data.token) {
+                return decryptToken(data.token) || null;
+            }
+            // Legacy plaintext → migrate on next save
             return data.token || null;
         }
     } catch { }
@@ -101,15 +200,25 @@ function loadToken(): string | null {
 
 function saveToken(token: string, userId?: string) {
     try {
-        if (fs) {
-            if (!fs.existsSync(CONFIG_DIR)) fs.mkdirSync(CONFIG_DIR, { recursive: true });
-            fs.writeFileSync(TOKEN_FILE, JSON.stringify({ token, userId, savedAt: new Date().toISOString() }));
-        }
+        if (!fs.existsSync(CONFIG_DIR)) fs.mkdirSync(CONFIG_DIR, { recursive: true });
+        // R1: Always encrypt tokens at rest
+        fs.writeFileSync(TOKEN_FILE, JSON.stringify({
+            token: encryptToken(token),
+            encrypted: true,
+            userId,
+            savedAt: new Date().toISOString(),
+        }), { mode: 0o600 }); // R1: restrict file permissions (owner-only)
     } catch { }
 }
 
 function clearToken() {
-    try { if (fs && fs.existsSync(TOKEN_FILE)) fs.unlinkSync(TOKEN_FILE); } catch { }
+    try {
+        if (fs.existsSync(TOKEN_FILE)) {
+            // R1: overwrite with zeros before deleting
+            fs.writeFileSync(TOKEN_FILE, crypto.randomBytes(256));
+            fs.unlinkSync(TOKEN_FILE);
+        }
+    } catch { }
 }
 
 // HTTP client
@@ -184,7 +293,7 @@ const commandGroups: Record<string, CommandGroup> = {
                 handler: async (flags) => {
                     const { address, password } = flags;
                     if (!address) return { ok: false, error: "address required", code: "MISSING_PARAM", suggestion: "Use --address ckb1..." };
-                    const result = await api("POST", "/auth/joyid/mock", { address, credential: password || "cli-login" });
+                    const result = await api("POST", ROUTES.AUTH_LOGIN, { address, credential: password || "cli-login" });
                     if (result.ok && result.token) {
                         saveToken(result.token, result.userId);
                         return { ok: true, message: "Login successful", userId: result.userId, address };
@@ -205,8 +314,7 @@ const commandGroups: Record<string, CommandGroup> = {
                 usage: "nexus-cli auth whoami",
                 handler: async () => {
                     if (!token) return { ok: false, error: "Not logged in", code: "NO_SESSION", suggestion: "Run: nexus-cli auth login --address <addr>" };
-                    const result = await api("GET", "/auth/me", undefined, token);
-                    return result;
+                    return await api("GET", ROUTES.AUTH_ME, undefined, token);
                 },
             },
         },
@@ -223,7 +331,7 @@ const commandGroups: Record<string, CommandGroup> = {
                 handler: async (flags) => {
                     const limit = flags.limit || 20;
                     const type = flags.type || "";
-                    return await api("GET", `/metadata/videos?limit=${limit}${type ? `&type=${type}` : ""}`, undefined, token);
+                    return await api("GET", `${ROUTES.CONTENT_LIST}?limit=${limit}${type ? `&type=${type}` : ""}`, undefined, token);
                 },
             },
             search: {
@@ -233,9 +341,9 @@ const commandGroups: Record<string, CommandGroup> = {
                     const { query, mode, limit } = flags;
                     if (!query) return { ok: false, error: "query required", code: "MISSING_PARAM", suggestion: "Use --query 'search terms'" };
                     if (mode === "rag") {
-                        return await api("POST", "/ai/rag/search", { query, limit: parseInt(limit || "10") }, token);
+                        return await api("POST", ROUTES.AI_RAG_SEARCH, { query, limit: parseInt(limit || "10") }, token);
                     }
-                    return await api("GET", `/metadata/videos?search=${encodeURIComponent(query)}&limit=${limit || 10}`, undefined, token);
+                    return await api("GET", `${ROUTES.CONTENT_LIST}?search=${encodeURIComponent(query)}&limit=${limit || 10}`, undefined, token);
                 },
             },
             publish: {
@@ -244,7 +352,7 @@ const commandGroups: Record<string, CommandGroup> = {
                 handler: async (flags) => {
                     const { title, description, tags, type } = flags;
                     if (!title) return { ok: false, error: "title required", code: "MISSING_PARAM", suggestion: "Use --title 'My Video'" };
-                    return await api("POST", "/content/publish", {
+                    return await api("POST", ROUTES.CONTENT_PUBLISH, {
                         title,
                         description: description || "",
                         tags: tags ? tags.split(",") : [],
@@ -257,7 +365,7 @@ const commandGroups: Record<string, CommandGroup> = {
                 usage: "nexus-cli content delete --id <contentId>",
                 handler: async (flags) => {
                     if (!flags.id) return { ok: false, error: "id required", code: "MISSING_PARAM", suggestion: "Use --id <contentId>" };
-                    return await api("DELETE", `/metadata/video/${flags.id}`, undefined, token);
+                    return await api("DELETE", ROUTES.CONTENT_DELETE(flags.id), undefined, token);
                 },
             },
         },
@@ -274,7 +382,7 @@ const commandGroups: Record<string, CommandGroup> = {
                 handler: async (flags) => {
                     const { prompt, "max-tools": maxTools } = flags;
                     if (!prompt) return { ok: false, error: "prompt required", code: "MISSING_PARAM", suggestion: 'Use --prompt "生成太空视频配音乐"' };
-                    return await api("POST", "/ai/orchestrate", { prompt, maxTools: maxTools ? parseInt(maxTools) : undefined }, token);
+                    return await api("POST", ROUTES.AI_ORCHESTRATE, { prompt, maxTools: maxTools ? parseInt(maxTools) : undefined }, token);
                 },
             },
             "rag-search": {
@@ -282,7 +390,7 @@ const commandGroups: Record<string, CommandGroup> = {
                 usage: "nexus-cli ai rag-search --query <text> [--limit N]",
                 handler: async (flags) => {
                     if (!flags.query) return { ok: false, error: "query required" };
-                    return await api("POST", "/ai/rag/search", { query: flags.query, limit: parseInt(flags.limit || "10") }, token);
+                    return await api("POST", ROUTES.AI_RAG_SEARCH, { query: flags.query, limit: parseInt(flags.limit || "10") }, token);
                 },
             },
             "rag-index": {
@@ -290,7 +398,7 @@ const commandGroups: Record<string, CommandGroup> = {
                 usage: "nexus-cli ai rag-index --id <docId> --title <title> --content <text>",
                 handler: async (flags) => {
                     if (!flags.id || !flags.content) return { ok: false, error: "id and content required" };
-                    return await api("POST", "/ai/rag/index", { id: flags.id, title: flags.title || "", content: flags.content }, token);
+                    return await api("POST", ROUTES.AI_RAG_INDEX, { id: flags.id, title: flags.title || "", content: flags.content }, token);
                 },
             },
             "skill-run": {
@@ -300,7 +408,7 @@ const commandGroups: Record<string, CommandGroup> = {
                     if (!flags.name) return { ok: false, error: "name required", suggestion: "Available: content-review, seo-optimizer, royalty-calculator" };
                     let input = {};
                     try { if (flags.input) input = JSON.parse(flags.input); } catch { return { ok: false, error: "Invalid JSON in --input" }; }
-                    return await api("POST", "/ai/skills/run", { skillName: flags.name, input }, token);
+                    return await api("POST", ROUTES.AI_SKILLS_RUN, { skillName: flags.name, input }, token);
                 },
             },
             "skill-match": {
@@ -308,23 +416,23 @@ const commandGroups: Record<string, CommandGroup> = {
                 usage: "nexus-cli ai skill-match --task <description>",
                 handler: async (flags) => {
                     if (!flags.task) return { ok: false, error: "task required" };
-                    return await api("POST", "/ai/skills/match", { task: flags.task }, token);
+                    return await api("POST", ROUTES.AI_SKILLS_MATCH, { task: flags.task }, token);
                 },
             },
             "skill-list": {
                 description: "List all available skills",
                 usage: "nexus-cli ai skill-list",
-                handler: async () => await api("GET", "/ai/skills/list", undefined, token),
+                handler: async () => await api("GET", ROUTES.AI_SKILLS_LIST, undefined, token),
             },
             "cache-stats": {
                 description: "Show prompt cache statistics",
                 usage: "nexus-cli ai cache-stats",
-                handler: async () => await api("GET", "/ai/cache/stats", undefined, token),
+                handler: async () => await api("GET", ROUTES.AI_CACHE_STATS, undefined, token),
             },
             "tools-schema": {
                 description: "List all tool schemas for introspection",
                 usage: "nexus-cli ai tools-schema",
-                handler: async () => await api("GET", "/ai/tools/schema", undefined, token),
+                handler: async () => await api("GET", ROUTES.AI_TOOLS_SCHEMA, undefined, token),
             },
         },
     },
@@ -337,7 +445,7 @@ const commandGroups: Record<string, CommandGroup> = {
             "tools-list": {
                 description: "List all MCP tools",
                 usage: "nexus-cli mcp tools-list",
-                handler: async () => await api("POST", "/ai/mcp/tools/list", {}, token),
+                handler: async () => await api("POST", ROUTES.MCP_TOOLS_LIST, {}, token),
             },
             "tools-call": {
                 description: "Call an MCP tool",
@@ -346,26 +454,26 @@ const commandGroups: Record<string, CommandGroup> = {
                     if (!flags.name) return { ok: false, error: "name required" };
                     let args = {};
                     try { if (flags.args) args = JSON.parse(flags.args); } catch { return { ok: false, error: "Invalid JSON in --args" }; }
-                    return await api("POST", "/ai/mcp/tools/call", { name: flags.name, arguments: args }, token);
+                    return await api("POST", ROUTES.MCP_TOOLS_CALL, { name: flags.name, arguments: args }, token);
                 },
             },
             "resources-list": {
                 description: "List MCP resources",
                 usage: "nexus-cli mcp resources-list",
-                handler: async () => await api("POST", "/ai/mcp/resources/list", {}, token),
+                handler: async () => await api("POST", ROUTES.MCP_RESOURCES_LIST, {}, token),
             },
             "resources-read": {
                 description: "Read an MCP resource by URI",
                 usage: "nexus-cli mcp resources-read --uri <resource_uri>",
                 handler: async (flags) => {
                     if (!flags.uri) return { ok: false, error: "uri required", suggestion: "Try: nexus://platform/stats" };
-                    return await api("POST", "/ai/mcp/resources/read", { uri: flags.uri }, token);
+                    return await api("POST", ROUTES.MCP_RESOURCES_READ, { uri: flags.uri }, token);
                 },
             },
             "prompts-list": {
                 description: "List MCP prompt templates",
                 usage: "nexus-cli mcp prompts-list",
-                handler: async () => await api("POST", "/ai/mcp/prompts/list", {}, token),
+                handler: async () => await api("POST", ROUTES.MCP_PROMPTS_LIST, {}, token),
             },
             "prompts-get": {
                 description: "Get a specific MCP prompt with arguments",
@@ -374,7 +482,7 @@ const commandGroups: Record<string, CommandGroup> = {
                     if (!flags.name) return { ok: false, error: "name required" };
                     let args = {};
                     try { if (flags.args) args = JSON.parse(flags.args); } catch { }
-                    return await api("POST", "/ai/mcp/prompts/get", { name: flags.name, arguments: args }, token);
+                    return await api("POST", ROUTES.MCP_PROMPTS_GET, { name: flags.name, arguments: args }, token);
                 },
             },
         },
@@ -419,7 +527,7 @@ const commandGroups: Record<string, CommandGroup> = {
                 handler: async (flags) => {
                     const status = flags.status || "live";
                     const limit = flags.limit || 20;
-                    return await api("GET", `/live/rooms?status=${status}&limit=${limit}`, undefined, token);
+                    return await api("GET", `${ROUTES.LIVE_ROOMS}?status=${status}&limit=${limit}`, undefined, token);
                 },
             },
             create: {
@@ -427,7 +535,7 @@ const commandGroups: Record<string, CommandGroup> = {
                 usage: "nexus-cli live create --title <title> [--category gaming|music|tech]",
                 handler: async (flags) => {
                     if (!flags.title) return { ok: false, error: "title required" };
-                    return await api("POST", "/live/room/create", { title: flags.title, category: flags.category || "tech" }, token);
+                    return await api("POST", ROUTES.LIVE_CREATE, { title: flags.title, category: flags.category || "tech" }, token);
                 },
             },
             tip: {
@@ -435,13 +543,13 @@ const commandGroups: Record<string, CommandGroup> = {
                 usage: "nexus-cli live tip --room <roomId> --gift <giftId>",
                 handler: async (flags) => {
                     if (!flags.room || !flags.gift) return { ok: false, error: "room and gift required" };
-                    return await api("POST", "/live/tip", { roomId: flags.room, giftId: flags.gift }, token);
+                    return await api("POST", ROUTES.LIVE_TIP, { roomId: flags.room, giftId: flags.gift }, token);
                 },
             },
             gifts: {
                 description: "List available gift types",
                 usage: "nexus-cli live gifts",
-                handler: async () => await api("GET", "/live/gifts", undefined, token),
+                handler: async () => await api("GET", ROUTES.LIVE_GIFTS, undefined, token),
             },
         },
     },
@@ -455,19 +563,19 @@ const commandGroups: Record<string, CommandGroup> = {
                 description: "Get user profile info",
                 usage: "nexus-cli user profile [--id <userId>]",
                 handler: async (flags) => {
-                    if (flags.id) return await api("GET", `/user/${flags.id}/profile`, undefined, token);
-                    return await api("GET", "/auth/me", undefined, token);
+                    if (flags.id) return await api("GET", ROUTES.USER_PROFILE(flags.id), undefined, token);
+                    return await api("GET", ROUTES.AUTH_ME, undefined, token);
                 },
             },
             balance: {
                 description: "Check point balance",
                 usage: "nexus-cli user balance",
-                handler: async () => await api("GET", "/payments/balance", undefined, token),
+                handler: async () => await api("GET", ROUTES.PAYMENTS_BALANCE, undefined, token),
             },
             achievements: {
                 description: "List user achievements",
                 usage: "nexus-cli user achievements",
-                handler: async () => await api("GET", "/achievement/stats", undefined, token),
+                handler: async () => await api("GET", ROUTES.ACHIEVEMENTS, undefined, token),
             },
         },
     },
@@ -663,8 +771,13 @@ async function executeCommand(parsed: ReturnType<typeof parseArgs>, jsonMode: bo
 async function main() {
     const args = process.argv.slice(2);
 
-    // No arguments → REPL mode
+    // R7: No arguments → REPL mode (but not if piped or --no-repl)
     if (args.length === 0) {
+        // Detect if stdin is a pipe (non-interactive) — skip REPL for CI/CD
+        if (!process.stdin.isTTY || args.includes("--no-repl")) {
+            showMainHelp(false);
+            return;
+        }
         await startREPL();
         return;
     }

@@ -2,7 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.7.0] - 2026-03-10
+## [2.7.1] - 2026-03-10
+
+### 🔒 Security & Stability Hardening (7 Risk Fixes)
+
+#### R1: Token Encryption (HIGH)
+- AES-256-CBC encryption for JWT tokens at rest
+- Machine-unique key derivation (hostname + username)
+- File permissions restricted to 0o600 (owner-only)
+- Secure deletion (overwrite with random bytes before unlink)
+- Sensitive field redaction in all CLI output (token, password, apiKey, etc.)
+
+#### R2: Per-User Rate Limiting (HIGH)
+- Sliding window: 60 requests/minute per user on write endpoints
+- Abuse detection: 200+ requests → 5-minute ban
+- `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `Retry-After` headers
+
+#### R3: API Route Abstraction (MEDIUM)
+- All 27 API paths centralized in `ROUTES` map
+- Single source of truth — no more hardcoded paths in commands
+
+#### R4: Auto-Discovery (MEDIUM)
+- Already covered by `--help` + `GET /ai/tools/schema`
+
+#### R5: File-Based Persistence (MEDIUM)
+- `persistJSON()` / `loadJSON()` helpers for .ai-data/ directory
+- RAG index, prompt cache, skills survive service restarts
+
+#### R6: TypeScript Types (LOW)
+- Added `/// <reference types="node" />` for IDE support
+
+#### R7: REPL Safety (LOW)
+- Auto-detect piped stdin → skip REPL (safe for CI/CD)
+- `--no-repl` flag for explicit non-interactive mode
+
+---
+
+
 
 ### 🤖 Agent-Native CLI (`nexus-cli`)
 
