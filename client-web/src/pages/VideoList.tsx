@@ -57,6 +57,7 @@ class PageErrorBoundary extends React.Component<{ fallback?: React.ReactNode; ch
 }
 
 // 新增：本地示例数据（当 /metadata/list 失败时作为降级展示）
+// 覆盖所有 public/videos/ 中的 MP4 + 公共 HLS 流
 function getDemoVideos(): VideoMeta[] {
   const now = new Date().toISOString();
   return [
@@ -112,6 +113,23 @@ function getDemoVideos(): VideoMeta[] {
       posterUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Tears_of_Steel_poster.jpg/800px-Tears_of_Steel_poster.jpg"
     } as any,
     {
+      id: "demo-elephants",
+      title: "Elephants Dream",
+      description: "The world's first open-source animated short film, created by the Blender Foundation. Two characters explore a surreal machine.",
+      creatorBitDomain: "bob-studio.bit",
+      creatorCkbAddress: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2qf8kezy2p3elx0x04kgtz2yzqmfc7aacl0002",
+      priceUSDI: "3",
+      priceMode: "both",
+      pointsPrice: 30,
+      buyOncePrice: 30,
+      streamPricePerMinute: 1,
+      cdnUrl: "/videos/ElephantsDream.mp4",
+      createdAt: now,
+      genre: "Education",
+      durationSeconds: 650,
+      posterUrl: "https://upload.wikimedia.org/wikipedia/commons/9/90/Elephants_Dream_screenshot_1.jpg"
+    } as any,
+    {
       id: "demo-fun",
       title: "For Bigger Fun",
       description: "Google Chromecast sample short clip — fun festival moments.",
@@ -127,6 +145,74 @@ function getDemoVideos(): VideoMeta[] {
       genre: "Gaming",
       durationSeconds: 60,
       posterUrl: "https://images.unsplash.com/photo-1489710437720-ebb67ec84dd2?w=400&q=80"
+    } as any,
+    {
+      id: "demo-escapes",
+      title: "For Bigger Escapes",
+      description: "Chromecast sample — thrilling escape adventure clips.",
+      creatorBitDomain: "nexus-creator.bit",
+      creatorCkbAddress: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqwgx292hnvmn68xf779vmzrshpmm6epn4c0cgwga",
+      priceUSDI: "0.5",
+      priceMode: "both",
+      pointsPrice: 5,
+      buyOncePrice: 5,
+      streamPricePerMinute: 1,
+      cdnUrl: "/videos/ForBiggerEscapes.mp4",
+      createdAt: now,
+      genre: "Vlogs",
+      durationSeconds: 15,
+      posterUrl: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=400&q=80"
+    } as any,
+    {
+      id: "demo-joyrides",
+      title: "For Bigger Joyrides",
+      description: "Chromecast sample — exciting joyride scenes.",
+      creatorBitDomain: "bob-studio.bit",
+      creatorCkbAddress: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2qf8kezy2p3elx0x04kgtz2yzqmfc7aacl0002",
+      priceUSDI: "0.5",
+      priceMode: "both",
+      pointsPrice: 5,
+      buyOncePrice: 5,
+      streamPricePerMinute: 1,
+      cdnUrl: "/videos/ForBiggerJoyrides.mp4",
+      createdAt: now,
+      genre: "Education",
+      durationSeconds: 15,
+      posterUrl: "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=400&q=80"
+    } as any,
+    {
+      id: "demo-sintel-hls",
+      title: "Sintel (HLS Stream)",
+      description: "Adaptive bitrate HLS stream of Blender's Sintel — demonstrating streaming payment with live quality switching.",
+      creatorBitDomain: "charlie-media.bit",
+      creatorCkbAddress: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2qf8kezy2p3elx0x04kgtz2yzqmfc7aacl0003",
+      priceUSDI: "10",
+      priceMode: "both",
+      pointsPrice: 100,
+      buyOncePrice: 100,
+      streamPricePerMinute: 2,
+      cdnUrl: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
+      createdAt: now,
+      genre: "Short Films",
+      durationSeconds: 900,
+      posterUrl: "https://upload.wikimedia.org/wikipedia/commons/3/3a/Sintel_poster.jpg"
+    } as any,
+    {
+      id: "demo-sintel-trailer",
+      title: "Sintel Trailer",
+      description: "W3C public Sintel Trailer — short preview clip, great for testing quick stream payments.",
+      creatorBitDomain: "alice-creator.bit",
+      creatorCkbAddress: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2qf8kezy2p3elx0x04kgtz2yzqmfc7aacl0001",
+      priceUSDI: "1",
+      priceMode: "both",
+      pointsPrice: 10,
+      buyOncePrice: 10,
+      streamPricePerMinute: 1,
+      cdnUrl: "https://media.w3.org/2010/05/sintel/trailer.mp4",
+      createdAt: now,
+      genre: "Short Films",
+      durationSeconds: 90,
+      posterUrl: "https://upload.wikimedia.org/wikipedia/commons/3/3a/Sintel_poster.jpg"
     } as any,
   ];
 }

@@ -147,9 +147,10 @@ export default function MusicFeed() {
         setLrcLines([{ time: 0, text: "(Lyrics not available for this track)" }]);
     };
 
-    // Fallback Data
+    // Fallback Data — synced with MusicPlaylist.tsx
     function getFallbackMusic() {
         return [
+            // ── Josh Woodward (CC-BY) ──────────────────────────
             {
                 id: "jw-1",
                 title: "I Want To Destroy Something Beautiful",
@@ -161,59 +162,130 @@ export default function MusicFeed() {
                 createdAt: new Date().toISOString()
             },
             {
-                id: "os-1",
-                title: "Impact Moderato",
-                description: "Kevin MacLeod - Open Source",
-                creatorBitDomain: "kevin.bit",
-                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 180,
-                cdnUrl: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Impact%20Moderato.mp3",
+                id: "jw-2",
+                title: "Already There",
+                description: "Josh Woodward",
+                creatorBitDomain: "josh.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 233,
+                cdnUrl: "https://www.joshwoodward.com/mp3/JoshWoodward-AlreadyThere.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80",
+                createdAt: new Date().toISOString()
+            },
+            {
+                id: "jw-3",
+                title: "Swansong",
+                description: "Josh Woodward",
+                creatorBitDomain: "josh.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 258,
+                cdnUrl: "https://www.joshwoodward.com/mp3/JoshWoodward-Swansong.mp3",
                 posterUrl: "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=400&q=80",
                 createdAt: new Date().toISOString()
             },
             {
-                id: "os-2",
-                title: "Lofi Study Session",
-                description: "Relaxing Beats",
-                creatorBitDomain: "chill.bit",
-                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 240,
-                cdnUrl: "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Elisions.mp3",
+                id: "jw-4",
+                title: "Cherubs",
+                description: "Josh Woodward",
+                creatorBitDomain: "josh.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 188,
+                cdnUrl: "https://www.joshwoodward.com/mp3/JoshWoodward-Cherubs.mp3",
                 posterUrl: "https://images.unsplash.com/photo-1514525253440-b393452e8d2e?w=400&q=80",
                 createdAt: new Date().toISOString()
             },
+            // ── Kevin MacLeod (CC-BY) ──────────────────────────
             {
-                id: "cn-1",
-                title: "Mojito",
-                description: "Jay Chou",
-                creatorBitDomain: "jaychou.bit",
-                creatorCkbAddress: "0x0", priceUSDI: "10", durationSeconds: 185,
-                cdnUrl: "https://www.joshwoodward.com/mp3/JoshWoodward-IWantToDestroySomethingBeautiful.mp3", // Mock URL
+                id: "km-1",
+                title: "Impact Moderato",
+                description: "Kevin MacLeod",
+                creatorBitDomain: "kevin.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 180,
+                cdnUrl: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Impact%20Moderato.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&q=80",
+                createdAt: new Date().toISOString()
+            },
+            {
+                id: "km-2",
+                title: "Scheming Weasel (faster version)",
+                description: "Kevin MacLeod",
+                creatorBitDomain: "kevin.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 120,
+                cdnUrl: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Scheming%20Weasel%20%28faster%20version%29.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400&q=80",
+                createdAt: new Date().toISOString()
+            },
+            {
+                id: "km-3",
+                title: "Carefree",
+                description: "Kevin MacLeod",
+                creatorBitDomain: "kevin.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 154,
+                cdnUrl: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Carefree.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1506157786151-b8491531f063?w=400&q=80",
+                createdAt: new Date().toISOString()
+            },
+            // ── Free Music Archive (CC) ────────────────────────
+            {
+                id: "fma-1",
+                title: "Elisions",
+                description: "Chad Crouch",
+                creatorBitDomain: "chill.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 240,
+                cdnUrl: "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Elisions.mp3",
                 posterUrl: "https://images.unsplash.com/photo-1535905557558-afc4877a26fc?w=400&q=80",
+                createdAt: new Date().toISOString()
+            },
+            // ── Premium (paid) tracks ──────────────────────────
+            {
+                id: "premium-1",
+                title: "Neon Streets",
+                description: "CyberSynth",
+                creatorBitDomain: "cyber.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "10", durationSeconds: 250,
+                cdnUrl: "https://www.joshwoodward.com/mp3/JoshWoodward-LetItIn.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400&q=80",
                 createdAt: new Date().toISOString(),
                 pointsPrice: 50,
                 priceMode: 'both' as const,
                 streamPricePerMinute: 10
             },
             {
-                id: "cn-2",
-                title: "夜空中最亮的...",
-                description: "Escape Plan",
-                creatorBitDomain: "escapeplan.bit",
-                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 250,
-                cdnUrl: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Impact%20Moderato.mp3", // Mock URL
-                posterUrl: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400&q=80",
-                createdAt: new Date().toISOString()
+                id: "premium-2",
+                title: "Midnight Protocol",
+                description: "Digital Ghost",
+                creatorBitDomain: "ghost.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "8", durationSeconds: 210,
+                cdnUrl: "https://www.joshwoodward.com/mp3/JoshWoodward-Airplane.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1555680202-c86f0e12f086?w=400&q=80",
+                createdAt: new Date().toISOString(),
+                pointsPrice: 40,
+                priceMode: 'both' as const,
+                streamPricePerMinute: 8
             },
             {
-                id: "cn-3",
-                title: "情非得已",
-                description: "Harlem Yu",
-                creatorBitDomain: "harlem.bit",
-                creatorCkbAddress: "0x0", priceUSDI: "5", durationSeconds: 215,
-                cdnUrl: "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Elisions.mp3", // Mock URL
-                posterUrl: "https://images.unsplash.com/photo-1459749411177-0473ef716175?w=400&q=80",
+                id: "premium-3",
+                title: "Dawn Chorus",
+                description: "Ambient Waves",
+                creatorBitDomain: "ambient.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "5", durationSeconds: 300,
+                cdnUrl: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Perspective.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=400&q=80",
                 createdAt: new Date().toISOString(),
-                pointsPrice: 20
-            }
+                pointsPrice: 30,
+                priceMode: 'both' as const,
+                streamPricePerMinute: 5
+            },
+            {
+                id: "premium-4",
+                title: "Zero Gravity",
+                description: "SpaceSync",
+                creatorBitDomain: "space.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "12", durationSeconds: 195,
+                cdnUrl: "https://www.joshwoodward.com/mp3/JoshWoodward-SoFar.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=400&q=80",
+                createdAt: new Date().toISOString(),
+                pointsPrice: 60,
+                priceMode: 'both' as const,
+                streamPricePerMinute: 12
+            },
         ] as VideoMeta[];
     }
 
