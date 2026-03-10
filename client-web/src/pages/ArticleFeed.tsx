@@ -659,8 +659,8 @@ export default function ArticleFeed() {
                                                                         el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                                                                     }}
                                                                     className={`px-3 py-1 rounded text-xs font-mono transition-all ${isUnlocked
-                                                                            ? 'bg-nexusCyan/10 text-nexusCyan border border-nexusCyan/30 hover:bg-nexusCyan/20'
-                                                                            : 'bg-white/5 text-gray-500 border border-white/10 cursor-pointer hover:border-yellow-400/50 hover:text-yellow-400'
+                                                                        ? 'bg-nexusCyan/10 text-nexusCyan border border-nexusCyan/30 hover:bg-nexusCyan/20'
+                                                                        : 'bg-white/5 text-gray-500 border border-white/10 cursor-pointer hover:border-yellow-400/50 hover:text-yellow-400'
                                                                         }`}
                                                                 >
                                                                     {isUnlocked ? `Ch.${i + 1}` : `🔒 Ch.${i + 1}`}
@@ -724,6 +724,7 @@ export default function ArticleFeed() {
                 {showPaymentOverlay && selectedArticle && (
                     <PaymentModeSelector
                         video={{ ...selectedArticle, buyOncePrice: (selectedArticle as any).pointsPrice || 100, streamPricePerMinute: (selectedArticle as any).streamPricePerMinute || 2 }}
+                        contentType="article"
                         onSelect={async (mode) => {
                             if (mode === 'buy_once') {
                                 // Buy once = unlock entire article

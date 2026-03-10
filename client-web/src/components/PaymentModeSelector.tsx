@@ -18,9 +18,10 @@ interface PaymentModeSelectorProps {
     video: VideoMeta;
     onSelect: (mode: 'buy_once' | 'stream' | 'skip') => void;
     onClose: () => void;
+    contentType?: 'video' | 'article' | 'music';
 }
 
-export default function PaymentModeSelector({ video, onSelect, onClose }: PaymentModeSelectorProps) {
+export default function PaymentModeSelector({ video, onSelect, onClose, contentType = 'video' }: PaymentModeSelectorProps) {
     const [balance, setBalance] = useState<number>(0);
     const [loading, setLoading] = useState(true);
     const [purchasing, setPurchasing] = useState(false);
@@ -39,8 +40,19 @@ export default function PaymentModeSelector({ video, onSelect, onClose }: Paymen
 
     const buyOncePrice = video.buyOncePrice || 0;
     const streamPriceRaw = video.streamPricePerSecond ?? ((video.streamPricePerMinute || 0) / 60);
-    const streamPrice = Math.round(streamPriceRaw * 10000) / 10000; // Round to 4 decimal places
+    const streamPrice = Math.round(streamPriceRaw * 10000) / 10000;
     const priceMode = video.priceMode || 'free';
+
+    // Article-specific labels
+    const isArticle = contentType === 'article';
+    const streamLabel = isArticle ? '📖 Read Per Chapter' : '⚡ Stream Pay';
+    const streamDesc = isArticle ? 'Unlock chapters as you read' : 'Pay as you watch — per second';
+    const streamUnit = isArticle ? 'PTS/CH' : 'PTS/SEC';
+    const streamDisplayPrice = isArticle
+        ? (video.streamPricePerMinute || streamPrice).toString()
+        : (streamPrice < 1 ? streamPrice.toFixed(4) : streamPrice.toFixed(2));
+    const buyOnceLabel = isArticle ? '📚 Unlock All Chapters' : '💎 One-Time Buy';
+    const buyOnceDesc = isArticle ? 'Full access to every chapter' : 'Unlock forever, unlimited replays';
 
     // 如果是免费视频，直接跳过
     if (priceMode === 'free' || (buyOncePrice === 0 && streamPrice === 0)) {
@@ -172,10 +184,10 @@ export default function PaymentModeSelector({ video, onSelect, onClose }: Paymen
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                 <div style={{ textAlign: "left" }}>
                                     <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>
-                                        💎 One-Time Buy
+                                        {buyOnceLabel}
                                     </div>
                                     <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                                        Unlock forever, unlimited replays
+                                        {buyOnceDesc}
                                     </div>
                                 </div>
                                 <div style={{ textAlign: "right" }}>
@@ -209,17 +221,17 @@ export default function PaymentModeSelector({ video, onSelect, onClose }: Paymen
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                 <div style={{ textAlign: "left" }}>
                                     <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>
-                                        ⚡ Stream Pay
+                                        {streamLabel}
                                     </div>
                                     <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                                        Pay as you watch — per second
+                                        {streamDesc}
                                     </div>
                                 </div>
                                 <div style={{ textAlign: "right" }}>
                                     <div style={{ fontSize: 24, fontWeight: 700, color: "var(--accent-cyan)" }}>
-                                        {streamPrice < 1 ? streamPrice.toFixed(4) : streamPrice.toFixed(2)}
+                                        {streamDisplayPrice}
                                     </div>
-                                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>PTS/SEC</div>
+                                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{streamUnit}</div>
                                 </div>
                             </div>
                         </button>
