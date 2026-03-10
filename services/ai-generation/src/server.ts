@@ -20,12 +20,13 @@ import jwt from "@fastify/jwt";
 import { v4 as uuidv4 } from "uuid";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
+import { registerSecurityPlugins, getJwtSecret } from "@video-platform/shared/security/index";
 
 const app = Fastify({ logger: true });
-const JWT_SECRET = process.env.JWT_SECRET || "nexus-dev-jwt-secret-change-me-in-production-12345";
-if (process.env.NODE_ENV === "production" && (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)) {
-    throw new Error("JWT_SECRET not set or too short for production");
-}
+const JWT_SECRET = getJwtSecret();
+
+// Apply security (Helmet + CORS + rate limiting)
+registerSecurityPlugins(app, { rateLimit: { max: 100, timeWindow: "1 minute" } });
 
 app.register(jwt, { secret: JWT_SECRET });
 

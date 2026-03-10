@@ -14,6 +14,25 @@ export const JWT_CONFIG = {
     algorithm: 'HS256' as const,
 };
 
+/**
+ * Get JWT secret with production safety checks.
+ * Throws in production if JWT_SECRET is not set or too short.
+ */
+export function getJwtSecret(): string {
+    const secret = process.env.JWT_SECRET;
+    if (!secret || secret.includes('change-me') || secret.includes('change-in-production')) {
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('FATAL: JWT_SECRET must be set to a secure value in production!');
+        }
+        console.warn('⚠️  JWT_SECRET not set — using dev default. Set JWT_SECRET env var for production.');
+        return 'nexus-dev-secret-do-not-use-in-prod-32chars!';
+    }
+    if (secret.length < 32) {
+        console.warn('⚠️  JWT_SECRET is short (< 32 chars). Use a longer secret for production.');
+    }
+    return secret;
+}
+
 // ============== XSS 防护 ==============
 
 /**

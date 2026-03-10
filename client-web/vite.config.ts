@@ -104,11 +104,21 @@ export default defineConfig({
       // 外部化 Node.js 模块 (不应在浏览器中使用)
       output: {
         manualChunks(id: string) {
+          // React core — loaded everywhere, cache separately
+          if (id.includes('react-dom') || id.includes('react/')) return 'vendor-react';
+          if (id.includes('react-router')) return 'vendor-router';
+          // Large media libs
           if (id.includes("video.js") || id.includes("videojs")) return "vendor-videojs";
           if (id.includes("hls.js")) return "vendor-hls";
           if (id.includes("framer-motion")) return "vendor-motion";
           if (id.includes("three") || id.includes("@react-three") || id.includes("drei")) return "vendor-three";
           if (id.includes("livekit")) return "vendor-livekit";
+          // Web3 / CKB libs
+          if (id.includes('@ckb-ccc') || id.includes('@ckb-lumos') || id.includes('rgbpp')) return 'vendor-ckb';
+          // Query / state management
+          if (id.includes('@tanstack/react-query')) return 'vendor-query';
+          // Utility libs
+          if (id.includes('lucide-react')) return 'vendor-icons';
         },
       },
       external: [
