@@ -2,7 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.4.0] - 2026-03-09
+## [2.5.0] - 2026-03-10
+
+### 🎬 WebRTC Watch Party — Real-time Streaming & Collaborative Control
+
+Inspired by [n.eko](https://github.com/m1k1o/neko) virtual browser project.
+
+#### WebRTC Signaling Server
+- Watch Party room management via WebSocket (`wp:join/leave/offer/answer/ice/control/cursor`)
+- Room-level broadcast and P2P message relay for SDP/ICE exchange
+
+#### WebRTC Hook (`useWebRTCParty.ts`) [NEW]
+- RTCPeerConnection lifecycle (offer/answer/ICE exchange via WebSocket signaling)
+- Host screen sharing via `getDisplayMedia()` with resolution/framerate config
+- Remote stream reception for peers
+- Collaborative controls (play/pause/seek/speed) via signaling channel
+- Remote cursors and emoji reactions with auto-cleanup
+
+#### Watch Party Page Upgrade
+- **Screen Share Button** — Host can stream their screen to all peers
+- **WebRTC Remote Stream** — Peers see host's screen via `<video>` element
+- **Collaborative Control Bar** — Rewind/Play-Pause/Forward controls for all users
+- **n.eko-style Control Request** — One-controller-at-a-time model
+- **Remote Cursor Overlay** — See other participants' cursors in real-time
+- **Emoji Reactions** — 👍😂😮🔥❤️ broadcast to all viewers
+- **PiP Preview** — Host sees local sharing preview as picture-in-picture
+
+---
+
+
 
 ### 🔄 P1-P3 Business Automation Pipelines
 

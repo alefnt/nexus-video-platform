@@ -9,11 +9,13 @@
  * 4. 实时聊天：聊天消...+ 弹幕
  */
 
-import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Play, Plus, Users, Clock, Share2, Copy, Check, Film, ArrowLeft, MessageCircle, Send, Crown, Wifi, Sparkles } from 'lucide-react';
+import { Play, Pause, Plus, Users, Clock, Share2, Copy, Check, Film, ArrowLeft, MessageCircle, Send, Crown, Wifi, Sparkles, Monitor, MonitorOff, Mouse, Hand, SkipForward, Volume2 } from 'lucide-react';
 import { useWatchPartySync } from '../hooks/useWatchPartySync';
 import type { ChatMessage, Participant } from '../hooks/useWatchPartySync';
+import { useWebRTCParty } from '../hooks/useWebRTCParty';
+import type { RemoteCursor } from '../hooks/useWebRTCParty';
 import { WatchPartyVideo } from '../components/watch-party/WatchPartyVideo';
 import { getApiClient } from '../lib/apiClient';
 import '../styles/WatchParty.css';
@@ -222,7 +224,7 @@ const WatchParty: React.FC = () => {
     const [countdown, setCountdown] = useState(60);
     const [copied, setCopied] = useState(false);
 
-    // Watch party sync
+    // Watch party sync (GunDB)
     const {
         roomState,
         participants,
@@ -237,6 +239,57 @@ const WatchParty: React.FC = () => {
         userName,
         isHost
     });
+
+    // WebRTC Party (screen share + collaborative control)
+    const {
+        connected: rtcConnected,
+        peers: rtcPeers,
+        localStream,
+        remoteStreams,
+        remoteCursors,
+        lastControl,
+        isScreenSharing,
+        startScreenShare,
+        stopScreenShare,
+        sendControl,
+        sendCursor,
+    } = useWebRTCParty({
+        roomId: currentRoomId,
+        userId,
+        userName,
+        isHost,
+    });
+
+    // n.eko-inspired control model: one controller at a time
+    const [controllerId, setControllerId] = useState<string | null>(null);
+    const [controlRequests, setControlRequests] = useState<string[]>([]);
+    const hasControl = controllerId === userId;
+    const remoteVideoRef = useRef<HTMLVideoElement>(null);
+
+    // Attach remote stream to video element
+    useEffect(() => {
+        if (remoteVideoRef.current && remoteStreams.size > 0) {
+            // Get first remote stream (from host)
+            const stream = Array.from(remoteStreams.values())[0];
+            if (stream && remoteVideoRef.current.srcObject !== stream) {
+                remoteVideoRef.current.srcObject = stream;
+            }
+        }
+    }, [remoteStreams]);
+
+    // Handle incoming control actions
+    useEffect(() => {
+        if (!lastControl) return;
+        // Apply control action to local video player
+        const video = document.querySelector('.wp-video-player video') as HTMLVideoElement;
+        if (!video) return;
+        switch (lastControl.action) {
+            case 'play': video.play(); break;
+            case 'pause': video.pause(); break;
+            case 'seek': if (lastControl.value !== undefined) video.currentTime = lastControl.value; break;
+            case 'speed': if (lastControl.value !== undefined) video.playbackRate = lastControl.value; break;
+        }
+    }, [lastControl]);
 
     // Countdown timer
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -497,7 +550,7 @@ const WatchParty: React.FC = () => {
             {/* Main Area */}
             <main className="flex-1 flex flex-col p-4 lg:p-6 overflow-y-auto relative custom-scrollbar z-10 min-w-0">
                 {/* Top Bar */}
-                <div className="flex items-center justify-between mb-6 glass-panel px-6 py-4 rounded-2xl border border-white/10">
+                <div className="flex items-center justify-between mb-4 glass-panel px-6 py-3 rounded-2xl border border-white/10">
                     <div className="flex items-center gap-4">
                         <button className="text-gray-400 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5" onClick={() => navigate('/watch-party')}><ArrowLeft size={20} /></button>
                         <h1 className="text-xl font-bold text-white tracking-widest flex items-center gap-3">
@@ -506,38 +559,168 @@ const WatchParty: React.FC = () => {
                             <span className="text-gray-400 text-sm font-normal">{roomState?.videoTitle || 'Loading...'}</span>
                         </h1>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <div className="bg-white/5 px-4 py-2 rounded-full flex items-center gap-2 text-sm font-bold text-white border border-white/10">
-                            <Users size={16} className="text-nexusCyan" /> {participants.length} SYNCED
+                    <div className="flex items-center gap-3">
+                        {/* WebRTC Status */}
+                        <div className={`px-3 py-1.5 rounded-full flex items-center gap-2 text-xs font-bold border ${rtcConnected ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'}`}>
+                            <Wifi size={12} /> {rtcConnected ? 'WebRTC' : 'Connecting'}
                         </div>
-                        <button className="bg-nexusPurple text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 hover:bg-purple-500 transition-colors shadow-[0_0_15px_rgba(168,85,247,0.4)]" onClick={copyInviteLink}>
-                            {copied ? <Check size={16} /> : <Share2 size={16} />} INVITE
+                        <div className="bg-white/5 px-4 py-1.5 rounded-full flex items-center gap-2 text-sm font-bold text-white border border-white/10">
+                            <Users size={14} className="text-nexusCyan" /> {Math.max(participants.length, rtcPeers.length)} SYNCED
+                        </div>
+                        <button className="bg-nexusPurple text-white px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-2 hover:bg-purple-500 transition-colors shadow-[0_0_15px_rgba(168,85,247,0.4)]" onClick={copyInviteLink}>
+                            {copied ? <Check size={14} /> : <Share2 size={14} />} INVITE
                         </button>
                     </div>
                 </div>
 
-                {/* Video Player */}
-                <div className="w-full aspect-video rounded-2xl bg-black relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10 mx-auto max-w-6xl">
-                    <WatchPartyVideo
-                        roomState={roomState}
-                        userId={userId}
-                        isHost={isHost}
-                        participants={participants}
-                        onTimeUpdate={(time) => { }}
-                        onPaymentRequired={(videoId) => navigate(`/player/${videoId}?mode=stream`)}
-                    />
+                {/* Video Player Area */}
+                <div className="w-full aspect-video rounded-2xl bg-black relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10 mx-auto max-w-6xl wp-video-player"
+                    onMouseMove={(e) => {
+                        if (!hasControl && !isHost) return;
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        sendCursor(
+                            ((e.clientX - rect.left) / rect.width) * 100,
+                            ((e.clientY - rect.top) / rect.height) * 100
+                        );
+                    }}
+                >
+                    {/* WebRTC Remote Stream (when available) */}
+                    {remoteStreams.size > 0 && !isHost ? (
+                        <video
+                            ref={remoteVideoRef}
+                            autoPlay
+                            playsInline
+                            className="w-full h-full object-contain bg-black"
+                        />
+                    ) : (
+                        <WatchPartyVideo
+                            roomState={roomState}
+                            userId={userId}
+                            isHost={isHost}
+                            participants={participants}
+                            onTimeUpdate={(time) => { }}
+                            onPaymentRequired={(videoId) => navigate(`/player/${videoId}?mode=stream`)}
+                        />
+                    )}
+
+                    {/* Host Local Preview (PiP when sharing) */}
+                    {isHost && localStream && (
+                        <div className="absolute top-4 left-4 w-48 aspect-video rounded-lg overflow-hidden border-2 border-nexusCyan shadow-[0_0_20px_rgba(34,211,238,0.4)] z-30">
+                            <video
+                                autoPlay
+                                muted
+                                playsInline
+                                ref={(el) => { if (el && localStream) el.srcObject = localStream; }}
+                                className="w-full h-full object-cover"
+                            />
+                            <div className="absolute bottom-1 left-2 text-[10px] text-nexusCyan font-bold bg-black/60 px-2 py-0.5 rounded">
+                                📡 SHARING
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Remote Cursors Overlay (n.eko inspired) */}
+                    {remoteCursors.map((cursor) => (
+                        <div
+                            key={cursor.userId}
+                            className="absolute pointer-events-none z-40 transition-all duration-100"
+                            style={{ left: `${cursor.x}%`, top: `${cursor.y}%`, transform: 'translate(-2px, -2px)' }}
+                        >
+                            <Mouse size={16} className="text-nexusYellow drop-shadow-[0_0_4px_rgba(234,179,8,0.8)]" />
+                            <span className="absolute top-4 left-3 text-[10px] bg-nexusYellow/90 text-black px-1.5 py-0.5 rounded font-bold whitespace-nowrap">
+                                {cursor.userName}
+                            </span>
+                            {cursor.reaction && (
+                                <span className="absolute -top-6 left-0 text-2xl animate-bounce">{cursor.reaction}</span>
+                            )}
+                        </div>
+                    ))}
 
                     {/* Connection Status Overlay */}
                     {!isConnected && (
-                        <div className="absolute top-4 right-4 bg-red-500/80 backdrop-blur text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-2">
+                        <div className="absolute top-4 right-4 bg-red-500/80 backdrop-blur text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-2 z-50">
                             <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div> RECONNECTING...
                         </div>
                     )}
                 </div>
 
-                {/* Host Controls */}
+                {/* ═══ Collaborative Control Bar (n.eko inspired) ═══ */}
+                <div className="mt-4 flex items-center justify-between glass-panel px-6 py-3 rounded-2xl border border-white/10 max-w-6xl mx-auto w-full">
+                    {/* Left: Screen Share (Host) / Request Control (Peer) */}
+                    <div className="flex items-center gap-3">
+                        {isHost ? (
+                            <button
+                                onClick={isScreenSharing ? stopScreenShare : startScreenShare}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${isScreenSharing
+                                        ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'
+                                        : 'bg-nexusCyan/10 text-nexusCyan border border-nexusCyan/30 hover:bg-nexusCyan/20'
+                                    }`}
+                            >
+                                {isScreenSharing ? <><MonitorOff size={16} /> Stop Sharing</> : <><Monitor size={16} /> Share Screen</>}
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => {
+                                    if (!hasControl) {
+                                        setControlRequests(prev => [...prev, userId]);
+                                        sendCursor(50, 50, '🖐️');
+                                    }
+                                }}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${hasControl
+                                        ? 'bg-nexusGreen/20 text-nexusGreen border border-nexusGreen/30'
+                                        : 'bg-white/5 text-gray-400 border border-white/10 hover:text-white hover:bg-white/10'
+                                    }`}
+                            >
+                                <Hand size={16} /> {hasControl ? 'You Have Control' : 'Request Control'}
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Center: Playback Controls (anyone can use) */}
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => sendControl('seek', Math.max(0, (document.querySelector('.wp-video-player video') as HTMLVideoElement)?.currentTime - 10))}
+                            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                            title="Rewind 10s"
+                        >
+                            <SkipForward size={16} className="rotate-180" />
+                        </button>
+                        <button
+                            onClick={() => {
+                                const v = document.querySelector('.wp-video-player video') as HTMLVideoElement;
+                                if (v?.paused) { v.play(); sendControl('play'); }
+                                else { v?.pause(); sendControl('pause'); }
+                            }}
+                            className="p-3 rounded-xl bg-nexusPurple/20 text-nexusPurple border border-nexusPurple/30 hover:bg-nexusPurple/30 transition-all"
+                        >
+                            <Play size={18} />
+                        </button>
+                        <button
+                            onClick={() => sendControl('seek', (document.querySelector('.wp-video-player video') as HTMLVideoElement)?.currentTime + 10)}
+                            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                            title="Forward 10s"
+                        >
+                            <SkipForward size={16} />
+                        </button>
+                    </div>
+
+                    {/* Right: Reactions */}
+                    <div className="flex items-center gap-2">
+                        {['👍', '😂', '😮', '🔥', '❤️'].map((emoji) => (
+                            <button
+                                key={emoji}
+                                onClick={() => sendCursor(50, 50, emoji)}
+                                className="text-lg hover:scale-150 transition-transform p-1"
+                            >
+                                {emoji}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Host Controls: Start Playback */}
                 {isHost && roomState?.status === 'waiting' && (
-                    <div className="mt-8 flex justify-center">
+                    <div className="mt-6 flex justify-center">
                         <button className="bg-gradient-to-r from-nexusCyan to-nexusPurple text-white font-black text-lg px-12 py-4 rounded-xl shadow-[0_0_30px_rgba(34,211,238,0.4)] hover:shadow-[0_0_50px_rgba(168,85,247,0.6)] hover:scale-[1.02] transform transition-all flex items-center justify-center gap-3 relative z-10 uppercase tracking-widest" onClick={startPlayback}>
                             <Play size={20} fill="currentColor" /> INITIATE PLAYBACK NOW
                         </button>
