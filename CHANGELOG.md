@@ -2,7 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.6.0] - 2026-03-10
+## [2.7.0] - 2026-03-10
+
+### 🤖 Agent-Native CLI (`nexus-cli`)
+
+Inspired by [CLI-Anything](https://github.com/HKUDS/CLI-Anything) — "Making ALL Software Agent-Native"
+
+#### Core Features
+- `--json` flag on every command → structured machine-readable output
+- `--help` on every command → self-describing for agent auto-discovery
+- Dual mode: subcommand (one-shot) + REPL (interactive session)
+- JWT session persistence (~/.nexus-cli/token.json)
+
+#### 8 Command Groups (30+ subcommands)
+- `auth` — login, logout, whoami
+- `content` — list, search (keyword + RAG), publish, delete
+- `ai` — orchestrate, rag-search, rag-index, skill-run, skill-match, skill-list, cache-stats, tools-schema
+- `mcp` — tools-list, tools-call, resources-list, resources-read, prompts-list, prompts-get
+- `party` — create, list (Watch Party)
+- `live` — rooms, create, tip, gifts
+- `user` — profile, balance, achievements
+- `system` — health (all 9 services), version
+
+#### Usage
+```bash
+npx tsx shared/cli/nexus-cli.ts                              # REPL mode
+npx tsx shared/cli/nexus-cli.ts content list --limit 5 --json  # One-shot
+npx tsx shared/cli/nexus-cli.ts ai orchestrate --prompt "..." --json
+```
+
+---
+
+
 
 ### 🧠 Anthropic AI Course Technology Integration
 

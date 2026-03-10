@@ -1,7 +1,7 @@
 {
   "name": "@video-platform/monorepo",
   "private": true,
-  "version": "2.6.0",
+  "version": "2.7.0",
   "type": "module",
   "workspaces": [
     "shared",
@@ -9,7 +9,11 @@
     "client-web",
     "services/*"
   ],
+  "bin": {
+    "nexus-cli": "shared/cli/nexus-cli.ts"
+  },
   "scripts": {
+    "cli": "npx tsx shared/cli/nexus-cli.ts",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 100",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\"",
