@@ -1,0 +1,141 @@
+{
+    "annotations": {
+        "list": []
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+        {
+            "title": "Request Rate (req/s)",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "expr": "rate(http_requests_total[5m])",
+                    "legendFormat": "{{service}} {{method}} {{status}}"
+                }
+            ]
+        },
+        {
+            "title": "Response Time (p95)",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+                    "legendFormat": "p95"
+                }
+            ]
+        },
+        {
+            "title": "Memory Usage (MB)",
+            "type": "gauge",
+            "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 0,
+                "y": 8
+            },
+            "targets": [
+                {
+                    "expr": "nodejs_heap_used_bytes / 1024 / 1024",
+                    "legendFormat": "Heap Used"
+                }
+            ]
+        },
+        {
+            "title": "Service Uptime",
+            "type": "stat",
+            "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 6,
+                "y": 8
+            },
+            "targets": [
+                {
+                    "expr": "nodejs_uptime_seconds / 3600",
+                    "legendFormat": "Hours"
+                }
+            ]
+        },
+        {
+            "title": "Error Rate (5xx)",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 8
+            },
+            "targets": [
+                {
+                    "expr": "rate(http_requests_total{status=~\"5..\"}[5m])",
+                    "legendFormat": "{{service}} 5xx"
+                }
+            ]
+        },
+        {
+            "title": "Rate Limited Requests",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 16
+            },
+            "targets": [
+                {
+                    "expr": "rate(http_requests_total{status=\"429\"}[5m])",
+                    "legendFormat": "429 Rate Limited"
+                }
+            ]
+        },
+        {
+            "title": "Active Services",
+            "type": "table",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 16
+            },
+            "targets": [
+                {
+                    "expr": "up",
+                    "legendFormat": "{{instance}}"
+                }
+            ]
+        }
+    ],
+    "schemaVersion": 39,
+    "style": "dark",
+    "tags": [
+        "nexus",
+        "video-platform"
+    ],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "title": "Nexus Video Platform — Overview",
+    "uid": "nexus-overview",
+    "version": 1
+}

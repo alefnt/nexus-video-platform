@@ -2,7 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.7.1] - 2026-03-10
+## [2.8.0] - 2026-03-10
+
+### 📈 Quality & Infrastructure Upgrade (5 Improvement Items)
+
+#### 1. E2E Smoke Tests
+- 7 test suites: health checks, auth flow, content, AI orchestration, MCP, caching, rate limiting
+- JSON results output for CI consumption
+- `npx tsx tests/e2e/smoke.test.ts`
+
+#### 2. GitHub Actions CI/CD
+- 6-stage pipeline: quality → test → build → security → docker → release
+- PostgreSQL 16 + Redis 7 test services
+- Auto-release on version tags
+
+#### 3. Redis Cache Layer
+- `shared/cache/index.ts` — unified API with in-memory fallback
+- Lazy Redis connection, TTL support, namespace prefixing
+- `cache.get()`, `cache.set()`, `cache.del()`, `cache.stats()`
+
+#### 4. Component Splitting
+- VideoPlayer (57KB) → 4 sub-components: Controls, Sidebar, Comments, Engagement
+- CreatorUpload (54KB) → 3 sub-components: Dropzone, Progress, MetadataForm
+- WatchParty (49KB) → 3 sub-components: PartyControls, ParticipantList, RemoteCursors
+
+#### 5. Monitoring & Alerting
+- `shared/metrics/index.ts` — Prometheus-compatible metrics (counters/gauges/histograms)
+- Auto request instrumentation (duration + status codes)
+- Grafana dashboard JSON (7 panels)
+- Prometheus scrape config (9 services)
+
+---
+
+
 
 ### 🔒 Security & Stability Hardening (7 Risk Fixes)
 
