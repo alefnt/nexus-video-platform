@@ -104,6 +104,40 @@ app.get('/health', async () => ({
 }));
 app.get('/metrics', async () => register.metrics());
 
+// ============== Watch Party WebRTC 信令房间管理 ==============
+interface WpMember { userId: string; socket: WebSocket; isHost: boolean; }
+const wpRooms = new Map<string, Map<string, WpMember>>(); // roomId → Map<userId, WpMember>
+
+function wpBroadcast(roomId: string, message: any, excludeUserId?: string) {
+    const room = wpRooms.get(roomId);
+    if (!room) return;
+    const data = JSON.stringify(message);
+    room.forEach((member) => {
+        if (member.userId !== excludeUserId && member.socket.readyState === 1) {
+            member.socket.send(data);
+        }
+    });
+}
+
+function wpSendTo(roomId: string, targetUserId: string, message: any) {
+    const room = wpRooms.get(roomId);
+    if (!room) return;
+    const member = room.get(targetUserId);
+    if (member && member.socket.readyState === 1) {
+        member.socket.send(JSON.stringify(message));
+    }
+}
+
+function wpRemoveUser(userId: string) {
+    wpRooms.forEach((room, roomId) => {
+        if (room.has(userId)) {
+            room.delete(userId);
+            wpBroadcast(roomId, { type: 'wp:peer_left', userId });
+            if (room.size === 0) wpRooms.delete(roomId);
+        }
+    });
+}
+
 // ============== WebSocket 端点 ==============
 app.register(async function (fastify) {
     fastify.get('/ws', { websocket: true }, (socket: WebSocket, req) => {
@@ -153,6 +187,103 @@ app.register(async function (fastify) {
                     messageCounter.inc({ type: 'dm' });
                     socket.send(JSON.stringify({ type: 'dm_sent', msgId: dm.id }));
                 }
+
+                // ════════════════ Watch Party WebRTC Signaling ════════════════
+
+                // Join Watch Party room
+                if (msg.type === 'wp:join' && msg.roomId && userId) {
+                    if (!wpRooms.has(msg.roomId)) wpRooms.set(msg.roomId, new Map());
+                    const room = wpRooms.get(msg.roomId)!;
+                    room.set(userId, { userId, socket, isHost: !!msg.isHost });
+
+                    // Notify existing peers about new member
+                    wpBroadcast(msg.roomId, {
+                        type: 'wp:peer_joined',
+                        userId,
+                        userName: msg.userName || userId,
+                        isHost: !!msg.isHost,
+                        peers: Array.from(room.keys()),
+                    }, userId);
+
+                    // Send current room members to the new joiner
+                    socket.send(JSON.stringify({
+                        type: 'wp:room_state',
+                        roomId: msg.roomId,
+                        peers: Array.from(room.entries()).map(([id, m]) => ({
+                            userId: id, isHost: m.isHost,
+                        })),
+                    }));
+
+                    messageCounter.inc({ type: 'wp_join' });
+                    return;
+                }
+
+                // WebRTC SDP Offer — relay to specific peer
+                if (msg.type === 'wp:offer' && msg.roomId && msg.targetUserId && userId) {
+                    wpSendTo(msg.roomId, msg.targetUserId, {
+                        type: 'wp:offer',
+                        fromUserId: userId,
+                        sdp: msg.sdp,
+                    });
+                    return;
+                }
+
+                // WebRTC SDP Answer — relay to specific peer
+                if (msg.type === 'wp:answer' && msg.roomId && msg.targetUserId && userId) {
+                    wpSendTo(msg.roomId, msg.targetUserId, {
+                        type: 'wp:answer',
+                        fromUserId: userId,
+                        sdp: msg.sdp,
+                    });
+                    return;
+                }
+
+                // WebRTC ICE Candidate — relay to specific peer
+                if (msg.type === 'wp:ice' && msg.roomId && msg.targetUserId && userId) {
+                    wpSendTo(msg.roomId, msg.targetUserId, {
+                        type: 'wp:ice',
+                        fromUserId: userId,
+                        candidate: msg.candidate,
+                    });
+                    return;
+                }
+
+                // Collaborative control — broadcast play/pause/seek to all peers
+                if (msg.type === 'wp:control' && msg.roomId && userId) {
+                    wpBroadcast(msg.roomId, {
+                        type: 'wp:control',
+                        fromUserId: userId,
+                        action: msg.action,   // 'play' | 'pause' | 'seek' | 'speed'
+                        value: msg.value,      // seek time or speed value
+                        timestamp: Date.now(),
+                    }, userId);
+                    messageCounter.inc({ type: 'wp_control' });
+                    return;
+                }
+
+                // Remote cursor / reactions — broadcast to all peers
+                if (msg.type === 'wp:cursor' && msg.roomId && userId) {
+                    wpBroadcast(msg.roomId, {
+                        type: 'wp:cursor',
+                        fromUserId: userId,
+                        userName: msg.userName,
+                        x: msg.x, y: msg.y,
+                        reaction: msg.reaction,
+                    }, userId);
+                    return;
+                }
+
+                // Leave Watch Party room
+                if (msg.type === 'wp:leave' && msg.roomId && userId) {
+                    const room = wpRooms.get(msg.roomId);
+                    if (room) {
+                        room.delete(userId);
+                        wpBroadcast(msg.roomId, { type: 'wp:peer_left', userId });
+                        if (room.size === 0) wpRooms.delete(msg.roomId);
+                    }
+                    return;
+                }
+
             } catch (e: any) {
                 socket.send(JSON.stringify({ type: 'error', error: e.message }));
             }
@@ -161,6 +292,7 @@ app.register(async function (fastify) {
         socket.on('close', () => {
             if (userId) {
                 removeUserSocket(userId, socket);
+                wpRemoveUser(userId);
             }
         });
     });

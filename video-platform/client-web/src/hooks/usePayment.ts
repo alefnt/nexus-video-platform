@@ -160,9 +160,9 @@ const LABEL_PRESETS: Record<ContentType, NonNullable<PaymentOverlayProps['labels
         buyOnceTitle: "Collect Forever",
     },
     article: {
-        streamTitle: "Reading Pass (Stream Pay)",
-        streamUnit: "second",
-        streamDesc: "Pay as you read, per-second billing",
+        streamTitle: "Pay Per Chapter",
+        streamUnit: "chapter",
+        streamDesc: "First chapter free, unlock more as you read",
         buyOnceTitle: "Lifetime Library Access",
     },
 };
@@ -233,7 +233,7 @@ export function usePayment(options: UsePaymentOptions): UsePaymentReturn {
                     videoId: contentId,
                     pointsPrice: buyOncePrice > 0 ? buyOncePrice : undefined,
                 }),
-                updateStatus, 8, 1500, true
+                updateStatus, 3, 1000, true
             );
 
             if (result.ok) {

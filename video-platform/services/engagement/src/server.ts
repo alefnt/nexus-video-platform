@@ -242,11 +242,24 @@ app.post<{ Body: { userId: string; taskType: string; increment?: number } }>("/e
 
     // 检查是否完成
     const completed = progress.progress >= task.requirement;
+    let autoClaimed = false;
+    let autoClaimedPoints = 0;
     if (completed && !progress.completed) {
+        // Mark completed AND auto-claim reward in one step
         await prisma.userTaskProgress.update({
             where: { id: progress.id },
-            data: { completed: true },
+            data: { completed: true, rewardClaimed: true },
         });
+
+        // Auto-award points
+        await prisma.user.update({
+            where: { id: userId },
+            data: { points: { increment: task.points } },
+        });
+
+        autoClaimed = true;
+        autoClaimedPoints = task.points;
+        app.log.info({ userId, taskType, points: task.points }, "Task auto-claimed");
     }
 
     return reply.send({
@@ -255,6 +268,9 @@ app.post<{ Body: { userId: string; taskType: string; increment?: number } }>("/e
         requirement: task.requirement,
         completed,
         remaining: rateCheck.remaining,
+        autoClaimed,
+        autoClaimedPoints,
+        message: autoClaimed ? `任务完成! 自动获得 ${autoClaimedPoints} 积分 🎉` : undefined,
     });
 });
 
@@ -834,6 +850,109 @@ app.post<{ Body: { userId: string } }>("/engagement/wheel/spin", async (req, rep
     });
 });
 
+
+// ============== Fan Auto-Tracking Webhook ==============
+
+/**
+ * POST /engagement/track
+ * Unified auto-tracking endpoint: records fan contribution + updates task progress + triggers achievement check
+ * Called by video player, tip widget, comment system, etc.
+ */
+app.post<{ Body: { userId: string; creatorId?: string; action: string; amount?: number; contentId?: string } }>("/engagement/track", async (req, reply) => {
+    const { userId, creatorId, action, amount = 1, contentId } = req.body || {};
+    if (!userId || !action) return reply.status(400).send({ error: "缺少参数: userId, action" });
+
+    const results: Array<{ step: string; result?: any }> = [];
+
+    try {
+        // 1. Rate limit check
+        const rateCheck = await checkRateLimit(userId, action, req.ip);
+        if (!rateCheck.allowed) {
+            return reply.status(429).send({ error: "操作频率过高" });
+        }
+
+        // 2. Task progress (map action to task type)
+        const taskTypeMap: Record<string, string> = {
+            watch: "watch_videos",
+            comment: "comment",
+            share: "share",
+            live_watch: "live_watch",
+        };
+        const taskType = taskTypeMap[action];
+        if (taskType) {
+            const today = getToday();
+            const task = DAILY_TASKS.find(t => t.type === taskType);
+            if (task) {
+                const progress = await prisma.userTaskProgress.upsert({
+                    where: { userId_taskType_date: { userId, taskType, date: today } },
+                    create: { userId, taskType, date: today, progress: 1 },
+                    update: { progress: { increment: 1 } },
+                });
+                const completed = progress.progress >= task.requirement;
+                let autoClaimed = false;
+                if (completed && !progress.completed) {
+                    await prisma.userTaskProgress.update({
+                        where: { id: progress.id },
+                        data: { completed: true, rewardClaimed: true },
+                    });
+                    await prisma.user.update({ where: { id: userId }, data: { points: { increment: task.points } } });
+                    autoClaimed = true;
+                }
+                results.push({ step: "task_progress", result: { taskType, progress: progress.progress, completed, autoClaimed } });
+            }
+        }
+
+        // 3. Fan level contribution (if creatorId is provided)
+        if (creatorId && creatorId !== userId) {
+            const fanAction = action === "watch" ? "watch" : action === "tip" ? "tip" : "interact";
+            const pointsMap: Record<string, number> = { watch: 1, tip: amount * 2, interact: 5 };
+            const points = pointsMap[fanAction] || 0;
+
+            const fanLevel = await prisma.fanLevel.upsert({
+                where: { userId_creatorId: { userId, creatorId } },
+                create: {
+                    userId, creatorId, totalPoints: points,
+                    watchTime: fanAction === "watch" ? amount : 0,
+                    tipAmount: fanAction === "tip" ? amount : 0,
+                    interactions: fanAction === "interact" ? 1 : 0,
+                },
+                update: {
+                    totalPoints: { increment: points },
+                    watchTime: fanAction === "watch" ? { increment: amount } : undefined,
+                    tipAmount: fanAction === "tip" ? { increment: amount } : undefined,
+                    interactions: fanAction === "interact" ? { increment: 1 } : undefined,
+                },
+            });
+            const newLevel = calculateFanLevel(fanLevel.totalPoints);
+            if (newLevel !== fanLevel.level) {
+                await prisma.fanLevel.update({ where: { id: fanLevel.id }, data: { level: newLevel } });
+            }
+            results.push({ step: "fan_level", result: { level: newLevel, levelUp: newLevel > fanLevel.level, totalPoints: fanLevel.totalPoints } });
+        }
+
+        // 4. Achievement stats update (async, non-blocking)
+        const achievementUrl = process.env.ACHIEVEMENT_URL || "http://localhost:8097";
+        const statFieldMap: Record<string, string> = {
+            watch: "totalWatchTime",
+            comment: "totalComments",
+            share: "totalShares",
+            tip: "totalTipsSent",
+        };
+        const statField = statFieldMap[action];
+        if (statField) {
+            fetch(`${achievementUrl}/achievement/stats/update`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: req.headers.authorization || "" },
+                body: JSON.stringify({ userId, field: statField, increment: amount }),
+            }).catch(() => { });
+            results.push({ step: "achievement_stat", result: { field: statField, increment: amount } });
+        }
+
+        return reply.send({ ok: true, action, results });
+    } catch (err: any) {
+        return reply.status(500).send({ error: err?.message || "追踪失败" });
+    }
+});
 
 // ============== 启动服务 ==============
 

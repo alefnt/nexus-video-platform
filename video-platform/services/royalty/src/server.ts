@@ -116,6 +116,247 @@ app.post<{ Body: RoyaltyDistributionRequest }>("/royalty/distribute", async (req
   }
 });
 
+// ─── Royalty Distribution Scheduling ───
+
+// In-memory pending distributions (would be Redis/DB in production)
+const pendingDistributions: Array<{
+  id: string;
+  videoId: string;
+  totalAmount: number;
+  participants: SplitParticipant[];
+  scheduledAt: Date;
+  status: "pending" | "processing" | "done" | "failed";
+  error?: string;
+}> = [];
+
+// Queue a distribution for scheduled processing
+app.post("/royalty/schedule", async (req, reply) => {
+  try {
+    const body = req.body as { videoId: string; totalAmount: number; participants: any[]; executeAt?: string };
+    if (!body.videoId || !body.totalAmount || !body.participants?.length) {
+      return reply.status(400).send({ error: "缺少参数: videoId, totalAmount, participants" });
+    }
+
+    const dist = {
+      id: uuidv4(),
+      videoId: body.videoId,
+      totalAmount: body.totalAmount,
+      participants: body.participants.map((p: any) => ({
+        address: p.address,
+        label: p.address.slice(0, 8),
+        percentage: p.percentage || (p.ratio ? p.ratio * 100 : 0),
+        role: p.role || "collaborator" as const,
+      })),
+      scheduledAt: body.executeAt ? new Date(body.executeAt) : new Date(),
+      status: "pending" as const,
+    };
+
+    pendingDistributions.push(dist);
+    app.log.info({ id: dist.id, videoId: dist.videoId }, "Royalty distribution scheduled");
+
+    return reply.send({ ok: true, distributionId: dist.id, scheduledAt: dist.scheduledAt });
+  } catch (err: any) {
+    return reply.status(500).send({ error: err?.message || "调度失败" });
+  }
+});
+
+// View pending distributions
+app.get("/royalty/pending", async (_req, reply) => {
+  return reply.send({
+    pending: pendingDistributions.filter(d => d.status === "pending"),
+    processing: pendingDistributions.filter(d => d.status === "processing"),
+    completed: pendingDistributions.filter(d => d.status === "done").slice(-20),
+    failed: pendingDistributions.filter(d => d.status === "failed").slice(-10),
+  });
+});
+
+// Cron: Process pending distributions every 60 seconds
+async function processScheduledDistributions() {
+  const now = new Date();
+  const due = pendingDistributions.filter(d => d.status === "pending" && d.scheduledAt <= now);
+
+  for (const dist of due) {
+    dist.status = "processing";
+    try {
+      const splitResult = await rgbppClient.executeSplit(dist.videoId, dist.totalAmount, dist.participants);
+      dist.status = "done";
+      app.log.info({ id: dist.id, videoId: dist.videoId, txHash: splitResult.txHash }, "Scheduled royalty executed");
+    } catch (err: any) {
+      dist.status = "failed";
+      dist.error = err?.message;
+      app.log.warn({ id: dist.id, error: err?.message }, "Scheduled royalty failed");
+    }
+  }
+}
+
+// Start scheduler cron (every 60 seconds)
+setInterval(processScheduledDistributions, 60_000);
+app.log.info("Royalty distribution scheduler started (60s interval)");
+
+// ============== Creator Earnings & Withdrawal ==============
+
+import { PrismaClient } from "@video-platform/database";
+const prisma = new PrismaClient();
+
+// Get creator earnings summary
+app.get("/royalty/earnings/:userId", async (req, reply) => {
+  try {
+    const { userId } = req.params as { userId: string };
+    if (!userId) return reply.status(400).send({ error: "userId required" });
+
+    // Get all royalty-related transactions for this creator
+    const transactions = await prisma.pointsTransaction.findMany({
+      where: {
+        userId,
+        type: { in: ["royalty", "stream_earn", "tip_received", "buy_earn", "fiber_payment"] }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+
+    // Get all withdrawals
+    const withdrawals = await prisma.fiberPayoutTask.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+
+    const totalEarned = transactions.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+    const totalWithdrawn = withdrawals
+      .filter(w => w.status === "completed")
+      .reduce((sum, w) => sum + Number(w.amount), 0);
+    const pendingWithdrawal = withdrawals
+      .filter(w => w.status === "pending" || w.status === "processing")
+      .reduce((sum, w) => sum + Number(w.amount), 0);
+
+    return reply.send({
+      userId,
+      totalEarned,
+      totalWithdrawn,
+      pendingWithdrawal,
+      availableBalance: totalEarned - totalWithdrawn - pendingWithdrawal,
+      recentTransactions: transactions.slice(0, 20).map(t => ({
+        id: t.id,
+        type: t.type,
+        amount: Number(t.amount),
+        reason: t.reason,
+        createdAt: t.createdAt,
+      })),
+      recentWithdrawals: withdrawals.slice(0, 10).map(w => ({
+        id: w.id,
+        amount: Number(w.amount),
+        status: w.status,
+        fiberAddress: w.fiberAddress,
+        txHash: w.txHash,
+        createdAt: w.createdAt,
+      })),
+    });
+  } catch (err: any) {
+    return reply.status(500).send({ error: err?.message || "Failed to fetch earnings" });
+  }
+});
+
+// Creator withdrawal request
+app.post("/royalty/withdraw", async (req, reply) => {
+  try {
+    const user = (req as any).user;
+    const userId = user?.sub;
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+    const body = req.body as { amount: number; fiberAddress: string; method?: string };
+
+    if (!body.amount || body.amount <= 0) {
+      return reply.status(400).send({ error: "Amount must be greater than 0" });
+    }
+    if (!body.fiberAddress?.trim()) {
+      return reply.status(400).send({ error: "Fiber/CKB address required" });
+    }
+
+    const MIN_WITHDRAWAL = 100; // minimum 100 points
+    if (body.amount < MIN_WITHDRAWAL) {
+      return reply.status(400).send({ error: `Minimum withdrawal: ${MIN_WITHDRAWAL} PTS` });
+    }
+
+    // Check available balance
+    const earnings = await prisma.pointsTransaction.findMany({
+      where: { userId, type: { in: ["royalty", "stream_earn", "tip_received", "buy_earn"] } },
+    });
+    const pendingPayouts = await prisma.fiberPayoutTask.findMany({
+      where: { userId, status: { in: ["pending", "processing"] } },
+    });
+
+    const totalEarned = earnings.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+    const completedPayouts = await prisma.fiberPayoutTask.findMany({
+      where: { userId, status: "completed" },
+    });
+    const totalWithdrawn = completedPayouts.reduce((sum, w) => sum + Number(w.amount), 0);
+    const pendingAmount = pendingPayouts.reduce((sum, w) => sum + Number(w.amount), 0);
+    const available = totalEarned - totalWithdrawn - pendingAmount;
+
+    if (body.amount > available) {
+      return reply.status(400).send({
+        error: `Insufficient balance. Available: ${available} PTS`,
+        available,
+      });
+    }
+
+    // Create payout task (processed by Fiber payout cron in payment service)
+    const task = await prisma.fiberPayoutTask.create({
+      data: {
+        userId,
+        amount: body.amount,
+        fiberAddress: body.fiberAddress.trim(),
+        status: "pending",
+      },
+    });
+
+    app.log.info({ userId, amount: body.amount, taskId: task.id }, "Withdrawal request created");
+
+    return reply.send({
+      ok: true,
+      withdrawalId: task.id,
+      amount: body.amount,
+      fiberAddress: body.fiberAddress,
+      status: "pending",
+      message: "Withdrawal queued. Will be processed within 30 seconds.",
+    });
+  } catch (err: any) {
+    return reply.status(500).send({ error: err?.message || "Withdrawal failed" });
+  }
+});
+
+// List creator's withdrawal history
+app.get("/royalty/withdrawals", async (req, reply) => {
+  try {
+    const user = (req as any).user;
+    const userId = user?.sub;
+    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+    const withdrawals = await prisma.fiberPayoutTask.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+
+    return reply.send({
+      withdrawals: withdrawals.map(w => ({
+        id: w.id,
+        amount: Number(w.amount),
+        status: w.status,
+        fiberAddress: w.fiberAddress,
+        txHash: w.txHash,
+        errorReason: w.errorReason,
+        createdAt: w.createdAt,
+        updatedAt: w.updatedAt,
+      })),
+    });
+  } catch (err: any) {
+    return reply.status(500).send({ error: err?.message || "Failed to fetch withdrawals" });
+  }
+});
+
+// ============== Start Server ==============
+
 const port = Number(process.env.ROYALTY_PORT || 8094);
 app.listen({ port }).then(() => app.log.info(`Royalty listening on http://localhost:${port}`));
 export default app;

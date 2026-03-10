@@ -15,13 +15,15 @@
 import Fastify from "fastify";
 import { PrismaClient } from "@prisma/client";
 import { register } from "prom-client";
+import { registerSecurityPlugins } from "@video-platform/shared/security/index";
 
 const prisma = new PrismaClient();
 const PORT = parseInt(process.env.PORT || "8105");
 
 const app = Fastify({ logger: true });
 
-// ============== 配置 ==============
+// Apply security (Helmet + CORS + rate limiting)
+registerSecurityPlugins(app, { rateLimit: { max: 200, timeWindow: "1 minute" } });
 
 /** 推荐列表中各来源的比例 */
 const FEED_COMPOSITION = {

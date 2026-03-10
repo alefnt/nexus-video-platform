@@ -240,6 +240,9 @@ export class StreamPaymentHandler {
             // Start per-second tick monitoring
             this.startTickMonitoring();
 
+            // Guard against page close without proper session cleanup
+            this.setupBeforeUnloadGuard();
+
             return true;
         } catch (err: any) {
             this.onStatusChange(`Init failed: ${err?.message || String(err)}`);
@@ -312,7 +315,7 @@ export class StreamPaymentHandler {
             } catch (err: any) {
                 console.error('Tick error:', err);
             }
-        }, 3000); // Tick every 3 seconds for per-second billing (balance between accuracy and server load)
+        }, 1000); // Tick every 1 second for true per-second billing accuracy
     }
 
     async pauseSession() {
@@ -350,8 +353,41 @@ export class StreamPaymentHandler {
         }
     }
 
+    private beforeUnloadHandler: (() => void) | null = null;
+
+    private setupBeforeUnloadGuard() {
+        this.beforeUnloadHandler = () => {
+            // Use sendBeacon for reliable delivery on page close
+            if (this.session) {
+                const actualSeconds = this.playerRef ? Math.floor(this.playerRef.currentTime()) : 0;
+                const jwt = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('vp.jwt') : null;
+                const payload = JSON.stringify({
+                    sessionId: this.session.sessionId,
+                    actualSeconds,
+                });
+                // sendBeacon is fire-and-forget, works even during page unload
+                try {
+                    const gatewayUrl = (globalThis as any).__VP_API_URL__ || 'http://localhost:8080';
+                    navigator.sendBeacon(
+                        `${gatewayUrl}/payment/stream/close`,
+                        new Blob([payload], { type: 'application/json' })
+                    );
+                } catch { }
+            }
+        };
+        window.addEventListener('beforeunload', this.beforeUnloadHandler);
+    }
+
+    private removeBeforeUnloadGuard() {
+        if (this.beforeUnloadHandler) {
+            window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+            this.beforeUnloadHandler = null;
+        }
+    }
+
     cleanup() {
         this.stopTickMonitoring();
+        this.removeBeforeUnloadGuard();
     }
 
     getSession(): StreamPaymentSession | null {

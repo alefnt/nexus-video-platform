@@ -2,6 +2,14 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+rule_files:
+  - "alert-rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
 scrape_configs:
   # Identity Service (API Gateway)
   - job_name: 'identity'
@@ -27,14 +35,74 @@ scrape_configs:
       - targets: ['host.docker.internal:8093']
     metrics_path: '/metrics'
 
+  # Royalty Service
+  - job_name: 'royalty'
+    static_configs:
+      - targets: ['host.docker.internal:8094']
+    metrics_path: '/metrics'
+
+  # NFT Service
+  - job_name: 'nft'
+    static_configs:
+      - targets: ['host.docker.internal:8095']
+    metrics_path: '/metrics'
+
   # Live Service
   - job_name: 'live'
     static_configs:
       - targets: ['host.docker.internal:8096']
     metrics_path: '/metrics'
 
+  # Achievement Service
+  - job_name: 'achievement'
+    static_configs:
+      - targets: ['host.docker.internal:8097']
+    metrics_path: '/metrics'
+
+  # Governance Service
+  - job_name: 'governance'
+    static_configs:
+      - targets: ['host.docker.internal:8098']
+    metrics_path: '/metrics'
+
+  # Bridge Service
+  - job_name: 'bridge'
+    static_configs:
+      - targets: ['host.docker.internal:8099']
+    metrics_path: '/metrics'
+
   # Transcode Service
   - job_name: 'transcode'
     static_configs:
       - targets: ['host.docker.internal:8100']
+    metrics_path: '/metrics'
+
+  # Search Service
+  - job_name: 'search'
+    static_configs:
+      - targets: ['host.docker.internal:8101']
+    metrics_path: '/metrics'
+
+  # Moderation Service
+  - job_name: 'moderation'
+    static_configs:
+      - targets: ['host.docker.internal:8102']
+    metrics_path: '/metrics'
+
+  # Messaging Service
+  - job_name: 'messaging'
+    static_configs:
+      - targets: ['host.docker.internal:8103']
+    metrics_path: '/metrics'
+
+  # Engagement Service
+  - job_name: 'engagement'
+    static_configs:
+      - targets: ['host.docker.internal:8104']
+    metrics_path: '/metrics'
+
+  # Recommendation Service
+  - job_name: 'recommendation'
+    static_configs:
+      - targets: ['host.docker.internal:8105']
     metrics_path: '/metrics'

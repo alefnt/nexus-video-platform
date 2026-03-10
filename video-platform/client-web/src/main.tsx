@@ -19,6 +19,7 @@ import { ccc } from "@ckb-ccc/connector-react";
 import "./index.css";
 import "./i18n";
 import { initWebVitals } from "./lib/monitoring";
+import { initAnalytics } from "./lib/analytics";
 
 import React, { useEffect } from "react";
 import { createRoot } from "react-dom/client";
@@ -36,6 +37,9 @@ import Login from "./pages/Login";
 import MobileJoyID from "./pages/MobileJoyID";
 import TwitterCallback from "./pages/TwitterCallback";
 import GoogleCallback from "./pages/GoogleCallback";
+import TikTokCallback from "./pages/TikTokCallback";
+import YouTubeCallback from "./pages/YouTubeCallback";
+import BilibiliCallback from "./pages/BilibiliCallback";
 import MagicLink from "./pages/MagicLink";
 import Explore from "./pages/Explore";
 import Notifications from "./pages/Notifications";
@@ -47,11 +51,19 @@ const VideoList = React.lazy(() => import("./pages/VideoList"));
 const VideoPlayer = React.lazy(() => import("./pages/VideoPlayer"));
 const VideoFeed = React.lazy(() => import("./pages/VideoFeed"));
 const MusicFeed = React.lazy(() => import("./pages/MusicFeed"));
+const MusicPlaylist = React.lazy(() => import("./pages/MusicPlaylist"));
 const ArticleFeed = React.lazy(() => import("./pages/ArticleFeed"));
+const PlatformBindings = React.lazy(() => import("./pages/PlatformBindings"));
+const AIMusicLab = React.lazy(() => import("./pages/AIMusicLab"));
+const AIArticleLab = React.lazy(() => import("./pages/AIArticleLab"));
+const AIVideoLab = React.lazy(() => import("./pages/AIVideoLab"));
+const MyAITools = React.lazy(() => import("./pages/MyAITools"));
 const CreatorUpload = React.lazy(() => import("./pages/CreatorUpload"));
 const UserCenter = React.lazy(() => import("./pages/UserCenter"));
 const PointsCenter = React.lazy(() => import("./pages/PointsCenter"));
 const StreamPaymentDemo = React.lazy(() => import("./pages/StreamPaymentDemo"));
+const DAOGovernance = React.lazy(() => import("./pages/DAOGovernance"));
+const AIRoyaltyDashboard = React.lazy(() => import("./pages/AIRoyaltyDashboard"));
 const Live = React.lazy(() => import("./pages/Live"));
 const ChannelPage = React.lazy(() => import("./pages/ChannelPage"));
 const LiveStudio = React.lazy(() => import("./pages/LiveStudio"));
@@ -82,9 +94,14 @@ const CreatorPass = React.lazy(() => import("./pages/CreatorPass"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const ArticleEditor = React.lazy(() => import("./pages/ArticleEditor"));
 const NFTMarketplace = React.lazy(() => import("./pages/NFTMarketplace"));
+const AISettings = React.lazy(() => import("./pages/AISettings"));
+const AIToolMarketplace = React.lazy(() => import("./pages/AIToolMarketplace"));
+const AIToolSubmit = React.lazy(() => import("./pages/AIToolSubmit"));
 
 import { ToastProvider } from "./components/Toast";
 import { getApiClient } from "./lib/apiClient";
+import { GlobalMusicProvider } from "./contexts/GlobalMusicContext";
+const GlobalMiniPlayer = React.lazy(() => import("./components/GlobalMiniPlayer"));
 import "./styles/fun.css";
 
 // React Query (唯一缓存方案)
@@ -204,6 +221,7 @@ const PageLoader = () => (
 );
 
 const WalletBindPrompt = React.lazy(() => import("./components/WalletBindPrompt"));
+const OnboardingTour = React.lazy(() => import("./components/OnboardingTour"));
 
 /**
  * Root layout — minimal shell with progress bar, SW handler, route tracker.
@@ -229,6 +247,14 @@ function RootLayout() {
           <WalletBindPrompt />
         </React.Suspense>
       )}
+      {/* Global persistent music mini-player */}
+      <React.Suspense fallback={null}>
+        <GlobalMiniPlayer />
+      </React.Suspense>
+      {/* Onboarding tour for first-time users */}
+      <React.Suspense fallback={null}>
+        <OnboardingTour />
+      </React.Suspense>
     </>
   );
 }
@@ -258,6 +284,9 @@ const router = createBrowserRouter(
         <Route path="/joyid/mobile-callback" element={<MobileJoyID />} />
         <Route path="/auth/twitter/callback" element={<TwitterCallback />} />
         <Route path="/auth/google/callback" element={<GoogleCallback />} />
+        <Route path="/auth/tiktok/callback" element={<TikTokCallback />} />
+        <Route path="/auth/youtube/callback" element={<YouTubeCallback />} />
+        <Route path="/auth/bilibili/callback" element={<BilibiliCallback />} />
       </Route>
 
       {/* ====== Top Nav layout pages (no sidebar, matching concept design) ====== */}
@@ -275,13 +304,23 @@ const router = createBrowserRouter(
         <Route path="/home" element={<Home />} />
         <Route path="/search" element={<SearchResults />} />
         <Route path="/notifications" element={<Notifications />} />
+        <Route path="/music-v2" element={<MusicPlaylist />} />
+        <Route path="/settings/platforms" element={<PlatformBindings />} />
+        <Route path="/settings/ai" element={<AISettings />} />
+        <Route path="/studio/ai/music" element={<AIMusicLab />} />
+        <Route path="/studio/ai/article" element={<AIArticleLab />} />
+        <Route path="/studio/ai/video" element={<AIVideoLab />} />
+        <Route path="/ai-tools" element={<AIToolMarketplace />} />
+        <Route path="/ai-tools/submit" element={<AIToolSubmit />} />
+        <Route path="/my-ai-tools" element={<MyAITools />} />
 
         {/* User & Economy */}
         <Route path="/user" element={<UserCenter />} />
         <Route path="/points" element={<PointsCenter />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/achievements" element={<Achievements />} />
-        <Route path="/dao" element={<DAOVoting />} />
+        <Route path="/dao" element={<DAOGovernance />} />
+        <Route path="/creator/royalties" element={<AIRoyaltyDashboard />} />
         <Route path="/wheel" element={<DailyWheel />} />
         <Route path="/fragments" element={<FragmentGallery />} />
 
@@ -344,6 +383,7 @@ async function tryDevAutoLogin() {
 (async () => {
   try { await tryDevAutoLogin(); } catch { }
   initWebVitals();
+  initAnalytics();
 
   const container = document.getElementById("root")!;
   // Reuse existing root during Vite HMR to avoid "createRoot on same container" warning
@@ -364,10 +404,12 @@ async function tryDevAutoLogin() {
         ]}
       >
         <QueryClientProvider client={queryClient}>
-          <ToastProvider>
-            <GlobalToast />
-            <RouterProvider router={router} />
-          </ToastProvider>
+          <GlobalMusicProvider>
+            <ToastProvider>
+              <GlobalToast />
+              <RouterProvider router={router} />
+            </ToastProvider>
+          </GlobalMusicProvider>
         </QueryClientProvider>
       </ccc.Provider>
     </ErrorBoundary>

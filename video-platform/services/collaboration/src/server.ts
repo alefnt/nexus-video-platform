@@ -11,12 +11,14 @@
 import Fastify from "fastify";
 import { PrismaClient } from "@prisma/client";
 import { register } from "prom-client";
+import { registerSecurityPlugins } from "@video-platform/shared/security/index";
 
 const prisma = new PrismaClient();
 const PORT = parseInt(process.env.PORT || "8106");
 const app = Fastify({ logger: true });
 
-// ============== 类型 ==============
+// Apply security (Helmet + CORS + rate limiting)
+registerSecurityPlugins(app, { rateLimit: { max: 100, timeWindow: "1 minute" } });
 
 interface CollabProject {
     id: string;

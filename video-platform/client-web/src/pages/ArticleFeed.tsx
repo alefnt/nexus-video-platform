@@ -163,41 +163,47 @@ const MOCK_ARTICLES: any[] = [
     }
 ];
 
-// --- Mock Player for Stream Payment Compatibility ---
-class TextReaderPlayer {
-    private currentTimeVal = 0;
-    private timer: any = null;
-    private eventHandlers: Record<string, Function[]> = {};
+// --- Chapter Parser ---
+interface Chapter {
+    title: string;
+    content: string;
+    index: number;
+}
 
-    currentTime(val?: number) {
-        if (typeof val === 'number') {
-            this.currentTimeVal = val;
-            return;
+function parseChapters(text: string): Chapter[] {
+    if (!text) return [{ title: 'Full Text', content: '(No content available)', index: 0 }];
+    // Split by ## headings (level 2 markdown headers)
+    const parts = text.split(/^##\s+/m);
+    if (parts.length <= 1) {
+        // No ## headings — try # headings
+        const h1Parts = text.split(/^#\s+/m);
+        if (h1Parts.length <= 1) {
+            // No headings at all — treat as single chapter
+            return [{ title: 'Full Text', content: text.trim(), index: 0 }];
         }
-        return this.currentTimeVal;
+        return h1Parts.filter(p => p.trim()).map((part, i) => {
+            const lines = part.split('\n');
+            const title = lines[0]?.trim() || `Chapter ${i + 1}`;
+            const content = lines.slice(1).join('\n').trim();
+            return { title, content, index: i };
+        });
     }
-    pause() {
-        if (this.timer) clearInterval(this.timer);
-        this.timer = null;
+    const chapters: Chapter[] = [];
+    // First part before any ## heading
+    if (parts[0].trim()) {
+        const firstLines = parts[0].trim().split('\n');
+        const firstTitle = firstLines[0]?.startsWith('#') ? firstLines[0].replace(/^#+\s*/, '').trim() : 'Preface';
+        const firstContent = firstLines[0]?.startsWith('#') ? firstLines.slice(1).join('\n').trim() : parts[0].trim();
+        chapters.push({ title: firstTitle, content: firstContent, index: 0 });
     }
-    play() {
-        if (this.timer) return;
-        this.timer = setInterval(() => {
-            this.currentTimeVal += 1;
-        }, 1000);
+    // Remaining ## sections
+    for (let i = 1; i < parts.length; i++) {
+        const lines = parts[i].split('\n');
+        const title = lines[0]?.trim() || `Chapter ${chapters.length + 1}`;
+        const content = lines.slice(1).join('\n').trim();
+        chapters.push({ title, content, index: chapters.length });
     }
-    on(event: string, cb: Function) {
-        if (!this.eventHandlers[event]) this.eventHandlers[event] = [];
-        this.eventHandlers[event].push(cb);
-    }
-    trigger(event: string) {
-        if (this.eventHandlers[event]) this.eventHandlers[event].forEach(cb => cb());
-    }
-    dispose() {
-        this.pause();
-        this.eventHandlers = {};
-        this.trigger('dispose');
-    }
+    return chapters.length > 0 ? chapters : [{ title: 'Full Text', content: text.trim(), index: 0 }];
 }
 
 function ArticleContentFetcher({ article }: { article: VideoMeta }) {
@@ -252,41 +258,65 @@ export default function ArticleFeed() {
     const [showPaymentOverlay, setShowPaymentOverlay] = useState(false);
     const [language, setLanguage] = useState<'en' | 'zh' | 'es'>('en');
     const [readMode, setReadMode] = useState<'scroll' | 'paged' | 'focus'>('scroll');
-    const textPlayerRef = React.useRef<TextReaderPlayer | null>(null);
-    const streamHandlerRef = React.useRef<any>(null);
+    // Per-chapter unlock state
+    const [unlockedChapters, setUnlockedChapters] = useState<Set<number>>(new Set([0])); // Chapter 0 always free
+    const [unlockingChapter, setUnlockingChapter] = useState<number | null>(null);
+    const [allUnlocked, setAllUnlocked] = useState(false);
 
-    // 统一支付 Hook
+    // 统一支付 Hook — used for 'buy once' (unlock entire article)
     const payment = usePayment({
         contentId: selectedArticle?.id || '',
         contentType: 'article',
         buyOncePrice: (selectedArticle as any)?.pointsPrice || 100,
-        streamPricePerMinute: selectedArticle?.streamPricePerMinute || 1,
-        priceMode: 'both',
-        durationSeconds: (() => {
-            const wordCount = (selectedArticle?.textContent || "").split(/\s+/).length;
-            return Math.max(1, Math.ceil(wordCount / 200)) * 60;
-        })(),
+        streamPricePerMinute: (selectedArticle as any)?.streamPricePerMinute || 1,
+        priceMode: 'buy_once',
+        durationSeconds: 600,
         onBuyOnceSuccess: () => {
+            setAllUnlocked(true);
             setReadingArticle(selectedArticle);
             setSelectedArticle(null);
             setShowPaymentOverlay(false);
-        },
-        onStreamStarted: (handler) => {
-            streamHandlerRef.current = handler;
-            const player = new TextReaderPlayer();
-            textPlayerRef.current = player;
-            handler.setPlayer(player);
-            player.play();
-            setReadingArticle(selectedArticle);
-            setSelectedArticle(null);
-            setShowPaymentOverlay(false);
-        },
-        onStreamPause: () => {
-            if (textPlayerRef.current) textPlayerRef.current.pause();
         },
         onStatusChange: (msg) => setStatus(msg),
         enabled: !!selectedArticle,
     });
+
+    // Per-chapter unlock handler
+    const unlockChapter = async (chapterIndex: number, pricePerChapter: number) => {
+        const jwt = typeof window !== 'undefined' ? sessionStorage.getItem('vp.jwt') : null;
+        if (!jwt) { alert('Please login first.'); return; }
+
+        setUnlockingChapter(chapterIndex);
+        setStatus(`Unlocking chapter ${chapterIndex + 1}...`);
+
+        try {
+            const apiClient = getApiClient();
+            apiClient.setJWT(jwt);
+            await apiClient.post('/payment/points/deduct', {
+                amount: pricePerChapter,
+                reason: `Unlock Chapter ${chapterIndex + 1} of ${readingArticle?.title || 'article'}`,
+            });
+            setUnlockedChapters(prev => new Set([...prev, chapterIndex]));
+            setStatus(`Chapter ${chapterIndex + 1} unlocked! (${pricePerChapter} PTS)`);
+            setTimeout(() => setStatus(''), 3000);
+        } catch (err: any) {
+            // Demo mode fallback
+            console.warn('Chapter unlock API failed, demo unlock:', err);
+            setUnlockedChapters(prev => new Set([...prev, chapterIndex]));
+            setStatus(`Demo: Chapter ${chapterIndex + 1} unlocked`);
+            setTimeout(() => setStatus(''), 3000);
+        } finally {
+            setUnlockingChapter(null);
+        }
+    };
+
+    // Reset unlock state when reading a new article
+    useEffect(() => {
+        if (readingArticle) {
+            setUnlockedChapters(new Set([0])); // First chapter always free
+            setAllUnlocked(false);
+        }
+    }, [readingArticle?.id]);
 
     // Filters
     const [category, setCategory] = useState("All");
@@ -307,11 +337,7 @@ export default function ArticleFeed() {
     const GENRES = ["All", "Novel", "Sci-Fi", "Fantasy", "Mystery", "History", "Tech", "Finance", "Life", "Blog", "Essay", "Tutorial", "Documentation", "Philosophy", "Psychology", "News"];
 
     useEffect(() => {
-        // ... (Cleanup stream handler on unmount)
-        return () => {
-            if (streamHandlerRef.current) streamHandlerRef.current.cleanup();
-            if (textPlayerRef.current) textPlayerRef.current.dispose();
-        };
+        return () => { /* cleanup */ };
     }, []);
 
     // ... (Filter Effect & Logic kept same)
@@ -468,8 +494,8 @@ export default function ArticleFeed() {
                                         {shelf.map((article, idx) => {
                                             const priceMode = (article as any).priceMode || 'free';
                                             const pointsPrice = (article as any).pointsPrice || 0;
-                                            const streamPrice = article.streamPricePerMinute || 0;
-                                            const isPaid = priceMode !== 'free' || pointsPrice > 0 || streamPrice > 0;
+                                            const chapterPrice = (article as any).streamPricePerMinute || 0; // reused field as pricePerChapter
+                                            const isPaid = priceMode !== 'free' || pointsPrice > 0 || chapterPrice > 0;
 
                                             // Determine cover styles based on index to mix it up
                                             const styleIdx = (idx + sIdx) % 3;
@@ -483,7 +509,6 @@ export default function ArticleFeed() {
                                             return (
                                                 <div key={article.id} className="book-item group" onClick={() => {
                                                     if (isPaid && !buying) {
-                                                        // LOGIN GATE: check if user is logged in before showing payment
                                                         const jwt = typeof window !== 'undefined' ? sessionStorage.getItem('vp.jwt') : null;
                                                         if (!jwt) {
                                                             alert('Please login first to access paid content.');
@@ -520,7 +545,7 @@ export default function ArticleFeed() {
                                                             <button className="bg-nexusCyan text-black font-bold uppercase text-[10px] tracking-widest px-4 py-2 rounded-full mb-2 shadow-[0_0_15px_rgba(34,211,238,0.5)] border border-nexusCyan">
                                                                 {isPaid ? 'UNLOCK' : 'READ'}
                                                             </button>
-                                                            {isPaid && streamPrice > 0 && <span className="text-[9px] font-mono text-white/70">(${streamPrice} PTS/m)</span>}
+                                                            {isPaid && chapterPrice > 0 && <span className="text-[9px] font-mono text-white/70">({chapterPrice} PTS/chapter)</span>}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -542,7 +567,7 @@ export default function ArticleFeed() {
                             )}
                         </div>
                     ) : (
-                        /* READER MODE (Preserved from existing, stylized slightly to match) */
+                        /* READER MODE — Per-Chapter Billing */
                         <div className="w-full max-w-4xl mx-auto glass-panel rounded-2xl p-6 md:p-12 mb-12">
                             <div className="flex justify-between items-center mb-8 border-b border-white/10 pb-6">
                                 <button className="flex items-center gap-2 text-nexusCyan hover:text-white transition-colors" onClick={() => setReadingArticle(null)}>
@@ -598,32 +623,131 @@ export default function ArticleFeed() {
                                 </div>
 
                                 {status && <div className="text-center text-nexusCyan font-mono bg-nexusCyan/10 p-2 rounded mb-8">{status}</div>}
-                                {readingArticle.textContent ? (
-                                    <div className="whitespace-pre-wrap">{language === 'zh' && (readingArticle as any).textContent_cn ? (readingArticle as any).textContent_cn : readingArticle.textContent}</div>
-                                ) : (
-                                    <ArticleContentFetcher article={readingArticle} />
-                                )}
+
+                                {/* Chapter-by-Chapter Reader */}
+                                {(() => {
+                                    const textSource = language === 'zh' && (readingArticle as any).textContent_cn
+                                        ? (readingArticle as any).textContent_cn
+                                        : readingArticle.textContent;
+                                    if (!textSource) return <ArticleContentFetcher article={readingArticle} />;
+
+                                    const chapters = parseChapters(textSource);
+                                    const pricePerChapter = (readingArticle as any).streamPricePerMinute || 0;
+                                    const isPaidContent = pricePerChapter > 0;
+
+                                    return (
+                                        <div className="space-y-8">
+                                            {/* Chapter Navigation */}
+                                            {chapters.length > 1 && (
+                                                <div className="not-prose bg-white/5 rounded-xl p-4 border border-white/10 mb-8">
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <h3 className="text-sm font-mono text-nexusCyan uppercase tracking-widest">Table of Contents ({chapters.length} chapters)</h3>
+                                                        {isPaidContent && !allUnlocked && (
+                                                            <span className="text-[10px] font-mono text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded border border-yellow-400/30">
+                                                                {pricePerChapter} PTS/chapter • Ch.1 free
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {chapters.map((ch, i) => {
+                                                            const isUnlocked = allUnlocked || !isPaidContent || unlockedChapters.has(i);
+                                                            return (
+                                                                <button
+                                                                    key={i}
+                                                                    onClick={() => {
+                                                                        const el = document.getElementById(`chapter-${i}`);
+                                                                        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                                    }}
+                                                                    className={`px-3 py-1 rounded text-xs font-mono transition-all ${isUnlocked
+                                                                        ? 'bg-nexusCyan/10 text-nexusCyan border border-nexusCyan/30 hover:bg-nexusCyan/20'
+                                                                        : 'bg-white/5 text-gray-500 border border-white/10 cursor-pointer hover:border-yellow-400/50 hover:text-yellow-400'
+                                                                        }`}
+                                                                >
+                                                                    {isUnlocked ? `Ch.${i + 1}` : `🔒 Ch.${i + 1}`}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Render Chapters */}
+                                            {chapters.map((chapter, i) => {
+                                                const isUnlocked = allUnlocked || !isPaidContent || unlockedChapters.has(i);
+                                                return (
+                                                    <div key={i} id={`chapter-${i}`} className="scroll-mt-8">
+                                                        {/* Chapter Header */}
+                                                        {chapters.length > 1 && (
+                                                            <div className="not-prose flex items-center gap-3 mb-4 pb-2 border-b border-white/10">
+                                                                <span className="text-nexusCyan font-mono text-xs bg-nexusCyan/10 px-2 py-1 rounded">
+                                                                    Ch.{i + 1}
+                                                                </span>
+                                                                <h2 className="text-xl font-serif font-bold text-white">{chapter.title}</h2>
+                                                                {i === 0 && isPaidContent && <span className="text-[10px] text-green-400 bg-green-400/10 px-2 py-0.5 rounded border border-green-400/30">FREE</span>}
+                                                            </div>
+                                                        )}
+
+                                                        {isUnlocked ? (
+                                                            <div className="whitespace-pre-wrap">{chapter.content}</div>
+                                                        ) : (
+                                                            /* Locked Chapter */
+                                                            <div className="not-prose relative">
+                                                                <div className="whitespace-pre-wrap text-gray-500 line-clamp-3 blur-sm select-none">
+                                                                    {chapter.content.slice(0, 200)}...
+                                                                </div>
+                                                                <div className="mt-4 p-6 bg-gradient-to-b from-white/5 to-transparent rounded-xl border border-white/10 text-center">
+                                                                    <div className="text-2xl mb-2">🔒</div>
+                                                                    <p className="text-white font-bold mb-1">Chapter {i + 1}: {chapter.title}</p>
+                                                                    <p className="text-gray-400 text-sm mb-4">Unlock this chapter for {pricePerChapter} PTS</p>
+                                                                    <button
+                                                                        onClick={() => unlockChapter(i, pricePerChapter)}
+                                                                        disabled={unlockingChapter === i}
+                                                                        className="bg-nexusCyan text-black font-bold px-6 py-2 rounded-full text-sm hover:bg-white transition-all shadow-[0_0_15px_rgba(34,211,238,0.4)] disabled:opacity-50"
+                                                                    >
+                                                                        {unlockingChapter === i ? 'Unlocking...' : `Unlock for ${pricePerChapter} PTS`}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* Stream Payment Modal overlay */}
+                {/* Payment Modal — Buy Once (unlock all) or Read Per-Chapter */}
                 {showPaymentOverlay && selectedArticle && (
                     <PaymentModeSelector
-                        video={{ ...selectedArticle, buyOncePrice: (selectedArticle as any).pointsPrice || 100 }}
-                        onSelect={(mode) => {
+                        video={{ ...selectedArticle, buyOncePrice: (selectedArticle as any).pointsPrice || 100, streamPricePerMinute: (selectedArticle as any).streamPricePerMinute || 2 }}
+                        contentType="article"
+                        onSelect={async (mode) => {
                             if (mode === 'buy_once') {
+                                // Buy once = unlock entire article
+                                try {
+                                    await payment.handleBuyOnce();
+                                } catch {
+                                    // Demo fallback
+                                    setAllUnlocked(true);
+                                    setReadingArticle(selectedArticle);
+                                    setSelectedArticle(null);
+                                    setShowPaymentOverlay(false);
+                                }
+                            } else if (mode === 'stream') {
+                                // "Stream" = per-chapter (first chapter free, unlock rest as you read)
                                 setReadingArticle(selectedArticle);
                                 setSelectedArticle(null);
                                 setShowPaymentOverlay(false);
-                            } else if (mode === 'stream') {
-                                payment.handleStartStream();
                             } else {
                                 setShowPaymentOverlay(false);
+                                setSelectedArticle(null);
                             }
                         }}
-                        onClose={() => setShowPaymentOverlay(false)}
+                        onClose={() => { setShowPaymentOverlay(false); setSelectedArticle(null); }}
                     />
                 )}
             </div>

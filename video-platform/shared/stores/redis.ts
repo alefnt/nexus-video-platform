@@ -412,6 +412,72 @@ export async function deleteGoogleOAuthState(state: string): Promise<void> {
     await redis.del(`identity:google:${state}`);
 }
 
+// TikTok OAuth State 存储
+export async function setTikTokOAuthState(
+    state: string,
+    data: { codeVerifier: string; dfp: string; issuedAt: number }
+): Promise<void> {
+    const redis = getRedis();
+    await redis.setex(`identity:tiktok:${state}`, OAUTH_TTL_SEC, JSON.stringify(data));
+}
+
+export async function getTikTokOAuthState(
+    state: string
+): Promise<{ codeVerifier: string; dfp: string; issuedAt: number } | null> {
+    const redis = getRedis();
+    const data = await redis.get(`identity:tiktok:${state}`);
+    return data ? JSON.parse(data) : null;
+}
+
+export async function deleteTikTokOAuthState(state: string): Promise<void> {
+    const redis = getRedis();
+    await redis.del(`identity:tiktok:${state}`);
+}
+
+// YouTube OAuth State 存储
+export async function setYouTubeOAuthState(
+    state: string,
+    data: { codeVerifier: string; dfp: string; issuedAt: number }
+): Promise<void> {
+    const redis = getRedis();
+    await redis.setex(`identity:youtube:${state}`, OAUTH_TTL_SEC, JSON.stringify(data));
+}
+
+export async function getYouTubeOAuthState(
+    state: string
+): Promise<{ codeVerifier: string; dfp: string; issuedAt: number } | null> {
+    const redis = getRedis();
+    const data = await redis.get(`identity:youtube:${state}`);
+    return data ? JSON.parse(data) : null;
+}
+
+export async function deleteYouTubeOAuthState(state: string): Promise<void> {
+    const redis = getRedis();
+    await redis.del(`identity:youtube:${state}`);
+}
+
+// Bilibili OAuth State 存储
+export async function setBilibiliOAuthState(
+    state: string,
+    data: { codeVerifier: string; dfp: string; issuedAt: number }
+): Promise<void> {
+    const redis = getRedis();
+    await redis.setex(`identity:bilibili:${state}`, OAUTH_TTL_SEC, JSON.stringify(data));
+}
+
+export async function getBilibiliOAuthState(
+    state: string
+): Promise<{ codeVerifier: string; dfp: string; issuedAt: number } | null> {
+    const redis = getRedis();
+    const data = await redis.get(`identity:bilibili:${state}`);
+    return data ? JSON.parse(data) : null;
+}
+
+export async function deleteBilibiliOAuthState(state: string): Promise<void> {
+    const redis = getRedis();
+    await redis.del(`identity:bilibili:${state}`);
+}
+
 // ============== API 响应缓存 ==============
 
 // 缓存前缀常量

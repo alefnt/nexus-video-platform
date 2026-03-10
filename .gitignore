@@ -38,6 +38,29 @@ video-platform/client-web/public/videos/samples/
 video-platform/client-web/dist/
 video-platform/client-mobile/dist/
 
+# Large media files (mock videos, music, text — keep locally, not pushed)
+*.mp4
+*.mp3
+*.wav
+*.flac
+*.avi
+*.mkv
+*.mov
+*.base64
+*.base64mp4
+client-web/public/videos/
+video-platform/client-web/public/videos/
+sample_videos/
+video-platform/sample_videos/
+
+# Binary/runtime files
+*.exe
+*.dll
+*.so
+*.dylib
+fiber-node/
+video-platform/fiber-node/
+
 # Playwright outputs
 playwright-report/
 blob-report/
@@ -47,6 +70,15 @@ blob-report/
 *.7z
 *.tar
 *.gz
+
+# AI data
+.ai-data/
+video-platform/.ai-data/
+
+# Allow .env.example templates (override .env* rule above)
+!*.env.example
+!*.env.production.example
+!*.env.production.template
 
 #Ignore vscode AI rules
 .github\instructions\codacy.instructions.md

@@ -7,6 +7,8 @@ import { Play, Pause, SkipBack, SkipForward, Disc, Music, Search, Mic2, X, Lock 
 import PaymentOverlay from '../components/PaymentOverlay';
 import PaymentModeSelector from '../components/PaymentModeSelector';
 import { usePayment } from '../hooks/usePayment';
+import { useGlobalMusic } from '../contexts/GlobalMusicContext';
+import type { GlobalTrack } from '../contexts/GlobalMusicContext';
 import '../styles/fun.css';
 import '../styles/music.css';
 
@@ -44,6 +46,7 @@ const parseLrc = (lrc: string): LrcLine[] => {
 
 export default function MusicFeed() {
     const navigate = useNavigate();
+    const globalMusic = useGlobalMusic();
     const [tracks, setTracks] = useState<VideoMeta[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentTrack, setCurrentTrack] = useState<VideoMeta | null>(null);
@@ -67,6 +70,29 @@ export default function MusicFeed() {
     const [page, setPage] = useState(1);
 
     const GENRES = ["All", "Pop", "Rock", "Lo-Fi", "Jazz", "Electronic", "Classical", "Hip Hop", "R&B", "Podcast", "Audiobook", "AI Music"];
+
+    // Push playlist to global context once tracks are loaded
+    useEffect(() => {
+        if (tracks.length > 0) {
+            const globalPlaylist = tracks.map(t => ({
+                id: t.id,
+                title: t.title,
+                artist: t.description || t.creatorBitDomain || 'Unknown',
+                coverUrl: t.posterUrl,
+                audioUrl: t.cdnUrl,
+            }));
+            globalMusic.setPlaylist(globalPlaylist);
+        }
+    }, [tracks]);
+
+    // Sync isPlaying and currentTime from global context
+    useEffect(() => {
+        setIsPlaying(globalMusic.isPlaying);
+    }, [globalMusic.isPlaying]);
+
+    useEffect(() => {
+        setCurrentTime(globalMusic.currentTime);
+    }, [globalMusic.currentTime]);
 
     // Initialize
     useEffect(() => {
@@ -121,9 +147,10 @@ export default function MusicFeed() {
         setLrcLines([{ time: 0, text: "(Lyrics not available for this track)" }]);
     };
 
-    // Fallback Data
+    // Fallback Data — synced with MusicPlaylist.tsx
     function getFallbackMusic() {
         return [
+            // ── Josh Woodward (CC-BY) ──────────────────────────
             {
                 id: "jw-1",
                 title: "I Want To Destroy Something Beautiful",
@@ -135,59 +162,130 @@ export default function MusicFeed() {
                 createdAt: new Date().toISOString()
             },
             {
-                id: "os-1",
-                title: "Impact Moderato",
-                description: "Kevin MacLeod - Open Source",
-                creatorBitDomain: "kevin.bit",
-                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 180,
-                cdnUrl: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Impact%20Moderato.mp3",
+                id: "jw-2",
+                title: "Already There",
+                description: "Josh Woodward",
+                creatorBitDomain: "josh.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 233,
+                cdnUrl: "https://www.joshwoodward.com/mp3/JoshWoodward-AlreadyThere.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80",
+                createdAt: new Date().toISOString()
+            },
+            {
+                id: "jw-3",
+                title: "Swansong",
+                description: "Josh Woodward",
+                creatorBitDomain: "josh.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 258,
+                cdnUrl: "https://www.joshwoodward.com/mp3/JoshWoodward-Swansong.mp3",
                 posterUrl: "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=400&q=80",
                 createdAt: new Date().toISOString()
             },
             {
-                id: "os-2",
-                title: "Lofi Study Session",
-                description: "Relaxing Beats",
-                creatorBitDomain: "chill.bit",
-                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 240,
-                cdnUrl: "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Elisions.mp3",
+                id: "jw-4",
+                title: "Cherubs",
+                description: "Josh Woodward",
+                creatorBitDomain: "josh.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 188,
+                cdnUrl: "https://www.joshwoodward.com/mp3/JoshWoodward-Cherubs.mp3",
                 posterUrl: "https://images.unsplash.com/photo-1514525253440-b393452e8d2e?w=400&q=80",
                 createdAt: new Date().toISOString()
             },
+            // ── Kevin MacLeod (CC-BY) ──────────────────────────
             {
-                id: "cn-1",
-                title: "Mojito",
-                description: "Jay Chou",
-                creatorBitDomain: "jaychou.bit",
-                creatorCkbAddress: "0x0", priceUSDI: "10", durationSeconds: 185,
-                cdnUrl: "https://www.joshwoodward.com/mp3/JoshWoodward-IWantToDestroySomethingBeautiful.mp3", // Mock URL
+                id: "km-1",
+                title: "Impact Moderato",
+                description: "Kevin MacLeod",
+                creatorBitDomain: "kevin.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 180,
+                cdnUrl: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Impact%20Moderato.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&q=80",
+                createdAt: new Date().toISOString()
+            },
+            {
+                id: "km-2",
+                title: "Scheming Weasel (faster version)",
+                description: "Kevin MacLeod",
+                creatorBitDomain: "kevin.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 120,
+                cdnUrl: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Scheming%20Weasel%20%28faster%20version%29.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400&q=80",
+                createdAt: new Date().toISOString()
+            },
+            {
+                id: "km-3",
+                title: "Carefree",
+                description: "Kevin MacLeod",
+                creatorBitDomain: "kevin.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 154,
+                cdnUrl: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Carefree.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1506157786151-b8491531f063?w=400&q=80",
+                createdAt: new Date().toISOString()
+            },
+            // ── Free Music Archive (CC) ────────────────────────
+            {
+                id: "fma-1",
+                title: "Elisions",
+                description: "Chad Crouch",
+                creatorBitDomain: "chill.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 240,
+                cdnUrl: "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Elisions.mp3",
                 posterUrl: "https://images.unsplash.com/photo-1535905557558-afc4877a26fc?w=400&q=80",
+                createdAt: new Date().toISOString()
+            },
+            // ── Premium (paid) tracks ──────────────────────────
+            {
+                id: "premium-1",
+                title: "Neon Streets",
+                description: "CyberSynth",
+                creatorBitDomain: "cyber.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "10", durationSeconds: 250,
+                cdnUrl: "https://www.joshwoodward.com/mp3/JoshWoodward-LetItIn.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400&q=80",
                 createdAt: new Date().toISOString(),
                 pointsPrice: 50,
                 priceMode: 'both' as const,
                 streamPricePerMinute: 10
             },
             {
-                id: "cn-2",
-                title: "夜空中最亮的...",
-                description: "Escape Plan",
-                creatorBitDomain: "escapeplan.bit",
-                creatorCkbAddress: "0x0", priceUSDI: "0", durationSeconds: 250,
-                cdnUrl: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Impact%20Moderato.mp3", // Mock URL
-                posterUrl: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400&q=80",
-                createdAt: new Date().toISOString()
+                id: "premium-2",
+                title: "Midnight Protocol",
+                description: "Digital Ghost",
+                creatorBitDomain: "ghost.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "8", durationSeconds: 210,
+                cdnUrl: "https://www.joshwoodward.com/mp3/JoshWoodward-Airplane.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1555680202-c86f0e12f086?w=400&q=80",
+                createdAt: new Date().toISOString(),
+                pointsPrice: 40,
+                priceMode: 'both' as const,
+                streamPricePerMinute: 8
             },
             {
-                id: "cn-3",
-                title: "情非得已",
-                description: "Harlem Yu",
-                creatorBitDomain: "harlem.bit",
-                creatorCkbAddress: "0x0", priceUSDI: "5", durationSeconds: 215,
-                cdnUrl: "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Elisions.mp3", // Mock URL
-                posterUrl: "https://images.unsplash.com/photo-1459749411177-0473ef716175?w=400&q=80",
+                id: "premium-3",
+                title: "Dawn Chorus",
+                description: "Ambient Waves",
+                creatorBitDomain: "ambient.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "5", durationSeconds: 300,
+                cdnUrl: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Perspective.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=400&q=80",
                 createdAt: new Date().toISOString(),
-                pointsPrice: 20
-            }
+                pointsPrice: 30,
+                priceMode: 'both' as const,
+                streamPricePerMinute: 5
+            },
+            {
+                id: "premium-4",
+                title: "Zero Gravity",
+                description: "SpaceSync",
+                creatorBitDomain: "space.bit",
+                creatorCkbAddress: "0x0", priceUSDI: "12", durationSeconds: 195,
+                cdnUrl: "https://www.joshwoodward.com/mp3/JoshWoodward-SoFar.mp3",
+                posterUrl: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=400&q=80",
+                createdAt: new Date().toISOString(),
+                pointsPrice: 60,
+                priceMode: 'both' as const,
+                streamPricePerMinute: 12
+            },
         ] as VideoMeta[];
     }
 
@@ -214,13 +312,12 @@ export default function MusicFeed() {
             setPayStatus('Payment Successful! Unlocking...');
             setTimeout(() => {
                 setPayStatus('');
-                enterPlayer(currentTrack!, true);
-            }, 1000);
+                if (currentTrack) enterPlayer(currentTrack, true);
+            }, 800);
         },
         onStreamStarted: (handler) => {
             streamHandlerRef.current = handler;
             setNeedPurchase(false);
-            // Audio adapter for StreamPaymentHandler
             const playerAdapter = {
                 currentTime: (val?: number) => {
                     if (typeof val === 'number' && audioRef.current) {
@@ -238,7 +335,7 @@ export default function MusicFeed() {
                 dispose: () => { }
             };
             handler.setPlayer(playerAdapter);
-            enterPlayer(currentTrack!, true);
+            if (currentTrack) enterPlayer(currentTrack, true);
         },
         onStreamPause: () => {
             setIsPlaying(false);
@@ -288,15 +385,29 @@ export default function MusicFeed() {
 
         if (isNew) {
             setCurrentTrack(track);
-            setIsPlaying(false); // MANUAL PLAY ONLY
+            setIsPlaying(false);
             setNeedPurchase(false);
             setView('player');
+
+            const audioUrl = track.cdnUrl || '';
+            const globalPlaylist: GlobalTrack[] = tracks.map(t => ({
+                id: t.id,
+                title: t.title,
+                artist: t.description || t.creatorBitDomain || 'Unknown',
+                coverUrl: t.posterUrl,
+                audioUrl: t.cdnUrl || '',
+            }));
+            const globalTrack: GlobalTrack = {
+                id: track.id,
+                title: track.title,
+                artist: track.description || track.creatorBitDomain || 'Unknown',
+                coverUrl: track.posterUrl,
+                audioUrl,
+            };
+            globalMusic.loadTrack(globalTrack, globalPlaylist);
         } else if (view === 'shelf') {
             setView('player');
         }
-
-        // Fetch stream URL pattern (kept from original)
-        // In real flow, verify access here again
     };
 
     // Existing "loadTrack" logic is now split or deprecated in favor of explicit flow
@@ -379,13 +490,37 @@ export default function MusicFeed() {
     };
 
     const processPayment = async (type: 'buy_once' | 'stream') => {
-        if (pendingTrack) setCurrentTrack(pendingTrack);
-        if (type === 'buy_once') {
-            await payment.handleBuyOnce();
-        } else {
-            await payment.handleStartStream();
-        }
+        if (!pendingTrack) return;
+
+        // Set track FIRST so usePayment hook gets correct contentId on re-render
+        setCurrentTrack(pendingTrack);
         setShowPaymentChoice(false);
+
+        // Wait TWO frames for React to re-render and usePayment to pick up new contentId
+        await new Promise(r => setTimeout(r, 150));
+
+        if (type === 'buy_once') {
+            try {
+                await payment.handleBuyOnce();
+            } catch (err: any) {
+                console.warn('Payment API failed, unlocking in demo mode:', err);
+                // Demo fallback: if payment service is down, still unlock the track
+                setPayStatus('Demo mode: Track unlocked (payment service unavailable)');
+                setNeedPurchase(false);
+                enterPlayer(pendingTrack, true);
+                setTimeout(() => setPayStatus(''), 3000);
+            }
+        } else {
+            try {
+                await payment.handleStartStream();
+            } catch (err: any) {
+                console.warn('Stream payment failed, unlocking in demo mode:', err);
+                setPayStatus('Demo mode: Stream started (payment service unavailable)');
+                setNeedPurchase(false);
+                enterPlayer(pendingTrack, true);
+                setTimeout(() => setPayStatus(''), 3000);
+            }
+        }
     };
 
     // --- SHELF GRID HELPER ---
@@ -540,12 +675,12 @@ export default function MusicFeed() {
                                     <div className="h-1 bg-white/10 rounded-full overflow-hidden relative">
                                         <div
                                             className="h-full bg-gradient-to-r from-nexusPurple to-nexusPink rounded-full shadow-[0_0_15px_rgba(168,85,247,1)] transition-all"
-                                            style={{ width: `${audioRef.current?.duration ? (currentTime / audioRef.current.duration) * 100 : 0}%` }}
+                                            style={{ width: `${globalMusic.duration ? (currentTime / globalMusic.duration) * 100 : 0}%` }}
                                         />
                                     </div>
                                     <div className="flex justify-between mt-1 text-[10px] text-gray-500 font-mono">
                                         <span>{Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, '0')}</span>
-                                        <span>{audioRef.current?.duration ? `${Math.floor(audioRef.current.duration / 60)}:${String(Math.floor(audioRef.current.duration % 60)).padStart(2, '0')}` : '--:--'}</span>
+                                        <span>{globalMusic.duration ? `${Math.floor(globalMusic.duration / 60)}:${String(Math.floor(globalMusic.duration % 60)).padStart(2, '0')}` : '--:--'}</span>
                                     </div>
                                 </div>
 
@@ -557,11 +692,21 @@ export default function MusicFeed() {
                                     <button
                                         onClick={() => {
                                             if (isPlaying) {
-                                                setIsPlaying(false);
-                                                audioRef.current?.pause();
+                                                globalMusic.togglePlay();
                                             } else {
-                                                setIsPlaying(true);
-                                                audioRef.current?.play();
+                                                // If global player has no track, push current one
+                                                if (!globalMusic.currentTrack && currentTrack) {
+                                                    const globalTrack = {
+                                                        id: currentTrack.id,
+                                                        title: currentTrack.title,
+                                                        artist: currentTrack.description || currentTrack.creatorBitDomain || 'Unknown',
+                                                        coverUrl: currentTrack.posterUrl,
+                                                        audioUrl: currentTrack.cdnUrl,
+                                                    };
+                                                    globalMusic.playTrack(globalTrack);
+                                                } else {
+                                                    globalMusic.togglePlay();
+                                                }
                                             }
                                         }}
                                         className="w-14 h-14 bg-white text-black hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors shadow-[0_0_15px_rgba(255,255,255,0.2)]"
@@ -722,72 +867,9 @@ export default function MusicFeed() {
                 )}
             </div>
 
-            {/* Hidden Audio Element */}
-            <audio
-                ref={audioRef}
-                onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime || 0)}
-                onEnded={nextTrack}
-            />
+            {/* Hidden Audio Element — no longer needed, using global player */}
 
-            {/* Floating Mini Player - matches concept exactly */}
-            {currentTrack && view === 'shelf' && (
-                <div
-                    className="fixed bottom-6 right-6 w-[400px] h-20 border border-white/10 rounded-2xl flex items-center pr-6 z-50 overflow-hidden group hover:border-nexusPurple/50 glass-panel bg-black/80 transition-colors shadow-2xl"
-                >
-                    {/* Progress line at top */}
-                    <div className="absolute top-0 left-0 h-[2px] bg-white/10 w-full">
-                        <div
-                            className="h-full bg-nexusPurple shadow-[0_0_15px_rgba(168,85,247,1)] relative"
-                            style={{ width: `${audioRef.current?.duration ? (currentTime / audioRef.current.duration) * 100 : 0}%` }}
-                        >
-                            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-[0_0_10px_white] scale-0 group-hover:scale-100 transition-transform" />
-                        </div>
-                    </div>
-
-                    {/* Spinning Vinyl */}
-                    <div className="w-20 h-20 bg-black flex-shrink-0 relative overflow-hidden">
-                        <div
-                            className={`absolute inset-0 rounded-full scale-[1.3] -translate-x-2 flex items-center justify-center bg-zinc-900 border-2 border-zinc-800 ${isPlaying ? 'animate-[spin_4s_linear_infinite]' : ''}`}
-                            style={{ backgroundImage: 'repeating-radial-gradient(#222 0, #222 2px, #111 3px, #111 4px)' }}
-                        >
-                            <img
-                                src={currentTrack.posterUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80'}
-                                alt="Cover"
-                                className="w-8 h-8 rounded-full border border-black/50"
-                            />
-                            <div className="absolute w-2 h-2 bg-black rounded-full shadow-inner" />
-                        </div>
-                    </div>
-
-                    <div className="flex-1 px-4 truncate">
-                        <h4 className="text-white font-bold text-[13px] truncate drop-shadow-md">{currentTrack.title}</h4>
-                        <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] text-nexusPurple font-bold uppercase tracking-widest">
-                                {isPlaying ? 'Playing' : 'Paused'}
-                            </span>
-                            {isPlaying && <span className="w-1.5 h-1.5 rounded-full bg-nexusPurple shadow-[0_0_5px_rgba(168,85,247,0.8)] animate-pulse" />}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <button onClick={prevTrack} className="text-gray-400 hover:text-white transition-colors">
-                            <SkipBack size={16} />
-                        </button>
-                        <button
-                            onClick={() => {
-                                if (isPlaying) { setIsPlaying(false); audioRef.current?.pause(); }
-                                else { setIsPlaying(true); audioRef.current?.play(); }
-                            }}
-                            className="w-9 h-9 bg-white text-black hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-                        >
-                            {isPlaying ? <Pause size={16} /> : <Play size={16} className="ml-0.5" fill="currentColor" />}
-                        </button>
-                        <button onClick={nextTrack} className="text-gray-400 hover:text-white transition-colors">
-                            <SkipForward size={16} />
-                        </button>
-                    </div>
-                </div>
-            )}
+            {/* Global mini player bar is rendered in RootLayout, no need for local mini-player */}
 
             {/* Payment Choice Modal (Unified PaymentModeSelector) */}
             {renderPaymentChoiceModal()}

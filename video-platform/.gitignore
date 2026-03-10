@@ -74,3 +74,4 @@ services/content/storage/
 # Test artifacts
 test-results/
 e2e_web_run.log
+.ai-data/

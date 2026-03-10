@@ -16,14 +16,17 @@ const client = getApiClient();
 
 interface PaymentModeSelectorProps {
     video: VideoMeta;
-    onSelect: (mode: 'buy_once' | 'stream' | 'skip') => void;
+    onSelect: (mode: 'buy_once' | 'stream' | 'fiber' | 'skip') => void;
     onClose: () => void;
+    contentType?: 'video' | 'article' | 'music';
 }
 
-export default function PaymentModeSelector({ video, onSelect, onClose }: PaymentModeSelectorProps) {
+export default function PaymentModeSelector({ video, onSelect, onClose, contentType = 'video' }: PaymentModeSelectorProps) {
     const [balance, setBalance] = useState<number>(0);
     const [loading, setLoading] = useState(true);
     const [purchasing, setPurchasing] = useState(false);
+    const [fiberAvailable, setFiberAvailable] = useState(false);
+    const [fiberMode, setFiberMode] = useState<string>('points_only');
 
     useEffect(() => {
         const jwt = sessionStorage.getItem("vp.jwt");
@@ -35,12 +38,31 @@ export default function PaymentModeSelector({ video, onSelect, onClose }: Paymen
                 setLoading(false);
             })
             .catch(() => setLoading(false));
+
+        // Check Fiber Network availability
+        client.get<{ ok: boolean; mode: string }>("/payment/fiber/status")
+            .then(res => {
+                setFiberAvailable(res?.ok || false);
+                setFiberMode(res?.mode || 'points_only');
+            })
+            .catch(() => { /* Fiber unavailable, stay on points */ });
     }, []);
 
     const buyOncePrice = video.buyOncePrice || 0;
     const streamPriceRaw = video.streamPricePerSecond ?? ((video.streamPricePerMinute || 0) / 60);
-    const streamPrice = Math.round(streamPriceRaw * 10000) / 10000; // Round to 4 decimal places
+    const streamPrice = Math.round(streamPriceRaw * 10000) / 10000;
     const priceMode = video.priceMode || 'free';
+
+    // Article-specific labels
+    const isArticle = contentType === 'article';
+    const streamLabel = isArticle ? '📖 Read Per Chapter' : '⚡ Stream Pay';
+    const streamDesc = isArticle ? 'Unlock chapters as you read' : 'Pay as you watch — per second';
+    const streamUnit = isArticle ? 'PTS/CH' : 'PTS/SEC';
+    const streamDisplayPrice = isArticle
+        ? (video.streamPricePerMinute || streamPrice).toString()
+        : (streamPrice < 1 ? streamPrice.toFixed(4) : streamPrice.toFixed(2));
+    const buyOnceLabel = isArticle ? '📚 Unlock All Chapters' : '💎 One-Time Buy';
+    const buyOnceDesc = isArticle ? 'Full access to every chapter' : 'Unlock forever, unlimited replays';
 
     // 如果是免费视频，直接跳过
     if (priceMode === 'free' || (buyOncePrice === 0 && streamPrice === 0)) {
@@ -146,9 +168,14 @@ export default function PaymentModeSelector({ video, onSelect, onClose }: Paymen
                     border: "1px solid rgba(255, 217, 61, 0.3)"
                 }}>
                     <span style={{ color: "var(--text-muted)" }}>BALANCE</span>
-                    <span style={{ fontSize: 20, fontWeight: 700, color: "var(--accent-yellow)" }}>
-                        {loading ? "..." : `${balance} PTS`}
-                    </span>
+                    <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: 20, fontWeight: 700, color: "var(--accent-yellow)" }}>
+                            {loading ? "..." : `${balance} PTS`}
+                        </span>
+                        {fiberAvailable && (
+                            <div style={{ fontSize: 10, color: '#00ff88', marginTop: 2 }}>⚡ Fiber Network Connected</div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Payment Options */}
@@ -172,10 +199,10 @@ export default function PaymentModeSelector({ video, onSelect, onClose }: Paymen
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                 <div style={{ textAlign: "left" }}>
                                     <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>
-                                        💎 One-Time Buy
+                                        {buyOnceLabel}
                                     </div>
                                     <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                                        Unlock forever, unlimited replays
+                                        {buyOnceDesc}
                                     </div>
                                 </div>
                                 <div style={{ textAlign: "right" }}>
@@ -209,17 +236,45 @@ export default function PaymentModeSelector({ video, onSelect, onClose }: Paymen
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                 <div style={{ textAlign: "left" }}>
                                     <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>
-                                        ⚡ Stream Pay
+                                        {streamLabel}
                                     </div>
                                     <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                                        Pay as you watch — per second
+                                        {streamDesc}
                                     </div>
                                 </div>
                                 <div style={{ textAlign: "right" }}>
                                     <div style={{ fontSize: 24, fontWeight: 700, color: "var(--accent-cyan)" }}>
-                                        {streamPrice < 1 ? streamPrice.toFixed(4) : streamPrice.toFixed(2)}
+                                        {streamDisplayPrice}
                                     </div>
-                                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>PTS/SEC</div>
+                                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{streamUnit}</div>
+                                </div>
+                            </div>
+                        </button>
+                    )}
+
+                    {/* Fiber On-Chain Option */}
+                    {fiberAvailable && (
+                        <button
+                            onClick={() => onSelect('fiber')}
+                            style={{
+                                padding: 20,
+                                borderRadius: 12,
+                                border: '2px solid #00ff88',
+                                background: 'linear-gradient(135deg, rgba(0, 255, 136, 0.15), rgba(0,0,0,0.3))',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ textAlign: 'left' }}>
+                                    <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>⚡ Fiber Network</div>
+                                    <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                                        On-chain settlement via CKB L2 payment channel
+                                    </div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: '#00ff88' }}>ON-CHAIN</div>
+                                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Real-time</div>
                                 </div>
                             </div>
                         </button>
