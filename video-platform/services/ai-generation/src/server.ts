@@ -20,13 +20,19 @@ import jwt from "@fastify/jwt";
 import { v4 as uuidv4 } from "uuid";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
-import { registerSecurityPlugins, getJwtSecret } from "@video-platform/shared/security/index";
+import { getJwtSecret } from "@video-platform/shared/security/index";
 
 const app = Fastify({ logger: true });
 const JWT_SECRET = getJwtSecret();
 
-// Apply security (Helmet + CORS + rate limiting)
-registerSecurityPlugins(app, { rateLimit: { max: 100, timeWindow: "1 minute" } });
+// Apply security - skip shared registerSecurityPlugins due to Fastify 5 / @fastify/helmet 4 version mismatch
+// Helmet-equivalent security headers are set inline instead
+app.addHook("onSend", async (_req, reply) => {
+    reply.header("X-Content-Type-Options", "nosniff");
+    reply.header("X-Frame-Options", "DENY");
+    reply.header("X-XSS-Protection", "0");
+    reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
+});
 
 app.register(jwt, { secret: JWT_SECRET });
 

@@ -2359,71 +2359,8 @@ app.get("/payment/fiber/status", async (_req, reply) => {
   }
 });
 
-// F2. Create a real Fiber invoice for content payment
-app.post("/payment/fiber/invoice", async (req, reply) => {
-  const userId = (req.user as RequestUser)?.sub;
-  if (!userId) return reply.status(401).send({ error: "Unauthorized" });
-
-  const body = req.body as {
-    contentId: string;
-    contentType?: string;
-    amount: string;
-    memo?: string;
-    expiry?: number;
-  };
-
-  if (!body.contentId || !body.amount) {
-    return reply.status(400).send({ error: "contentId and amount required" });
-  }
-
-  try {
-    // Try real Fiber first
-    if (fiberClient.isConfigured()) {
-      const invoice = await fiberClient.createInvoice({
-        amount: body.amount,
-        memo: body.memo || `Nexus: ${body.contentType || 'content'} ${body.contentId}`,
-        expiry: body.expiry || 300,
-      });
-
-      // Record in database
-      await prisma.pointsTransaction.create({
-        data: {
-          userId,
-          type: "fiber_invoice_created",
-          amount: 0,
-          reason: `Fiber invoice for ${body.contentType || 'content'} ${body.contentId} | hash: ${invoice.paymentHash}`,
-        },
-      });
-
-      return reply.send({
-        ok: true,
-        backend: "fiber",
-        paymentHash: invoice.paymentHash,
-        paymentRequest: invoice.paymentRequest,
-        amount: invoice.amount,
-        currency: invoice.currency,
-        expiry: invoice.expiry,
-      });
-    }
-
-    // Fallback: create a points-based "invoice" (for demo/dev)
-    const mockHash = `pts_${Date.now()}_${body.contentId.slice(0, 8)}`;
-    return reply.send({
-      ok: true,
-      backend: "points",
-      paymentHash: mockHash,
-      paymentRequest: null,
-      amount: body.amount,
-      currency: "PTS",
-      expiry: 300,
-      message: "Fiber not available. Use Points to pay.",
-    });
-  } catch (err: any) {
-    return reply.status(500).send({ error: `Invoice creation failed: ${err.message}` });
-  }
-});
-
 // F3. Send payment via Fiber (or fallback to Points deduction)
+
 app.post("/payment/fiber/pay", async (req, reply) => {
   const userId = (req.user as RequestUser)?.sub;
   if (!userId) return reply.status(401).send({ error: "Unauthorized" });
