@@ -1,18 +1,34 @@
 // FILE: /video-platform/client-web/src/components/watch-party/WatchPartyVideo.tsx
 /**
- * Watch Party 视频播放组件
- * 带有付费检查、流支付恢复、和同步播放功能
+ * Watch Party 视频播放器组件
+ * 
+ * 负责：
+ * - 检查视频权限（useVideoEntitlement）
+ * - 初始化 video.js 播放器
+ * - 付费流程（积分/流支付/团购）
+ * - 与 host 同步播放状态
  */
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Play, Pause, AlertCircle, Lock, CreditCard, Zap } from 'lucide-react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import videojs from 'video.js';
-import 'video.js/dist/video-js.css';
-import { useVideoEntitlement, StreamPurchaseProgress, calculateGroupPurchasePrice } from '../../hooks/useVideoEntitlement';
-import type { RoomState, Participant } from '../../hooks/useWatchPartySync';
+import { useVideoEntitlement } from '../../hooks/useVideoEntitlement';
 import { getApiClient } from '../../lib/apiClient';
+import type { RoomState, Participant } from '../../hooks/useWatchPartySync';
+import { Lock, CreditCard, Zap, Play, AlertCircle } from 'lucide-react';
 
 const client = getApiClient();
+
+// Group purchase discount calculation
+function calculateGroupPurchasePrice(basePrice: number, groupSize: number) {
+    const discount = Math.min(0.3, groupSize * 0.05); // 5% per person, max 30%
+    const perPerson = Math.round(basePrice * (1 - discount));
+    return {
+        perPerson,
+        originalTotal: basePrice * groupSize,
+        finalTotal: perPerson * groupSize,
+        discount: 1 - discount,
+    };
+}
 
 interface WatchPartyVideoProps {
     roomState: RoomState | null;
@@ -35,167 +51,186 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const playerRef = useRef<any>(null);
+    const initAttemptRef = useRef(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [paymentType, setPaymentType] = useState<'stream' | 'points' | 'group'>('points');
     const [purchasing, setPurchasing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [playerReady, setPlayerReady] = useState(false);
 
     // Get video entitlement status
     const entitlement = useVideoEntitlement(roomState?.videoId || '', userId);
+    const { isLoading, hasFullAccess, requiresPayment, streamPurchase, videoMeta } = entitlement;
 
-    // Destructure for cleaner access
-    const { isLoading, hasFullAccess, isCreator, requiresPayment, streamPurchase, videoMeta } = entitlement;
+    // Determine if payment is needed
+    const isHostTreats = roomState?.paymentModel === 'host_treats';
+    const needsPayment = requiresPayment && !hasFullAccess && !isHostTreats;
 
-    // Initialize video player
-    useEffect(() => {
-        if (!videoRef.current || !roomState?.videoId || isLoading) return;
+    // Initialize video.js player — called after DOM is ready
+    const initPlayer = useCallback(async () => {
+        if (!videoRef.current || !roomState?.videoId || playerRef.current || initAttemptRef.current) return;
+        initAttemptRef.current = true;
 
-        // Don't initialize if payment required and no access
-        // Exception: host_treats mode — viewers skip payment
-        const isHostTreats = roomState.paymentModel === 'host_treats';
-        if (requiresPayment && !hasFullAccess && !isHostTreats) {
-            return;
-        }
+        try {
+            const jwt = sessionStorage.getItem('vp.jwt') || localStorage.getItem('jwt');
+            if (jwt) client.setJWT(jwt);
 
-        const initPlayer = async () => {
+            // Try multiple sources to find a playable URL
+            let videoUrl: string | undefined;
+
+            // 1) Try content stream API
             try {
-                const jwt = sessionStorage.getItem('vp.jwt') || localStorage.getItem('jwt');
-                if (jwt) client.setJWT(jwt);
+                const streamData = await client.get<{ url?: string; streamUrl?: string }>(`/content/stream/${roomState.videoId}`);
+                videoUrl = streamData?.url || streamData?.streamUrl;
+            } catch { }
 
-                // Get video stream URL
-                interface StreamResponse {
-                    url?: string;
-                    streamUrl?: string;
-                }
-
-                let videoUrl: string | undefined;
+            // 2) Try direct HLS path
+            if (!videoUrl) {
+                const hlsUrl = `http://localhost:8092/content/hls/${roomState.videoId}/index.m3u8`;
                 try {
-                    const streamData = await client.get<StreamResponse>(`/content/stream/${roomState.videoId}`);
-                    videoUrl = streamData?.url || streamData?.streamUrl;
-                } catch {
-                    // Fallback: try HLS path directly
-                    videoUrl = `http://localhost:8092/content/hls/${roomState.videoId}/index.m3u8`;
-                }
-
-                if (!videoUrl) {
-                    // Try samples.json for local video
-                    try {
-                        const resp = await fetch('/videos/samples.json');
-                        if (resp.ok) {
-                            const arr = await resp.json();
-                            const hit = (Array.isArray(arr) ? arr : []).find((v: any) => String(v?.id) === String(roomState.videoId));
-                            if (hit?.cdnUrl) videoUrl = hit.cdnUrl;
-                        }
-                    } catch { }
-                }
-
-                if (!videoUrl) {
-                    setError('无法获取视频地址');
-                    return;
-                }
-
-                // Determine source type
-                const isHLS = videoUrl.includes('.m3u8') || videoUrl.includes('videodelivery.net');
-                const sourceType = isHLS ? 'application/x-mpegURL' : 'video/mp4';
-
-                // Initialize video.js
-                if (!playerRef.current) {
-                    playerRef.current = videojs(videoRef.current, {
-                        controls: true,
-                        autoplay: false,
-                        preload: 'auto',
-                        fluid: true,
-                        sources: [{ src: videoUrl, type: sourceType }]
-                    });
-
-                    // Sync time updates (host reports position) — throttle to every 3s
-                    let lastReportTime = 0;
-                    playerRef.current.on('timeupdate', () => {
-                        if (isHost && onTimeUpdate) {
-                            const now = Date.now();
-                            if (now - lastReportTime > 3000) {
-                                lastReportTime = now;
-                                onTimeUpdate(playerRef.current.currentTime());
-                            }
-                        }
-                    });
-
-                    // Host play/pause events — notify parent for WS broadcast
-                    if (isHost && onPlayStateChange) {
-                        playerRef.current.on('play', () => {
-                            onPlayStateChange(true, playerRef.current.currentTime());
-                        });
-                        playerRef.current.on('pause', () => {
-                            onPlayStateChange(false, playerRef.current.currentTime());
-                        });
-                    }
-                } else {
-                    playerRef.current.src({ src: videoUrl, type: sourceType });
-                }
-
-                // If resuming from stream payment, seek to paid position
-                if (streamPurchase && streamPurchase.paidUntilSeconds > 0) {
-                    playerRef.current.currentTime(streamPurchase.paidUntilSeconds);
-                }
-
-                // Auto-play if room is playing
-                if (roomState.status === 'playing') {
-                    playerRef.current.play();
-                    if (roomState.currentTime) {
-                        playerRef.current.currentTime(roomState.currentTime);
-                    }
-                }
-            } catch (err: any) {
-                console.error('Failed to init video player:', err);
-                setError(err?.message || '视频加载失败');
+                    const probe = await fetch(hlsUrl, { method: 'HEAD' });
+                    if (probe.ok) videoUrl = hlsUrl;
+                } catch { }
             }
-        };
 
-        initPlayer();
+            // 3) Try samples.json for demo/local videos
+            if (!videoUrl) {
+                try {
+                    const resp = await fetch('/videos/samples.json');
+                    if (resp.ok) {
+                        const arr = await resp.json();
+                        const hit = (Array.isArray(arr) ? arr : []).find((v: any) => String(v?.id) === String(roomState.videoId));
+                        if (hit?.cdnUrl) videoUrl = hit.cdnUrl;
+                        if (hit?.hlsUrl) videoUrl = hit.hlsUrl;
+                    }
+                } catch { }
+            }
 
+            // 4) Fallback: known demo video CDN URLs
+            if (!videoUrl) {
+                const demoUrls: Record<string, string> = {
+                    'sample-bbb-720p': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+                    'sintel-hls': 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8',
+                    'elephants-dream': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+                };
+                videoUrl = demoUrls[roomState.videoId];
+            }
+
+            if (!videoUrl) {
+                setError('无法获取视频地址');
+                initAttemptRef.current = false;
+                return;
+            }
+
+            // Determine source type
+            const isHLS = videoUrl.includes('.m3u8') || videoUrl.includes('videodelivery.net');
+            const sourceType = isHLS ? 'application/x-mpegURL' : 'video/mp4';
+
+            // Initialize video.js — videoRef.current is guaranteed non-null here
+            const player = videojs(videoRef.current!, {
+                controls: true,
+                autoplay: false,
+                preload: 'auto',
+                fluid: true,
+                sources: [{ src: videoUrl, type: sourceType }]
+            });
+
+            playerRef.current = player;
+            setPlayerReady(true);
+
+            // Host: throttled time updates for GunDB sync
+            let lastReportTime = 0;
+            player.on('timeupdate', () => {
+                if (isHost && onTimeUpdate) {
+                    const now = Date.now();
+                    if (now - lastReportTime > 3000) {
+                        lastReportTime = now;
+                        onTimeUpdate(player.currentTime());
+                    }
+                }
+            });
+
+            // Host: play/pause events → WS broadcast
+            if (isHost && onPlayStateChange) {
+                player.on('play', () => {
+                    onPlayStateChange(true, player.currentTime());
+                });
+                player.on('pause', () => {
+                    onPlayStateChange(false, player.currentTime());
+                });
+            }
+
+            // Auto-play if room is already playing
+            if (roomState.status === 'playing') {
+                player.play().catch(() => {});
+                if (roomState.currentTime > 0) {
+                    player.currentTime(roomState.currentTime);
+                }
+            }
+
+            // Resume from stream purchase position
+            if (streamPurchase && streamPurchase.paidUntilSeconds > 0) {
+                player.currentTime(streamPurchase.paidUntilSeconds);
+            }
+
+        } catch (err: any) {
+            console.error('Watch Party video init failed:', err);
+            setError(err?.message || '视频加载失败');
+            initAttemptRef.current = false;
+        }
+    }, [roomState?.videoId, roomState?.status, roomState?.currentTime, isHost, onTimeUpdate, onPlayStateChange, streamPurchase]);
+
+    // Try to initialize player when video ref becomes available (after render)
+    useEffect(() => {
+        if (!isLoading && !needsPayment && videoRef.current && !playerRef.current) {
+            // Small delay to ensure DOM is fully mounted
+            const timer = setTimeout(() => initPlayer(), 100);
+            return () => clearTimeout(timer);
+        }
+    }, [isLoading, needsPayment, initPlayer]);
+
+    // Cleanup on unmount
+    useEffect(() => {
         return () => {
             if (playerRef.current) {
                 playerRef.current.dispose();
                 playerRef.current = null;
             }
+            initAttemptRef.current = false;
         };
-    }, [roomState?.videoId, roomState?.status, isLoading, hasFullAccess, requiresPayment, isHost, streamPurchase]);
+    }, []);
 
-    // Handle payment
+    // Reset init attempt when video changes
+    useEffect(() => {
+        initAttemptRef.current = false;
+        if (playerRef.current) {
+            playerRef.current.dispose();
+            playerRef.current = null;
+            setPlayerReady(false);
+        }
+    }, [roomState?.videoId]);
+
+    // Payment handler
     const handlePayment = async (type: 'stream' | 'points' | 'group') => {
         if (!roomState?.videoId || !videoMeta) return;
-
         setPurchasing(true);
         setError(null);
 
         try {
-            const jwt = sessionStorage.getItem('vp.token') || localStorage.getItem('jwt');
-            if (jwt) client.setJWT(jwt);
+            if (type === 'points' || type === 'group') {
+                const finalTotal = type === 'group' && participants.length > 1
+                    ? calculateGroupPurchasePrice(videoMeta.pointsPrice, participants.length).finalTotal
+                    : videoMeta.pointsPrice;
 
-            if (type === 'points') {
-                // One-time points purchase
-                await client.post('/payment/buy-once', {
+                await client.post('/payment/points/redeem', {
                     videoId: roomState.videoId,
-                    points: videoMeta.pointsPrice
-                });
-            } else if (type === 'group') {
-                // Group purchase for all participants
-                const participantIds = participants.map(p => p.id);
-                const { finalTotal } = calculateGroupPurchasePrice(videoMeta.pointsPrice, participantIds.length);
-
-                await client.post('/payment/group-purchase', {
-                    videoId: roomState.videoId,
-                    buyerUserId: userId,
-                    recipientUserIds: participantIds,
                     totalPoints: finalTotal
                 });
             } else {
-                // Stream payment - will be handled during playback
                 onPaymentRequired?.(roomState.videoId);
             }
 
             setShowPaymentModal(false);
-            // Refresh entitlement
             entitlement.refresh();
         } catch (err: any) {
             setError(err?.error || '支付失败');
@@ -209,13 +244,11 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
         if (isHost || !playerRef.current || !roomState) return;
 
         const player = playerRef.current;
-        // Sync play/pause state
         if (roomState.isPlaying && player.paused()) {
             player.play().catch(() => { });
         } else if (!roomState.isPlaying && !player.paused()) {
             player.pause();
         }
-        // Sync position if drift > 3 seconds
         if (roomState.currentTime > 0) {
             const localTime = player.currentTime() || 0;
             const drift = Math.abs(localTime - roomState.currentTime);
@@ -225,7 +258,9 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
         }
     }, [isHost, roomState?.isPlaying, roomState?.currentTime, roomState?.updatedAt]);
 
-    // Render loading state
+    // === RENDER ===
+
+    // Loading state
     if (isLoading) {
         return (
             <div className="wp-video-screen">
@@ -237,10 +272,8 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
         );
     }
 
-    // Render payment required state
-    // Skip payment gate if host_treats mode
-    const isHostTreats = roomState?.paymentModel === 'host_treats';
-    if (requiresPayment && !hasFullAccess && !isHostTreats) {
+    // Payment required — show payment options (skip if host_treats)
+    if (needsPayment) {
         const groupPrice = participants.length > 1 && videoMeta
             ? calculateGroupPurchasePrice(videoMeta.pointsPrice, participants.length)
             : null;
@@ -260,36 +293,24 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
                     )}
 
                     <div className="wp-payment-options">
-                        {/* Points purchase */}
                         {videoMeta && videoMeta.pointsPrice > 0 && (
-                            <button
-                                className="wp-payment-btn wp-payment-points"
-                                onClick={() => { setPaymentType('points'); setShowPaymentModal(true); }}
-                            >
+                            <button className="wp-payment-btn wp-payment-points" onClick={() => { setPaymentType('points'); setShowPaymentModal(true); }}>
                                 <CreditCard size={20} />
                                 <span>积分购买</span>
                                 <span className="wp-price">{videoMeta.pointsPrice} 积分</span>
                             </button>
                         )}
 
-                        {/* Stream payment */}
                         {videoMeta && videoMeta.streamPricePerMinute > 0 && (
-                            <button
-                                className="wp-payment-btn wp-payment-stream"
-                                onClick={() => { setPaymentType('stream'); handlePayment('stream'); }}
-                            >
+                            <button className="wp-payment-btn wp-payment-stream" onClick={() => { setPaymentType('stream'); handlePayment('stream'); }}>
                                 <Zap size={20} />
                                 <span>流支付</span>
                                 <span className="wp-price">{videoMeta.streamPricePerMinute} 积分/分钟</span>
                             </button>
                         )}
 
-                        {/* Group purchase (host only) */}
                         {isHost && groupPrice && videoMeta && participants.length > 1 && (
-                            <button
-                                className="wp-payment-btn wp-payment-group"
-                                onClick={() => { setPaymentType('group'); setShowPaymentModal(true); }}
-                            >
+                            <button className="wp-payment-btn wp-payment-group" onClick={() => { setPaymentType('group'); setShowPaymentModal(true); }}>
                                 <span className="wp-group-badge">团购</span>
                                 <span>为全员购买</span>
                                 <div className="wp-group-info">
@@ -304,33 +325,23 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
                     {error && <p className="wp-error">{error}</p>}
                 </div>
 
-                {/* Payment confirmation modal */}
                 {showPaymentModal && (
                     <div className="wp-modal-overlay" onClick={() => setShowPaymentModal(false)}>
                         <div className="wp-modal" onClick={e => e.stopPropagation()}>
                             <h3>确认{paymentType === 'group' ? '团购' : '购买'}</h3>
-
                             {paymentType === 'points' && videoMeta && (
                                 <p>将花费 <strong>{videoMeta.pointsPrice} 积分</strong> 购买此视频</p>
                             )}
-
                             {paymentType === 'group' && groupPrice && (
                                 <div className="wp-group-summary">
                                     <p>为 {participants.length} 位观众购买</p>
                                     <p>原价: {groupPrice.originalTotal} 积分</p>
-                                    <p className="wp-discount-highlight">折扣价: {groupPrice.finalTotal} 积分 (省 {groupPrice.originalTotal - groupPrice.finalTotal} 积分)</p>
+                                    <p className="wp-discount-highlight">折扣价: {groupPrice.finalTotal} 积分</p>
                                 </div>
                             )}
-
                             <div className="wp-modal-actions">
-                                <button className="wp-btn wp-btn-secondary" onClick={() => setShowPaymentModal(false)}>
-                                    取消
-                                </button>
-                                <button
-                                    className="wp-btn wp-btn-primary"
-                                    onClick={() => handlePayment(paymentType)}
-                                    disabled={purchasing}
-                                >
+                                <button className="wp-btn wp-btn-secondary" onClick={() => setShowPaymentModal(false)}>取消</button>
+                                <button className="wp-btn wp-btn-primary" onClick={() => handlePayment(paymentType)} disabled={purchasing}>
                                     {purchasing ? '处理中...' : '确认支付'}
                                 </button>
                             </div>
@@ -341,10 +352,10 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
         );
     }
 
-    // Render video player
+    // Main video player view — video element is ALWAYS rendered here
     return (
         <div className="wp-video-screen wp-video-playing">
-            <div data-vjs-player>
+            <div data-vjs-player className="wp-video-player">
                 <video
                     ref={videoRef}
                     className="video-js vjs-big-play-centered vjs-theme-city"
@@ -352,7 +363,7 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
                 />
             </div>
 
-            {/* Sync status overlay */}
+            {/* Waiting overlay */}
             {roomState?.status === 'waiting' && (
                 <div className="wp-sync-overlay">
                     <Play size={48} />
