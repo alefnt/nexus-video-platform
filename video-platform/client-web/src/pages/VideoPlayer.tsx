@@ -735,12 +735,14 @@ export default function VideoPlayer() {
               />
             )}
 
-            {/* Live Badge overlay */}
+            {/* Live Badge overlay — only for live-streaming content */}
+            {(meta as any)?.isLive && (
             <div className="absolute top-6 left-6 flex items-center gap-3 z-10 pointer-events-none">
               <div className="bg-red-600 text-white px-3 py-1 rounded-md text-xs font-bold tracking-widest flex items-center gap-2 shadow-[0_0_10px_rgba(220,38,38,0.5)]">
                 <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span> LIVE
               </div>
             </div>
+            )}
             {/* Watermark */}
             <div className="absolute top-6 right-6 opacity-30 flex items-center gap-2 z-10 pointer-events-none">
               <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -756,86 +758,154 @@ export default function VideoPlayer() {
               <div>
                 <h1 className="text-3xl font-bold text-white mb-2">{meta?.title || id}</h1>
                 <div className="flex items-center gap-4 text-sm text-gray-400">
-                  <span className="text-blue-400 font-semibold cursor-pointer hover:underline">Sci-Fi Masterpieces</span>
-                  <span>•</span>
-                  <span>Video</span>
+                  {meta?.category && <span className="text-blue-400 font-semibold cursor-pointer hover:underline">{(meta as any).category}</span>}
+                  {meta?.category && <span>•</span>}
+                  <span>{(meta as any)?.contentType || 'Video'}</span>
+                  {meta?.duration && <><span>•</span><span>{Math.floor((meta as any).duration / 60)}:{String((meta as any).duration % 60).padStart(2, '0')}</span></>}
                 </div>
               </div>
 
               <div className="flex items-center gap-6">
-                <div className="flex gap-3">
-                  <button disabled={!hasOffline} onClick={async () => {
-                    const offline = await loadCachedVideo(id!);
-                    if (offline && playerRef.current) {
-                      playerRef.current.src({ src: offline, type: "video/mp4" });
-                      setStatus("Playing from offline cache");
-                    } else {
-                      setStatus("Offline cache not found. Please download first.");
-                    }
-                  }} className="bg-white/5 border border-white/10 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-white/10 transition-colors disabled:opacity-50">Play Offline</button>
-
-                  <button disabled={downloading} onClick={async () => {
-                    if (!id) return;
-                    const jwt = typeof window !== "undefined" ? sessionStorage.getItem("vp.jwt") : null;
-                    const userRaw = typeof window !== "undefined" ? sessionStorage.getItem("vp.user") : null;
-                    if (!jwt || !userRaw) {
-                      setStatus("Login required for offline download.");
-                      try { alert("Please login first to download offline cache"); } catch { }
-                      try { navigate("/login"); } catch { }
-                      return;
-                    }
-                    try {
-                      const usr = JSON.parse(userRaw);
-                      const priceNum = meta ? parseFloat(String(meta.priceUSDI || "0")) : NaN;
-                      const isPaid = !isNaN(priceNum) && priceNum > 0;
-                      if (!usr?.ckbAddress && isPaid) {
-                        setStatus("JoyID login required for paid offline content");
-                        try { alert("Please login with JoyID to download/authorize offline playback"); } catch { }
-                        return;
+                <div className="flex gap-2">
+                  {/* Play Offline Button */}
+                  <button
+                    disabled={!hasOffline}
+                    onClick={async () => {
+                      const offline = await loadCachedVideo(id!);
+                      if (offline && playerRef.current) {
+                        playerRef.current.src({ src: offline, type: "video/mp4" });
+                        setStatus("Playing from offline cache");
+                      } else {
+                        setStatus("Offline cache not found. Please cache first.");
                       }
-                    } catch { }
-                    let timer: any;
-                    try {
+                    }}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${
+                      hasOffline
+                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                        : "bg-white/5 border-white/10 text-gray-500 cursor-not-allowed"
+                    }`}
+                    title={hasOffline ? "Play from local cache" : "No cached version available"}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {hasOffline ? "Play Offline" : "No Cache"}
+                    {hasOffline && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />}
+                  </button>
+
+                  {/* Cache Offline Button */}
+                  <button
+                    disabled={downloading}
+                    onClick={async () => {
+                      if (!id) return;
                       setDownloading(true);
-                      setProgress(10);
-                      timer = setInterval(() => {
-                        setProgress((p) => (p < 95 ? Math.min(p + Math.random() * 12, 95) : p));
-                      }, 250);
-                      setStatus("Requesting offline authorization...");
-                      const dfp = sessionStorage.getItem("vp.offline.dfp") || (() => {
-                        const ua = navigator.userAgent;
-                        const scr = `${screen.width}x${screen.height}`;
-                        const v = btoa(`${ua}|${scr}`);
-                        sessionStorage.setItem("vp.offline.dfp", v);
-                        return v;
-                      })();
-                      const grant = await client.post<{ video_id: string; offline_token: string; expires_in: number; cdn_urls: string[] }>("/content/play/offline", { videoId: id, deviceFingerprint: dfp });
-                      sessionStorage.setItem("vp.offline.jwt", grant.offline_token);
-                      setStatus(`Authorized (valid for ${Math.round(grant.expires_in / 86400)} days), caching...`);
-                      const offlineClient = getApiClient();
-                      offlineClient.setJWT(grant.offline_token);
-                      const raw = await offlineClient.get<{ base64: string }>(`/content/raw/${id}`);
-                      const m = meta || (await client.get<VideoMeta>(`/metadata/${id}`));
-                      await encryptAndCacheVideo(id, raw.base64, m.creatorCkbAddress);
-                      setStatus("Offline cache complete. Ready for offline playback.");
-                      if (timer) clearInterval(timer);
-                      setProgress(100);
-                      setTimeout(() => setProgress(0), 1200);
-                      try { setHasOffline(await checkCacheExists(id)); } catch { }
-                    } catch (e: any) {
-                      setStatus(`Offline authorization/cache failed: ${e?.error || e?.message || "Unknown error"}`);
-                    } finally {
-                      if (timer) clearInterval(timer);
-                      setDownloading(false);
-                      setTimeout(() => setProgress(0), 800);
-                    }
-                  }} className="bg-white/10 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-white/20 transition-colors flex items-center gap-2 relative overflow-hidden disabled:opacity-50">
-                    {downloading ? "Caching..." : "Cache Offline"}
+                      setProgress(5);
+                      const timer = setInterval(() => {
+                        setProgress((p) => (p < 90 ? Math.min(p + Math.random() * 8, 90) : p));
+                      }, 300);
+                      try {
+                        const priceNum = meta ? parseFloat(String(meta.priceUSDI || "0")) : 0;
+                        const isPaidContent = !isNaN(priceNum) && priceNum > 0;
+
+                        if (!isPaidContent) {
+                          // FREE content: download the current video stream directly
+                          setStatus("Downloading video for offline cache...");
+                          let videoUrl: string | undefined;
+                          try {
+                            const streamRes = await client.get<{ url?: string; streamUrl?: string }>(`/content/stream/${id}`);
+                            videoUrl = streamRes?.url || streamRes?.streamUrl;
+                          } catch { }
+                          // Fallback: try samples.json
+                          if (!videoUrl) {
+                            try {
+                              const resp = await fetch('/videos/samples.json');
+                              if (resp.ok) {
+                                const arr = await resp.json();
+                                const hit = (Array.isArray(arr) ? arr : []).find((v: any) => String(v?.id) === String(id));
+                                if (hit?.cdnUrl) videoUrl = hit.cdnUrl;
+                              }
+                            } catch { }
+                          }
+                          if (videoUrl) {
+                            // Fetch as blob, convert to base64
+                            const resp = await fetch(videoUrl);
+                            const blob = await resp.blob();
+                            const arrayBuf = await blob.arrayBuffer();
+                            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuf)));
+                            const addr = (() => { try { return JSON.parse(sessionStorage.getItem("vp.user") || "{}").ckbAddress || "free-user"; } catch { return "free-user"; } })();
+                            await encryptAndCacheVideo(id, base64, addr);
+                            setStatus("✅ Offline cache complete!");
+                          } else {
+                            setStatus("Could not find downloadable video source.");
+                          }
+                        } else {
+                          // PAID content: use offline authorization flow
+                          const jwt = sessionStorage.getItem("vp.jwt");
+                          const userRaw = sessionStorage.getItem("vp.user");
+                          if (!jwt || !userRaw) {
+                            setStatus("Login required for offline download.");
+                            alert("Please login first to download offline cache");
+                            navigate("/login");
+                            return;
+                          }
+                          const usr = JSON.parse(userRaw);
+                          if (!usr?.ckbAddress) {
+                            setStatus("JoyID login required for paid offline content");
+                            alert("Please login with JoyID to download offline playback");
+                            return;
+                          }
+                          setStatus("Requesting offline authorization...");
+                          const dfp = sessionStorage.getItem("vp.offline.dfp") || (() => {
+                            const v = btoa(`${navigator.userAgent}|${screen.width}x${screen.height}`);
+                            sessionStorage.setItem("vp.offline.dfp", v);
+                            return v;
+                          })();
+                          const grant = await client.post<{ video_id: string; offline_token: string; expires_in: number; cdn_urls: string[] }>("/content/play/offline", { videoId: id, deviceFingerprint: dfp });
+                          sessionStorage.setItem("vp.offline.jwt", grant.offline_token);
+                          setStatus(`Authorized, caching video...`);
+                          const offlineClient = getApiClient();
+                          offlineClient.setJWT(grant.offline_token);
+                          const raw = await offlineClient.get<{ base64: string }>(`/content/raw/${id}`);
+                          const m = meta || (await client.get<VideoMeta>(`/metadata/${id}`));
+                          await encryptAndCacheVideo(id, raw.base64, m.creatorCkbAddress);
+                          setStatus("✅ Offline cache complete!");
+                        }
+                        setProgress(100);
+                        setTimeout(() => setProgress(0), 1200);
+                        try { setHasOffline(await checkCacheExists(id)); } catch { }
+                      } catch (e: any) {
+                        setStatus(`Cache failed: ${e?.error || e?.message || "Unknown error"}`);
+                      } finally {
+                        clearInterval(timer);
+                        setDownloading(false);
+                        setTimeout(() => setProgress(0), 800);
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border bg-[#22d3ee]/5 border-[#22d3ee]/20 text-[#22d3ee] hover:bg-[#22d3ee]/10 hover:border-[#22d3ee]/40 hover:shadow-[0_0_15px_rgba(34,211,238,0.15)] disabled:opacity-50 relative overflow-hidden"
+                  >
+                    {downloading ? (
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    )}
+                    {downloading ? `Caching ${Math.round(progress)}%` : "Cache Offline"}
                     {progress > 0 && (
-                      <div className="absolute bottom-0 left-0 h-1 bg-[#22d3ee]" style={{ width: `${progress}%`, transition: "width 0.2s" }} />
+                      <div className="absolute bottom-0 left-0 h-0.5 bg-[#22d3ee] transition-all duration-200" style={{ width: `${progress}%` }} />
                     )}
                   </button>
-                  <button onClick={() => setShowReport(true)} className="bg-white/5 text-gray-400 px-3 py-2 rounded-xl text-xs font-bold hover:bg-red-500/10 hover:text-red-400 transition-colors">🚩 Report</button>
+                  {/* Report */}
+                  <button onClick={() => setShowReport(true)} className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border bg-white/5 border-white/10 text-gray-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+                    </svg>
+                    Report
+                  </button>
                 </div>
 
                 <div className="w-px h-8 bg-white/20 hidden md:block"></div>
