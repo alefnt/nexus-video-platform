@@ -292,22 +292,26 @@ export class StreamPaymentHandler {
                 this.session.consumedPoints = tickResp.totalPaid;
                 this.session.userBalance = tickResp.balance;
 
-                // Update status display
-                const segInfo = `Seg ${tickResp.displaySegment}/${tickResp.totalDisplaySegments}`;
-                const costInfo = `${tickResp.totalPaid} PTS spent`;
+                // Update status display — per-second billing format
+                const tickElapsed = tickResp.elapsedSeconds || 0;
+                const elapsedMin = Math.floor(tickElapsed / 60);
+                const elapsedSec = tickElapsed % 60;
+                const timeStr = `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}`;
+                const costInfo = `${tickResp.totalPaid} PTS`;
+                const balanceInfo = `${tickResp.balance} PTS`;
                 const remainInfo = tickResp.estimatedRemainingSeconds > 3600
                     ? '∞'
-                    : `~${Math.floor(tickResp.estimatedRemainingSeconds / 60)}min left`;
+                    : `~${Math.floor(tickResp.estimatedRemainingSeconds / 60)}min`;
 
                 if (tickResp.shouldPause) {
                     // Balance depleted — pause playback
                     this.playerRef.pause();
                     this.stopTickMonitoring();
-                    this.onStatusChange(`⚠ Insufficient balance — ${costInfo}`);
+                    this.onStatusChange(`⚠ 余额不足 · 已消费 ${costInfo} · 已观看 ${timeStr}`);
                     this.onPauseRequired();
                     if (this.onBalanceLow) this.onBalanceLow();
                 } else {
-                    this.onStatusChange(`${segInfo} · ${costInfo} · ${remainInfo}`);
+                    this.onStatusChange(`⏱ ${timeStr} · 💰 ${costInfo} · 💳 ${balanceInfo} · ⏳ ${remainInfo}`);
                 }
 
                 this.updateMeter();
@@ -326,8 +330,47 @@ export class StreamPaymentHandler {
                 currentSegment: this.session.currentSegment
             });
             this.stopTickMonitoring();
+            this.onStatusChange('⏸ Paused — billing stopped');
+            this.updateMeter();
         } catch (err: any) {
             console.error('Pause session error:', err);
+        }
+    }
+
+    async resumeSession(): Promise<boolean> {
+        if (!this.session) return false;
+        try {
+            const resp = await this.client.post<{
+                ok: boolean;
+                status: string;
+                balance: number;
+                totalPaid: number;
+                actualUsedSeconds: number;
+                estimatedRemainingSeconds: number;
+            }>('/payment/stream/resume', {
+                sessionId: this.session.sessionId,
+            });
+
+            if (!resp.ok) {
+                this.onStatusChange('⚠ Cannot resume — insufficient balance');
+                this.onPauseRequired();
+                if (this.onBalanceLow) this.onBalanceLow();
+                return false;
+            }
+
+            this.session.userBalance = resp.balance;
+            this.session.consumedPoints = resp.totalPaid;
+
+            // Restart tick monitoring — billing resumes from stored actualUsedSeconds
+            // No re-charge: delta = currentTime - actualUsedSeconds will skip already-paid time
+            this.startTickMonitoring();
+            this.onStatusChange('▶ Resumed — per-second billing active');
+            this.updateMeter();
+            return true;
+        } catch (err: any) {
+            console.error('Resume session error:', err);
+            this.onStatusChange(`Resume failed: ${err?.message || 'Unknown error'}`);
+            return false;
         }
     }
 

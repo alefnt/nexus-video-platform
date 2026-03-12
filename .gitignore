@@ -1,84 +1,77 @@
-# Node/JS
+# Dependencies
 node_modules/
-*/node_modules/
+.pnp
+.pnp.js
 
 # Build outputs
-build/
 dist/
-*/dist/
+build/
+.next/
+out/
 
-# Logs and reports
+# Local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-coverage/
-test-results/
-video-platform/test-results/
-video-platform/e2e_web_run.log
 
-# Env and IDE
-.env*
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
 Thumbs.db
-.vscode/
-.idea/
 
-# Local caches
-.cache/
-.tmp/
+# Testing
+coverage/
+.nyc_output/
 
-# Backups and restores
-vp_backups/
-vp_restore/
+# Misc
+*.pem
+.cache
+.temp
+*.tsbuildinfo
 
-# Generated previews and artifacts
-video-platform/client-web/public/videos/samples/
-video-platform/client-web/dist/
-video-platform/client-mobile/dist/
+# Prisma
+prisma/*.db
+prisma/*.db-journal
 
-# Large media files (mock videos, music, text — keep locally, not pushed)
-*.mp4
-*.mp3
-*.wav
-*.flac
-*.avi
-*.mkv
-*.mov
-*.base64
-*.base64mp4
-client-web/public/videos/
-video-platform/client-web/public/videos/
-sample_videos/
-video-platform/sample_videos/
+# Content uploads
+uploads/
+content/uploads/
+
+# Docker secrets
+.secrets/
+video-platform/fiber-node/
 
 # Binary/runtime files
+fiber-node/
+ckb_mock_db.json
 *.exe
 *.dll
 *.so
 *.dylib
-fiber-node/
-video-platform/fiber-node/
 
-# Playwright outputs
-playwright-report/
-blob-report/
+# Large media files (kept locally, not pushed to GitHub)
+sample_videos/
+client-web/public/videos/*.mp4
+services/content/storage/
+*.base64
+*.base64mp4
 
-# Misc
-*.zip
-*.7z
-*.tar
-*.gz
-
-# AI data
+# Test artifacts
+test-results/
+e2e_web_run.log
 .ai-data/
-video-platform/.ai-data/
-
-# Allow .env.example templates (override .env* rule above)
-!*.env.example
-!*.env.production.example
-!*.env.production.template
-
-#Ignore vscode AI rules
-.github\instructions\codacy.instructions.md

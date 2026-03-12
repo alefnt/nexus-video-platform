@@ -435,8 +435,197 @@ export default function CreatorNFT() {
                             ))}
                         </div>
                     )}
+                    {/* ====== Content NFT Minting ====== */}
+                    <ContentNFTMinter client={client} />
                 </div>
             </div>
         </div>
     );
 }
+
+/** Content NFT Minting — Mint video/music/article as Spore Protocol NFT */
+function ContentNFTMinter({ client }: { client: any }) {
+    const [contentType, setContentType] = useState<'video' | 'music' | 'article'>('video');
+    const [contentList, setContentList] = useState<any[]>([]);
+    const [selectedId, setSelectedId] = useState('');
+    const [minting, setMinting] = useState(false);
+    const [mintResult, setMintResult] = useState<{ txHash: string; sporeId: string } | null>(null);
+    const [mintError, setMintError] = useState('');
+    const [progress, setProgress] = useState(0);
+
+    useEffect(() => {
+        loadContent();
+    }, [contentType]);
+
+    const loadContent = async () => {
+        try {
+            const res = await client.get<{ items: any[] }>(`/content/my?type=${contentType}&limit=20`);
+            setContentList(res?.items || []);
+        } catch {
+            setContentList([]);
+        }
+    };
+
+    const handleMint = async () => {
+        if (!selectedId) return;
+        setMinting(true);
+        setMintError('');
+        setMintResult(null);
+        setProgress(10);
+
+        try {
+            const userStr = sessionStorage.getItem('vp.user');
+            const user = userStr ? JSON.parse(userStr) : null;
+            const ckbAddress = user?.ckbAddress;
+
+            if (!ckbAddress) {
+                setMintError('请先绑定 CKB 钱包地址');
+                return;
+            }
+
+            setProgress(30);
+
+            const res = await client.post<{
+                ok: boolean;
+                txHash: string;
+                sporeId: string;
+            }>('/nft/content/mint', {
+                contentId: selectedId,
+                contentType,
+                creatorAddress: ckbAddress,
+            });
+
+            setProgress(80);
+
+            if (res?.ok) {
+                setProgress(100);
+                setMintResult({ txHash: res.txHash, sporeId: res.sporeId });
+            } else {
+                setMintError('铸造失败，请重试');
+            }
+        } catch (err: any) {
+            setMintError(err?.error || err?.message || '铸造失败');
+        } finally {
+            setMinting(false);
+        }
+    };
+
+    const typeLabels = { video: '🎬 视频', music: '🎵 音乐', article: '📝 文章' };
+
+    return (
+        <div style={{ marginTop: 32 }}>
+            <h3 style={{ marginBottom: 16 }}>
+                🔗 内容上链铸造 (Spore Protocol)
+            </h3>
+            <div className="glass-card" style={{ padding: 24 }}>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 0, marginBottom: 20 }}>
+                    将你的作品铸造为 CKB 链上 Spore NFT，获得永久所有权证明和版税分成权益。
+                </p>
+
+                {/* Content Type Selector */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+                    {(['video', 'music', 'article'] as const).map(type => (
+                        <button
+                            key={type}
+                            onClick={() => { setContentType(type); setSelectedId(''); setMintResult(null); }}
+                            style={{
+                                padding: '8px 20px',
+                                borderRadius: 20,
+                                border: `1px solid ${contentType === type ? '#a267ff' : 'rgba(255,255,255,0.1)'}`,
+                                background: contentType === type ? 'rgba(162,103,255,0.15)' : 'transparent',
+                                color: contentType === type ? '#a267ff' : 'rgba(255,255,255,0.5)',
+                                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                            }}
+                        >
+                            {typeLabels[type]}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Content List */}
+                {contentList.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20, maxHeight: 200, overflowY: 'auto' }}>
+                        {contentList.map((item: any) => (
+                            <label
+                                key={item.id}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 12,
+                                    padding: '10px 14px', borderRadius: 8,
+                                    border: `1px solid ${selectedId === item.id ? '#a267ff' : 'rgba(255,255,255,0.06)'}`,
+                                    background: selectedId === item.id ? 'rgba(162,103,255,0.08)' : 'rgba(0,0,0,0.2)',
+                                    cursor: 'pointer', transition: 'all 0.2s',
+                                }}
+                            >
+                                <input type="radio" name="content" checked={selectedId === item.id}
+                                    onChange={() => setSelectedId(item.id)} style={{ accentColor: '#a267ff' }} />
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 14, fontWeight: 600 }}>{item.title || item.name}</div>
+                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+                                        ID: {item.id?.slice(0, 12)}... · {new Date(item.createdAt).toLocaleDateString()}
+                                    </div>
+                                </div>
+                                {item.nftSporeId && (
+                                    <span style={{ fontSize: 10, background: 'rgba(0,255,136,0.15)', color: '#00ff88', padding: '2px 8px', borderRadius: 10 }}>已上链</span>
+                                )}
+                            </label>
+                        ))}
+                    </div>
+                ) : (
+                    <div style={{ padding: 30, textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 14, marginBottom: 20 }}>
+                        暂无{typeLabels[contentType]}内容，请先上传
+                    </div>
+                )}
+
+                {/* Mint Progress */}
+                {minting && (
+                    <div style={{ marginBottom: 16 }}>
+                        <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${progress}%`, background: 'linear-gradient(90deg, #a267ff, #00f5d4)', borderRadius: 2, transition: 'width 0.5s ease' }} />
+                        </div>
+                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 6, textAlign: 'center' }}>
+                            正在铸造 Spore NFT... {progress}%
+                        </div>
+                    </div>
+                )}
+
+                {/* Mint Result */}
+                {mintResult && (
+                    <div style={{ padding: 16, borderRadius: 12, border: '1px solid rgba(0,255,136,0.3)', background: 'rgba(0,255,136,0.08)', marginBottom: 16 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: '#00ff88', marginBottom: 8 }}>✅ 铸造成功！</div>
+                        <div style={{ fontSize: 12, marginBottom: 4 }}>
+                            <strong>Spore ID:</strong> <code style={{ fontSize: 11, color: '#a267ff' }}>{mintResult.sporeId.slice(0, 20)}...</code>
+                        </div>
+                        <div style={{ fontSize: 12 }}>
+                            <strong>TX Hash:</strong>{' '}
+                            <a href={`https://pudge.explorer.nervos.org/transaction/${mintResult.txHash}`} target="_blank" rel="noopener" style={{ color: '#00f5d4', fontSize: 11 }}>
+                                {mintResult.txHash.slice(0, 20)}... ↗
+                            </a>
+                        </div>
+                    </div>
+                )}
+
+                {/* Mint Error */}
+                {mintError && (
+                    <div style={{ padding: 12, borderRadius: 8, background: 'rgba(255,107,107,0.1)', color: '#ff6b6b', fontSize: 13, marginBottom: 16 }}>{mintError}</div>
+                )}
+
+                {/* Mint Button */}
+                <button
+                    onClick={handleMint}
+                    disabled={!selectedId || minting}
+                    style={{
+                        width: '100%', padding: '14px 0', borderRadius: 10, border: 'none',
+                        background: selectedId && !minting ? 'linear-gradient(135deg, #a267ff, #00f5d4)' : 'rgba(255,255,255,0.06)',
+                        color: selectedId && !minting ? '#000' : 'rgba(255,255,255,0.3)',
+                        fontSize: 15, fontWeight: 700,
+                        cursor: selectedId && !minting ? 'pointer' : 'not-allowed',
+                        transition: 'all 0.2s',
+                    }}
+                >
+                    {minting ? '铸造中...' : selectedId ? '🔗 铸造为 Spore NFT' : '请选择要上链的内容'}
+                </button>
+            </div>
+        </div>
+    );
+}
+

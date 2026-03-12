@@ -393,7 +393,7 @@ export default function PointsCenter() {
       setCkbIntent(intent);
       setCkbTxHash("");
       if (joyidEnabled) {
-        if (!signer) { setError("请先在登录页面连接钱包后再购买"); return; }
+        if (!ckbAddress) { setError("请先在登录页面连接钱包后再购买"); return; }
         setJoyidPayMsg("已创建订单，准备发起付款...");
         startJoyIDPaymentRecommendedInner();
       } else {
@@ -457,13 +457,38 @@ export default function PointsCenter() {
       if (sendResp?.error) { setError(sendResp.error); setJoyidPaying(false); return; }
 
       if (sendResp?.txHash) setCkbTxHash(sendResp.txHash);
-      setJoyidPayMsg("交易已广播，正在确认入账...");
+      setJoyidPayMsg("交易已广播，正在等待链上确认...");
 
-      try {
-        const confirmResp = await client.post<{ ok?: boolean; creditedPoints?: number }>("/payment/ckb/confirm_tx", { orderId: intentResp.orderId, txHash: sendResp!.txHash });
-        if (confirmResp?.ok) alert(`支付成功！获得 ${confirmResp.creditedPoints} 积分\n交易哈希: ${sendResp!.txHash}`);
-        else alert(`交易已广播，积分将稍后入账\n交易哈希: ${sendResp!.txHash}`);
-      } catch (e) { alert(`交易已广播，积分将在确认后入账\n交易哈希: ${sendResp!.txHash}`); }
+      // Poll confirm_tx with retries — CKB testnet takes time to commit
+      const MAX_RETRIES = 10;
+      const RETRY_INTERVAL_MS = 5000;
+      let confirmed = false;
+
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          setJoyidPayMsg(`等待链上确认中... (${attempt}/${MAX_RETRIES})`);
+          const confirmResp = await client.post<{ ok?: boolean; creditedPoints?: number; retryable?: boolean }>("/payment/ckb/confirm_tx", { orderId: intentResp.orderId, txHash: sendResp!.txHash });
+          if (confirmResp?.ok) {
+            alert(`支付成功！获得 ${confirmResp.creditedPoints} 积分\n交易哈希: ${sendResp!.txHash}`);
+            confirmed = true;
+            break;
+          }
+          if (confirmResp?.retryable && attempt < MAX_RETRIES) {
+            await new Promise(resolve => setTimeout(resolve, RETRY_INTERVAL_MS));
+            continue;
+          }
+        } catch (e: any) {
+          // HTTP errors from confirm_tx — check if retryable
+          if (attempt < MAX_RETRIES) {
+            await new Promise(resolve => setTimeout(resolve, RETRY_INTERVAL_MS));
+            continue;
+          }
+        }
+      }
+
+      if (!confirmed) {
+        alert(`交易已广播，积分将在链上确认后自动入账\n交易哈希: ${sendResp!.txHash}`);
+      }
 
       setJoyidPayMsg(""); setJoyidPaying(false); refreshAll();
     } catch (e: any) {

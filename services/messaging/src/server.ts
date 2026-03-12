@@ -106,7 +106,10 @@ app.get('/metrics', async () => register.metrics());
 
 // ============== Watch Party WebRTC 信令房间管理 ==============
 interface WpMember { userId: string; socket: WebSocket; isHost: boolean; }
+interface WpPlaybackState { isPlaying: boolean; currentTime: number; updatedAt: number; }
 const wpRooms = new Map<string, Map<string, WpMember>>(); // roomId → Map<userId, WpMember>
+const wpPlayback = new Map<string, WpPlaybackState>(); // roomId → playback state
+const WP_MAX_PARTICIPANTS = Number(process.env.WP_MAX_PARTICIPANTS || 50);
 
 function wpBroadcast(roomId: string, message: any, excludeUserId?: string) {
     const room = wpRooms.get(roomId);
@@ -133,7 +136,10 @@ function wpRemoveUser(userId: string) {
         if (room.has(userId)) {
             room.delete(userId);
             wpBroadcast(roomId, { type: 'wp:peer_left', userId });
-            if (room.size === 0) wpRooms.delete(roomId);
+            if (room.size === 0) {
+                wpRooms.delete(roomId);
+                wpPlayback.delete(roomId);
+            }
         }
     });
 }
@@ -194,6 +200,17 @@ app.register(async function (fastify) {
                 if (msg.type === 'wp:join' && msg.roomId && userId) {
                     if (!wpRooms.has(msg.roomId)) wpRooms.set(msg.roomId, new Map());
                     const room = wpRooms.get(msg.roomId)!;
+
+                    // Room capacity check
+                    if (room.size >= WP_MAX_PARTICIPANTS && !room.has(userId)) {
+                        socket.send(JSON.stringify({
+                            type: 'wp:room_full',
+                            roomId: msg.roomId,
+                            maxParticipants: WP_MAX_PARTICIPANTS,
+                        }));
+                        return;
+                    }
+
                     room.set(userId, { userId, socket, isHost: !!msg.isHost });
 
                     // Notify existing peers about new member
@@ -213,6 +230,17 @@ app.register(async function (fastify) {
                             userId: id, isHost: m.isHost,
                         })),
                     }));
+
+                    // Send current playback position to the new joiner (so they can sync)
+                    const playback = wpPlayback.get(msg.roomId);
+                    if (playback) {
+                        socket.send(JSON.stringify({
+                            type: 'wp:playback_sync',
+                            isPlaying: playback.isPlaying,
+                            currentTime: playback.currentTime,
+                            updatedAt: playback.updatedAt,
+                        }));
+                    }
 
                     messageCounter.inc({ type: 'wp_join' });
                     return;
@@ -250,6 +278,16 @@ app.register(async function (fastify) {
 
                 // Collaborative control — broadcast play/pause/seek to all peers
                 if (msg.type === 'wp:control' && msg.roomId && userId) {
+                    // Track playback state server-side for late joiners
+                    if (msg.action === 'play' || msg.action === 'pause' || msg.action === 'seek') {
+                        const current = wpPlayback.get(msg.roomId) || { isPlaying: false, currentTime: 0, updatedAt: 0 };
+                        if (msg.action === 'play') current.isPlaying = true;
+                        else if (msg.action === 'pause') current.isPlaying = false;
+                        if (msg.action === 'seek' && msg.value !== undefined) current.currentTime = msg.value;
+                        current.updatedAt = Date.now();
+                        wpPlayback.set(msg.roomId, current);
+                    }
+
                     wpBroadcast(msg.roomId, {
                         type: 'wp:control',
                         fromUserId: userId,
@@ -269,6 +307,18 @@ app.register(async function (fastify) {
                         userName: msg.userName,
                         x: msg.x, y: msg.y,
                         reaction: msg.reaction,
+                    }, userId);
+                    return;
+                }
+
+                // Host periodic time sync — for late joiners and drift correction
+                if (msg.type === 'wp:sync' && msg.roomId && userId) {
+                    wpBroadcast(msg.roomId, {
+                        type: 'wp:control',
+                        fromUserId: userId,
+                        action: 'seek',
+                        value: msg.currentTime,
+                        timestamp: Date.now(),
                     }, userId);
                     return;
                 }

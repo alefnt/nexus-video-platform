@@ -1,152 +1,241 @@
 // FILE: /video-platform/services/payment/src/__tests__/paymentService.test.ts
 /**
- * Payment Service — Core Path Unit Tests
- * Phase 9: Critical path testing for points operations
+ * Payment Service — Unit Tests
+ * 
+ * Tests core business logic: points, Fiber, stream payments
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock PrismaClient
-const mockFindUnique = vi.fn();
-const mockUpdate = vi.fn();
-const mockCreate = vi.fn();
-const mockTransaction = vi.fn();
+const mockPrisma = {
+    user: {
+        findUnique: vi.fn(),
+        update: vi.fn(),
+    },
+    pointsTransaction: {
+        create: vi.fn(),
+        findMany: vi.fn(),
+    },
+    streamSession: {
+        findFirst: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+    },
+    fiberPayoutTask: {
+        findMany: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+    },
+    $transaction: vi.fn(),
+};
 
 vi.mock('@video-platform/database', () => ({
-    PrismaClient: class MockPrisma {
-        user = {
-            findUnique: mockFindUnique,
-            update: mockUpdate,
-        };
-        pointsTransaction = {
-            create: mockCreate,
-        };
-        $transaction = mockTransaction;
-    },
+    PrismaClient: vi.fn(() => mockPrisma),
+    Prisma: { Decimal: Number },
 }));
 
-describe('Payment Service Core Logic', () => {
+// Mock Fiber RPC Client
+const mockFiberClient = {
+    isConfigured: vi.fn(() => false),
+    getStatus: vi.fn(() => ({ ok: false })),
+    createInvoice: vi.fn(),
+    sendPayment: vi.fn(),
+    listChannels: vi.fn(() => []),
+    closeChannel: vi.fn(),
+};
+
+vi.mock('@video-platform/shared/web3/fiber', () => ({
+    FiberRPCClient: vi.fn(() => mockFiberClient),
+    createStreamInvoice: vi.fn(),
+    RealFiberHTLC: vi.fn(),
+}));
+
+describe('Payment Service — Points System', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    describe('Points Calculation', () => {
-        it('should calculate USDI to points correctly', () => {
-            const POINTS_PER_USDI = 100;
-            expect(Math.floor(1.5 * POINTS_PER_USDI)).toBe(150);
-            expect(Math.floor(0.01 * POINTS_PER_USDI)).toBe(1);
-            expect(Math.floor(10 * POINTS_PER_USDI)).toBe(1000);
+    describe('getUserPoints', () => {
+        it('should return 0 for non-existent user', async () => {
+            mockPrisma.user.findUnique.mockResolvedValue(null);
+
+            const { getUserPoints } = await import('../services/paymentService');
+            const points = await getUserPoints('non-existent');
+
+            expect(points).toBe(0);
         });
 
-        it('should calculate CKB to points correctly', () => {
-            const POINTS_PER_CKB = 10000;
-            expect(Math.floor(1 * POINTS_PER_CKB)).toBe(10000);
-            expect(Math.floor(0.5 * POINTS_PER_CKB)).toBe(5000);
-            expect(Math.floor(100 * POINTS_PER_CKB)).toBe(1000000);
-        });
+        it('should return correct balance for existing user', async () => {
+            mockPrisma.user.findUnique.mockResolvedValue({ points: 1500 });
 
-        it('should handle precision edge cases', () => {
-            const POINTS_PER_USDI = 100;
-            // Floating point precision
-            expect(Math.floor(0.1 + 0.2) * POINTS_PER_USDI).toBe(0);
-            expect(Math.floor((0.1 + 0.2) * POINTS_PER_USDI)).toBe(30);
+            const { getUserPoints } = await import('../services/paymentService');
+            const points = await getUserPoints('user123');
+
+            expect(points).toBe(1500);
         });
     });
 
-    describe('CKB to Shannons Conversion', () => {
-        function ckbToShannons(ckbStr: string): string {
-            const [i, f = ""] = ckbStr.split(".");
-            const frac = (f + "00000000").slice(0, 8);
-            const big = BigInt(i) * 100000000n + BigInt(frac);
-            return big.toString();
-        }
+    describe('updateUserPoints', () => {
+        it('should add points and log transaction', async () => {
+            mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+                const tx = {
+                    user: {
+                        findUnique: vi.fn().mockResolvedValue({ id: 'user1', points: 1000 }),
+                        update: vi.fn().mockResolvedValue({}),
+                    },
+                    pointsTransaction: {
+                        create: vi.fn().mockResolvedValue({}),
+                    },
+                };
+                return fn(tx);
+            });
 
-        it('should convert whole CKB amounts', () => {
-            expect(ckbToShannons("1")).toBe("100000000");
-            expect(ckbToShannons("100")).toBe("10000000000");
+            const { updateUserPoints } = await import('../services/paymentService');
+            const newBalance = await updateUserPoints('user1', 500, 'earn', 'Daily reward');
+
+            expect(newBalance).toBe(1500);
         });
 
-        it('should convert fractional CKB amounts', () => {
-            expect(ckbToShannons("1.5")).toBe("150000000");
-            expect(ckbToShannons("0.00000001")).toBe("1");
-            expect(ckbToShannons("123.456")).toBe("12345600000");
+        it('should reject if insufficient balance', async () => {
+            mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+                const tx = {
+                    user: {
+                        findUnique: vi.fn().mockResolvedValue({ id: 'user1', points: 100 }),
+                        update: vi.fn(),
+                    },
+                    pointsTransaction: { create: vi.fn() },
+                };
+                return fn(tx);
+            });
+
+            const { updateUserPoints } = await import('../services/paymentService');
+
+            await expect(
+                updateUserPoints('user1', -500, 'redeem', 'Buy video')
+            ).rejects.toThrow('Insufficient balance');
         });
 
-        it('should handle zero', () => {
-            expect(ckbToShannons("0")).toBe("0");
-        });
-    });
+        it('should reject for non-existent user', async () => {
+            mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+                const tx = {
+                    user: { findUnique: vi.fn().mockResolvedValue(null) },
+                    pointsTransaction: { create: vi.fn() },
+                };
+                return fn(tx);
+            });
 
-    describe('Balance Operations', () => {
-        it('should prevent negative balance', async () => {
-            const currentBalance = 50;
-            const deductAmount = -100;
-            const newBalance = currentBalance + deductAmount;
-            expect(newBalance).toBeLessThan(0);
-            // Service should throw "Insufficient balance"
-        });
+            const { updateUserPoints } = await import('../services/paymentService');
 
-        it('should allow valid deduction', () => {
-            const currentBalance = 1000;
-            const deductAmount = -500;
-            const newBalance = currentBalance + deductAmount;
-            expect(newBalance).toBe(500);
-            expect(newBalance).toBeGreaterThanOrEqual(0);
-        });
-
-        it('should handle earn correctly', () => {
-            const currentBalance = 100;
-            const earnAmount = 250;
-            const newBalance = currentBalance + earnAmount;
-            expect(newBalance).toBe(350);
-        });
-    });
-
-    describe('Stream Payment Calculations', () => {
-        it('should calculate segment count correctly', () => {
-            const videoDuration = 600; // 10 minutes
-            const segmentMinutes = 5;
-            const totalSegments = Math.ceil(videoDuration / 60 / segmentMinutes);
-            expect(totalSegments).toBe(2);
-        });
-
-        it('should calculate segment price correctly', () => {
-            const pricePerMinute = 2;
-            const segmentMinutes = 5;
-            const amount = pricePerMinute * segmentMinutes;
-            expect(amount).toBe(10);
-        });
-
-        it('should handle per-second pricing', () => {
-            const pricePerSecond = 0.5;
-            const pricePerMinute = pricePerSecond * 60;
-            expect(pricePerMinute).toBe(30);
-        });
-
-        it('should handle edge case: video shorter than segment', () => {
-            const videoDuration = 120; // 2 minutes
-            const segmentMinutes = 5;
-            const totalSegments = Math.ceil(videoDuration / 60 / segmentMinutes);
-            expect(totalSegments).toBe(1);
+            await expect(
+                updateUserPoints('ghost', 100, 'earn')
+            ).rejects.toThrow('User not found');
         });
     });
 
-    describe('Tip Calculations', () => {
-        it('should calculate platform fee correctly', () => {
-            const tipAmount = 1000;
-            const platformFeeRate = 0.05; // 5%
-            const platformFee = Math.floor(tipAmount * platformFeeRate);
-            const creatorAmount = tipAmount - platformFee;
-            expect(platformFee).toBe(50);
-            expect(creatorAmount).toBe(950);
+    describe('ckbToShannons', () => {
+        it('should convert integer CKB to shannons', async () => {
+            const { ckbToShannons } = await import('../services/paymentService');
+            expect(ckbToShannons('1')).toBe('100000000');
+            expect(ckbToShannons('100')).toBe('10000000000');
         });
 
-        it('should handle minimum tip', () => {
-            const tipAmount = 1;
-            const platformFeeRate = 0.05;
-            const platformFee = Math.floor(tipAmount * platformFeeRate);
-            expect(platformFee).toBe(0);
-            // Minimum fee should still be 0 for tiny tips
+        it('should convert decimal CKB to shannons', async () => {
+            const { ckbToShannons } = await import('../services/paymentService');
+            expect(ckbToShannons('1.5')).toBe('150000000');
+            expect(ckbToShannons('0.00000001')).toBe('1');
         });
+    });
+});
+
+describe('Payment Service — Fiber Integration', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    describe('Fiber RPC Client', () => {
+        it('should report unconfigured when no FIBER_RPC_URL', () => {
+            expect(mockFiberClient.isConfigured()).toBe(false);
+        });
+
+        it('should return points_only mode when unconfigured', async () => {
+            mockFiberClient.isConfigured.mockReturnValue(false);
+            const status = mockFiberClient.isConfigured()
+                ? 'dual'
+                : 'points_only';
+            expect(status).toBe('points_only');
+        });
+
+        it('should create invoice when configured', async () => {
+            mockFiberClient.isConfigured.mockReturnValue(true);
+            mockFiberClient.createInvoice.mockResolvedValue({
+                paymentHash: '0xabc123',
+                paymentRequest: 'fiber://pay/...',
+                amount: '100',
+                currency: 'CKB',
+                expiry: 300,
+            });
+
+            const invoice = await mockFiberClient.createInvoice({
+                amount: '100',
+                memo: 'Test invoice',
+            });
+
+            expect(invoice.paymentHash).toBe('0xabc123');
+            expect(invoice.currency).toBe('CKB');
+        });
+
+        it('should send payment and return result', async () => {
+            mockFiberClient.sendPayment.mockResolvedValue({
+                paymentHash: '0xdef456',
+                status: 'succeeded',
+                preimage: '0xpreimage',
+                fee: '0.001',
+            });
+
+            const result = await mockFiberClient.sendPayment({
+                invoice: 'fiber://pay/...',
+                amount: '100',
+            });
+
+            expect(result.status).toBe('succeeded');
+            expect(result.preimage).toBe('0xpreimage');
+        });
+
+        it('should list empty channels', async () => {
+            const channels = await mockFiberClient.listChannels();
+            expect(channels).toEqual([]);
+        });
+    });
+});
+
+describe('Payment Service — Stream Payment', () => {
+    it('should calculate segment duration based on video length', () => {
+        // Short video (< 5 min): 10-second segments
+        // Medium video (5-30 min): 30-second segments
+        // Long video (> 30 min): 60-second segments
+        const calcSegmentDuration = (videoSeconds: number): number => {
+            if (videoSeconds <= 300) return 10;
+            if (videoSeconds <= 1800) return 30;
+            return 60;
+        };
+
+        expect(calcSegmentDuration(120)).toBe(10);
+        expect(calcSegmentDuration(600)).toBe(30);
+        expect(calcSegmentDuration(3600)).toBe(60);
+    });
+
+    it('should calculate correct stream cost', () => {
+        const pricePerSecond = 0.0667;
+        const duration = 30; // 30 seconds watched
+        const cost = Math.round(pricePerSecond * duration);
+        expect(cost).toBe(2); // 0.0667 * 30 = 2.001, rounds to 2
+    });
+});
+
+describe('Payment Service — Constants', () => {
+    it('should have correct exchange rates', async () => {
+        const { POINTS_PER_CKB } = await import('../services/paymentService');
+        expect(POINTS_PER_CKB).toBe(10000);
     });
 });

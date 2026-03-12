@@ -77,6 +77,14 @@ export default function VideoPlayer() {
   const [buying, setBuying] = useState<boolean>(false);
   const [hasOffline, setHasOffline] = useState<boolean>(false);
 
+  // Player UI state
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
   // Stream payment handler
   const streamHandlerRef = useRef<StreamPaymentHandler | null>(null);
 
@@ -165,6 +173,18 @@ export default function VideoPlayer() {
         player.src({ src: meta.cdnUrl, type: "application/x-mpegURL" });
         handler.setPlayer(player);
         player.on('dispose', () => handler.cleanup());
+        // Wire pause/play events to stream payment billing
+        let isStreamActive = true;
+        player.on('pause', () => {
+          if (isStreamActive && streamHandlerRef.current) {
+            streamHandlerRef.current.pauseSession();
+          }
+        });
+        player.on('play', () => {
+          if (isStreamActive && streamHandlerRef.current) {
+            streamHandlerRef.current.resumeSession();
+          }
+        });
       }
     },
     onStreamPause: () => {
@@ -525,6 +545,9 @@ export default function VideoPlayer() {
           player.src({ src: streamUrl, type: "application/x-mpegURL" });
           streamHandler.setPlayer(player);
           player.on('dispose', () => { streamHandler.cleanup(); });
+          // Wire pause/play events to stream payment billing
+          player.on('pause', () => { if (streamHandlerRef.current) streamHandlerRef.current.pauseSession(); });
+          player.on('play', () => { if (streamHandlerRef.current) streamHandlerRef.current.resumeSession(); });
         }
       } catch (e: any) { console.error("Auto stream payment error:", e); setStatus("Stream payment failed"); } finally { setBuying(false); }
     };
@@ -604,12 +627,30 @@ export default function VideoPlayer() {
             </div>
             {meta && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400 uppercase tracking-wider font-bold">Price</span>
-                <span className="text-yellow-400 font-bold font-mono text-sm">{meta.priceUSDI} <span className="text-[10px] text-yellow-600">USDC</span></span>
+                {Number((meta as any)?.streamPricePerMinute || 0) > 0 ? (
+                  <>
+                    <span className="text-xs text-gray-400 uppercase tracking-wider font-bold">Rate</span>
+                    <span className="text-yellow-400 font-bold font-mono text-sm">
+                      {(Number((meta as any).streamPricePerMinute) / 60).toFixed(2)} <span className="text-[10px] text-yellow-600">PTS/秒</span>
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xs text-gray-400 uppercase tracking-wider font-bold">Price</span>
+                    <span className="text-yellow-400 font-bold font-mono text-sm">{meta.priceUSDI} <span className="text-[10px] text-yellow-600">USDC</span></span>
+                  </>
+                )}
               </div>
             )}
           </div>
-          <button onClick={() => navigate('/watch-party')} className="bg-white/10 text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-white/20 transition-colors flex items-center gap-2">
+          <button onClick={() => {
+            const params = new URLSearchParams();
+            if (id) params.set('video', id);
+            if (meta?.title) params.set('title', meta.title);
+            if (meta?.posterUrl || meta?.coverUrl) params.set('poster', meta.posterUrl || meta.coverUrl || '');
+            if (meta?.cdnUrl) params.set('streamUrl', meta.cdnUrl);
+            navigate(`/watch-party?${params.toString()}`);
+          }} className="bg-white/10 text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-white/20 transition-colors flex items-center gap-2">
             <svg className="w-4 h-4 text-[#a855f7]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
             </svg>
@@ -696,142 +737,222 @@ export default function VideoPlayer() {
               />
             )}
 
-            {/* Live Badge overlay */}
-            <div className="absolute top-6 left-6 flex items-center gap-3 z-10 pointer-events-none">
-              <div className="bg-red-600 text-white px-3 py-1 rounded-md text-xs font-bold tracking-widest flex items-center gap-2 shadow-[0_0_10px_rgba(220,38,38,0.5)]">
-                <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span> LIVE
+            {/* Stream Payment Badge — only shows during active stream payment */}
+            {streamHandlerRef.current?.getSession() && (
+              <div className="absolute top-4 left-4 flex items-center gap-2 z-10 pointer-events-none">
+                <div className="bg-gradient-to-r from-[#22d3ee] to-[#a855f7] text-white px-3 py-1 rounded-lg text-xs font-bold tracking-wider flex items-center gap-2 shadow-lg backdrop-blur-sm">
+                  <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span> STREAM PAY
+                </div>
               </div>
-            </div>
-            {/* Watermark */}
-            <div className="absolute top-6 right-6 opacity-30 flex items-center gap-2 z-10 pointer-events-none">
-              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            )}
+            {/* NEXUS Watermark — subtle */}
+            <div className="absolute top-4 right-4 opacity-20 flex items-center gap-1.5 z-10 pointer-events-none">
+              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
               </svg>
-              <span className="font-bold tracking-widest text-sm text-white">FIBER_CH01</span>
+              <span className="font-bold tracking-widest text-xs text-white">NEXUS</span>
             </div>
           </div>
 
           {/* Video Metadata Area */}
-          <div className="mt-8 max-w-6xl mx-auto w-full">
-            <div className="flex items-start justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-white mb-2">{meta?.title || id}</h1>
-                <div className="flex items-center gap-4 text-sm text-gray-400">
-                  <span className="text-blue-400 font-semibold cursor-pointer hover:underline">Sci-Fi Masterpieces</span>
-                  <span>•</span>
-                  <span>Video</span>
+          <div className="mt-6 max-w-6xl mx-auto w-full">
+            {/* Title + Creator Row */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl font-bold text-white mb-1 truncate">{meta?.title || id}</h1>
+                <div className="flex items-center gap-3 text-sm text-gray-400">
+                  <span>{meta?.description?.slice(0, 60) || 'Video'}{(meta?.description?.length || 0) > 60 ? '...' : ''}</span>
                 </div>
               </div>
-
-              <div className="flex items-center gap-6">
-                <div className="flex gap-3">
-                  <button disabled={!hasOffline} onClick={async () => {
-                    const offline = await loadCachedVideo(id!);
-                    if (offline && playerRef.current) {
-                      playerRef.current.src({ src: offline, type: "video/mp4" });
-                      setStatus("Playing from offline cache");
-                    } else {
-                      setStatus("Offline cache not found. Please download first.");
-                    }
-                  }} className="bg-white/5 border border-white/10 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-white/10 transition-colors disabled:opacity-50">Play Offline</button>
-
-                  <button disabled={downloading} onClick={async () => {
-                    if (!id) return;
-                    const jwt = typeof window !== "undefined" ? sessionStorage.getItem("vp.jwt") : null;
-                    const userRaw = typeof window !== "undefined" ? sessionStorage.getItem("vp.user") : null;
-                    if (!jwt || !userRaw) {
-                      setStatus("Login required for offline download.");
-                      try { alert("Please login first to download offline cache"); } catch { }
-                      try { navigate("/login"); } catch { }
-                      return;
-                    }
-                    try {
-                      const usr = JSON.parse(userRaw);
-                      const priceNum = meta ? parseFloat(String(meta.priceUSDI || "0")) : NaN;
-                      const isPaid = !isNaN(priceNum) && priceNum > 0;
-                      if (!usr?.ckbAddress && isPaid) {
-                        setStatus("JoyID login required for paid offline content");
-                        try { alert("Please login with JoyID to download/authorize offline playback"); } catch { }
-                        return;
-                      }
-                    } catch { }
-                    let timer: any;
-                    try {
-                      setDownloading(true);
-                      setProgress(10);
-                      timer = setInterval(() => {
-                        setProgress((p) => (p < 95 ? Math.min(p + Math.random() * 12, 95) : p));
-                      }, 250);
-                      setStatus("Requesting offline authorization...");
-                      const dfp = sessionStorage.getItem("vp.offline.dfp") || (() => {
-                        const ua = navigator.userAgent;
-                        const scr = `${screen.width}x${screen.height}`;
-                        const v = btoa(`${ua}|${scr}`);
-                        sessionStorage.setItem("vp.offline.dfp", v);
-                        return v;
-                      })();
-                      const grant = await client.post<{ video_id: string; offline_token: string; expires_in: number; cdn_urls: string[] }>("/content/play/offline", { videoId: id, deviceFingerprint: dfp });
-                      sessionStorage.setItem("vp.offline.jwt", grant.offline_token);
-                      setStatus(`Authorized (valid for ${Math.round(grant.expires_in / 86400)} days), caching...`);
-                      const offlineClient = getApiClient();
-                      offlineClient.setJWT(grant.offline_token);
-                      const raw = await offlineClient.get<{ base64: string }>(`/content/raw/${id}`);
-                      const m = meta || (await client.get<VideoMeta>(`/metadata/${id}`));
-                      await encryptAndCacheVideo(id, raw.base64, m.creatorCkbAddress);
-                      setStatus("Offline cache complete. Ready for offline playback.");
-                      if (timer) clearInterval(timer);
-                      setProgress(100);
-                      setTimeout(() => setProgress(0), 1200);
-                      try { setHasOffline(await checkCacheExists(id)); } catch { }
-                    } catch (e: any) {
-                      setStatus(`Offline authorization/cache failed: ${e?.error || e?.message || "Unknown error"}`);
-                    } finally {
-                      if (timer) clearInterval(timer);
-                      setDownloading(false);
-                      setTimeout(() => setProgress(0), 800);
-                    }
-                  }} className="bg-white/10 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-white/20 transition-colors flex items-center gap-2 relative overflow-hidden disabled:opacity-50">
-                    {downloading ? "Caching..." : "Cache Offline"}
-                    {progress > 0 && (
-                      <div className="absolute bottom-0 left-0 h-1 bg-[#22d3ee]" style={{ width: `${progress}%`, transition: "width 0.2s" }} />
-                    )}
-                  </button>
-                  <button onClick={() => setShowReport(true)} className="bg-white/5 text-gray-400 px-3 py-2 rounded-xl text-xs font-bold hover:bg-red-500/10 hover:text-red-400 transition-colors">🚩 Report</button>
-                </div>
-
-                <div className="w-px h-8 bg-white/20 hidden md:block"></div>
-
-                {/* Creator Badge */}
-                <div
-                  onClick={() => meta?.creatorCkbAddress && navigate(`/profile/${meta.creatorCkbAddress}`)}
-                  className="flex items-center gap-4 bg-white/5 p-3 rounded-2xl border border-white/10 hover:bg-white/10 cursor-pointer transition-colors"
-                >
-                  <div className="w-12 h-12 rounded-full bg-cover shadow-lg" style={{ backgroundImage: `url(https://api.dicebear.com/7.x/avataaars/svg?seed=${meta?.creatorCkbAddress || "nexus"})` }}></div>
-                  <div className="flex-1">
-                    <div className="text-white font-bold flex items-center gap-1 hover:text-[#22d3ee] transition-colors">
-                      {meta?.creatorCkbAddress ? `${meta.creatorCkbAddress.slice(0, 6)}...${meta.creatorCkbAddress.slice(-4)}` : "Cosmic Studios"}
-                      <svg className="w-4 h-4 text-[#22d3ee]" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
-                      </svg>
-                    </div>
-                    <div className="text-xs text-gray-400 font-mono mt-0.5">1.2M Followers</div>
+              {/* Creator Badge — compact */}
+              <div
+                onClick={() => meta?.creatorCkbAddress && navigate(`/profile/${meta.creatorCkbAddress}`)}
+                className="flex items-center gap-3 bg-white/5 px-3 py-2 rounded-xl border border-white/10 hover:bg-white/10 cursor-pointer transition-colors flex-shrink-0"
+              >
+                <div className="w-9 h-9 rounded-full bg-cover shadow-lg flex-shrink-0" style={{ backgroundImage: `url(https://api.dicebear.com/7.x/avataaars/svg?seed=${meta?.creatorCkbAddress || 'nexus'})` }}></div>
+                <div className="hidden sm:block">
+                  <div className="text-white text-sm font-bold flex items-center gap-1">
+                    {meta?.creatorCkbAddress ? `${meta.creatorCkbAddress.slice(0, 6)}...${meta.creatorCkbAddress.slice(-4)}` : 'Creator'}
+                    <svg className="w-3.5 h-3.5 text-[#22d3ee]" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
+                    </svg>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!jwt) { alert('Please login first'); navigate('/login'); return; }
-                      client.post('/metadata/follow', { targetAddress: meta?.creatorCkbAddress }).catch(() => { });
-                      const btn = e.currentTarget;
-                      btn.textContent = 'Following';
-                      btn.classList.replace('bg-white', 'bg-white/20');
-                      btn.classList.replace('text-black', 'text-white');
-                    }}
-                    className="ml-2 bg-white text-black px-4 py-1.5 rounded-full text-sm font-bold hover:bg-gray-200 hover:scale-105 transition-all shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-                  >
-                    Follow
-                  </button>
                 </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!jwt) { alert('Please login first'); navigate('/login'); return; }
+                    client.post('/metadata/follow', { targetAddress: meta?.creatorCkbAddress }).catch(() => { });
+                    const btn = e.currentTarget;
+                    btn.textContent = 'Following';
+                    btn.classList.replace('bg-white', 'bg-white/20');
+                    btn.classList.replace('text-black', 'text-white');
+                  }}
+                  className="bg-white text-black px-3 py-1 rounded-full text-xs font-bold hover:bg-gray-200 transition-all"
+                >
+                  Follow
+                </button>
               </div>
+            </div>
+
+            {/* Action Bar — Like · Share · Download · Speed · PiP · Bookmark · Report */}
+            <div className="flex items-center gap-2 mt-4 flex-wrap">
+              {/* Like */}
+              <button
+                onClick={() => {
+                  if (!jwt) { alert('Please login first'); navigate('/login'); return; }
+                  setLiked(!liked);
+                  setLikeCount(prev => liked ? prev - 1 : prev + 1);
+                  client.post(`/metadata/${id}/like`, { liked: !liked }).catch(() => {});
+                }}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold transition-all ${
+                  liked
+                    ? 'bg-[#22d3ee]/20 text-[#22d3ee] border border-[#22d3ee]/40'
+                    : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'
+                }`}
+              >
+                <svg className="w-5 h-5" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                </svg>
+                {likeCount > 0 ? likeCount : 'Like'}
+              </button>
+
+              {/* Share */}
+              <button
+                onClick={() => {
+                  const url = window.location.href;
+                  navigator.clipboard?.writeText(url).then(() => {
+                    setStatus('Link copied!');
+                    setTimeout(() => setStatus(''), 2000);
+                  }).catch(() => {
+                    prompt('Copy this link:', url);
+                  });
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10 transition-all"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                Share
+              </button>
+
+              {/* Download */}
+              <button
+                disabled={downloading}
+                onClick={async () => {
+                  if (!id) return;
+                  if (!jwt || !userRaw) { alert('Please login first'); navigate('/login'); return; }
+                  try {
+                    setDownloading(true); setProgress(10);
+                    const timer = setInterval(() => setProgress((p) => (p < 95 ? Math.min(p + Math.random() * 12, 95) : p)), 250);
+                    setStatus('Downloading...');
+                    const dfp = sessionStorage.getItem('vp.offline.dfp') || (() => { const v = btoa(`${navigator.userAgent}|${screen.width}x${screen.height}`); sessionStorage.setItem('vp.offline.dfp', v); return v; })();
+                    const grant = await client.post<{ video_id: string; offline_token: string; expires_in: number; cdn_urls: string[] }>('/content/play/offline', { videoId: id, deviceFingerprint: dfp });
+                    const offlineClient = getApiClient(); offlineClient.setJWT(grant.offline_token);
+                    const raw = await offlineClient.get<{ base64: string }>(`/content/raw/${id}`);
+                    const m = meta || (await client.get<VideoMeta>(`/metadata/${id}`));
+                    await encryptAndCacheVideo(id, raw.base64, m.creatorCkbAddress);
+                    clearInterval(timer); setProgress(100);
+                    setStatus('Downloaded for offline playback');
+                    try { setHasOffline(await checkCacheExists(id)); } catch {}
+                    setTimeout(() => setProgress(0), 1200);
+                  } catch (e: any) {
+                    setStatus(`Download failed: ${e?.message || 'Unknown error'}`);
+                  } finally {
+                    setDownloading(false); setTimeout(() => setProgress(0), 800);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50 relative overflow-hidden"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                {downloading ? 'Downloading...' : hasOffline ? 'Downloaded ✓' : 'Download'}
+                {progress > 0 && <div className="absolute bottom-0 left-0 h-0.5 bg-[#22d3ee]" style={{ width: `${progress}%`, transition: 'width 0.2s' }} />}
+              </button>
+
+              {/* Speed Selector */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10 transition-all"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  {playbackSpeed}x
+                </button>
+                {showSpeedMenu && (
+                  <div className="absolute bottom-full mb-2 left-0 bg-[#1a1a2e] border border-white/10 rounded-xl py-1 min-w-[100px] z-50 shadow-xl">
+                    {speedOptions.map(s => (
+                      <button
+                        key={s}
+                        onClick={() => {
+                          setPlaybackSpeed(s);
+                          if (playerRef.current) playerRef.current.playbackRate(s);
+                          setShowSpeedMenu(false);
+                        }}
+                        className={`block w-full text-left px-4 py-2 text-sm font-mono transition-colors ${
+                          playbackSpeed === s ? 'text-[#22d3ee] bg-[#22d3ee]/10' : 'text-gray-300 hover:bg-white/5'
+                        }`}
+                      >
+                        {s}x {s === 1 ? '(Normal)' : ''}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Picture-in-Picture */}
+              <button
+                onClick={() => {
+                  const videoEl = videoRef.current;
+                  if (!videoEl) return;
+                  if (document.pictureInPictureElement) {
+                    document.exitPictureInPicture().catch(() => {});
+                  } else {
+                    videoEl.requestPictureInPicture?.().catch(() => setStatus('PiP not supported'));
+                  }
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10 transition-all"
+                title="Picture-in-Picture"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <rect x="2" y="3" width="20" height="14" rx="2" />
+                  <rect x="11" y="9" width="9" height="7" rx="1" fill="currentColor" opacity="0.3" />
+                </svg>
+                PiP
+              </button>
+
+              {/* Bookmark */}
+              <button
+                onClick={() => {
+                  if (!jwt) { alert('Please login first'); navigate('/login'); return; }
+                  setBookmarked(!bookmarked);
+                  client.post(`/metadata/${id}/bookmark`, { bookmarked: !bookmarked }).catch(() => {});
+                }}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold transition-all ${
+                  bookmarked
+                    ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40'
+                    : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'
+                }`}
+              >
+                <svg className="w-5 h-5" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                {bookmarked ? 'Saved' : 'Save'}
+              </button>
+
+              {/* Report — small icon */}
+              <button
+                onClick={() => setShowReport(true)}
+                className="flex items-center gap-1 px-3 py-2 rounded-full text-xs font-bold bg-white/5 text-gray-500 border border-white/10 hover:bg-red-500/10 hover:text-red-400 transition-all ml-auto"
+                title="Report"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z" />
+                </svg>
+              </button>
             </div>
 
             <div className="mt-8 relative overflow-hidden p-6 rounded-2xl border border-white/5 bg-[#0A0A14]">

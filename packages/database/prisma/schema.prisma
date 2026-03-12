@@ -151,6 +151,10 @@ model Video {
   moderationStatus String  @default("approved") // pending, approved, rejected, flagged
   moderationNote   String?
 
+  // RGB++ Revenue Split Contract
+  splitContractId    String?   // RGB++ split contract address on CKB
+  splitParticipants  Json?     // JSON array of { address, percentage, role }
+
   // Stats
   views         Int       @default(0)
   likes         Int       @default(0)
@@ -244,6 +248,10 @@ model Music {
   moderationStatus String  @default("approved")
   moderationNote   String?
 
+  // RGB++ Revenue Split Contract
+  splitContractId    String?   // RGB++ split contract address on CKB
+  splitParticipants  Json?     // JSON array of { address, percentage, role }
+
   creatorId     String
   creator       User      @relation(fields: [creatorId], references: [id])
   
@@ -278,6 +286,10 @@ model Article {
 
   moderationStatus String  @default("approved")
   moderationNote   String?
+
+  // RGB++ Revenue Split Contract
+  splitContractId    String?   // RGB++ split contract address on CKB
+  splitParticipants  Json?     // JSON array of { address, percentage, role }
   
   creatorId     String
   creator       User      @relation(fields: [creatorId], references: [id])

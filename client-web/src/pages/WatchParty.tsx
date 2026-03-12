@@ -47,11 +47,26 @@ const getUserName = () => {
     return `观众${Math.floor(Math.random() * 1000)}`;
 };
 
-// Fallback demo videos (shown when API returns empty)
+// Fallback demo videos with real public HLS URLs
 const DEMO_VIDEOS = [
-    { id: 'sample-bbb-720p', title: 'Big Buck Bunny', poster: '' },
-    { id: 'sintel-hls', title: 'Sintel (HLS)', poster: '' },
-    { id: 'elephants-dream', title: 'Elephants Dream', poster: '' },
+    {
+        id: 'sample-bbb-720p',
+        title: 'Big Buck Bunny',
+        poster: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Big_buck_bunny_poster_big.jpg/800px-Big_buck_bunny_poster_big.jpg',
+        streamUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    },
+    {
+        id: 'sintel-hls',
+        title: 'Sintel (HLS)',
+        poster: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Sintel_poster.jpg/800px-Sintel_poster.jpg',
+        streamUrl: 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8',
+    },
+    {
+        id: 'elephants-dream',
+        title: 'Elephants Dream',
+        poster: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Elephants_Dream_s1_proog.jpg/800px-Elephants_Dream_s1_proog.jpg',
+        streamUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    },
 ];
 
 // Simple Chat Component (inline)
@@ -186,6 +201,11 @@ const WatchParty: React.FC = () => {
 
     // Room state
     const roomIdFromUrl = searchParams.get('room');
+    const videoIdFromUrl = searchParams.get('video');
+    const videoTitleFromUrl = searchParams.get('title');
+    const videoPosterFromUrl = searchParams.get('poster');
+    const videoStreamUrlFromUrl = searchParams.get('streamUrl');
+
     const [currentRoomId, setCurrentRoomId] = useState(roomIdFromUrl || '');
     const [isHost, setIsHost] = useState(!roomIdFromUrl);
 
@@ -194,21 +214,24 @@ const WatchParty: React.FC = () => {
     const userName = useMemo(() => getUserName(), []);
 
     // Video library: load from API, fallback to demos
-    const [videoLibrary, setVideoLibrary] = useState<{ id: string; title: string; poster: string }[]>(DEMO_VIDEOS);
+    const [videoLibrary, setVideoLibrary] = useState<{ id: string; title: string; poster: string; streamUrl?: string }[]>(DEMO_VIDEOS);
     const [videosLoading, setVideosLoading] = useState(true);
 
     useEffect(() => {
         const jwt = sessionStorage.getItem('vp.jwt');
         const client = getApiClient();
         if (jwt) client.setJWT(jwt);
-        client.get<{ videos?: any[] }>('/metadata/videos?limit=50')
+        client.get<any>('/metadata/list?type=video&limit=50')
             .then(res => {
-                const vids = (res?.videos || [])
+                // API returns a flat array of VideoMeta objects
+                const items = Array.isArray(res) ? res : (res?.videos || res?.items || []);
+                const vids = items
                     .filter((v: any) => v.id && v.title)
                     .map((v: any) => ({
                         id: v.id,
                         title: v.title || 'Untitled',
-                        poster: v.coverUrl || v.thumbnail || '',
+                        poster: v.posterUrl || v.coverUrl || v.thumbnail || '',
+                        streamUrl: v.cdnUrl || v.cfPlaybackHls || undefined,
                     }));
                 if (vids.length > 0) {
                     setVideoLibrary([...vids, ...DEMO_VIDEOS]);
@@ -218,11 +241,22 @@ const WatchParty: React.FC = () => {
             .finally(() => setVideosLoading(false));
     }, []);
 
+    // Determine initial view:
+    // - ?room=xxx → join existing room
+    // - ?video=xxx → came from video player → skip to create view with that video pre-selected
+    // - neither → lobby
+    const initialView = roomIdFromUrl ? 'room' : (videoIdFromUrl ? 'create' : 'lobby');
+
     // UI state
-    const [view, setView] = useState<'lobby' | 'create' | 'room'>(roomIdFromUrl ? 'room' : 'lobby');
-    const [selectedVideo, setSelectedVideo] = useState(DEMO_VIDEOS[0]);
+    const [view, setView] = useState<'lobby' | 'create' | 'room'>(initialView);
+    const [selectedVideo, setSelectedVideo] = useState<{ id: string; title: string; poster: string; streamUrl?: string }>(
+        videoIdFromUrl
+            ? { id: videoIdFromUrl, title: videoTitleFromUrl || 'Untitled', poster: videoPosterFromUrl || '', streamUrl: videoStreamUrlFromUrl || undefined }
+            : DEMO_VIDEOS[0]
+    );
     const [countdown, setCountdown] = useState(60);
     const [copied, setCopied] = useState(false);
+    const [currentStreamUrl, setCurrentStreamUrl] = useState<string | undefined>(videoStreamUrlFromUrl || undefined);
 
     // Watch party sync (GunDB)
     const {
@@ -232,7 +266,8 @@ const WatchParty: React.FC = () => {
         isConnected,
         createRoom,
         startPlayback,
-        sendMessage
+        sendMessage,
+        syncPlayback
     } = useWatchPartySync({
         roomId: currentRoomId,
         userId,
@@ -249,6 +284,7 @@ const WatchParty: React.FC = () => {
         remoteCursors,
         lastControl,
         isScreenSharing,
+        roomFull,
         startScreenShare,
         stopScreenShare,
         sendControl,
@@ -265,6 +301,19 @@ const WatchParty: React.FC = () => {
     const [controlRequests, setControlRequests] = useState<string[]>([]);
     const hasControl = controllerId === userId;
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
+
+    // Viewer sync state — driven by WS wp:control messages from host
+    const [viewerSyncTime, setViewerSyncTime] = useState<number | null>(null);
+    const [viewerSyncPlaying, setViewerSyncPlaying] = useState<boolean | null>(null);
+
+    // Handle room full
+    useEffect(() => {
+        if (roomFull) {
+            alert('房间已满，无法加入');
+            setView('lobby');
+            setCurrentRoomId('');
+        }
+    }, [roomFull]);
 
     // Attach remote stream to video element
     useEffect(() => {
@@ -284,12 +333,29 @@ const WatchParty: React.FC = () => {
         const video = document.querySelector('.wp-video-player video') as HTMLVideoElement;
         if (!video) return;
         switch (lastControl.action) {
-            case 'play': video.play(); break;
-            case 'pause': video.pause(); break;
-            case 'seek': if (lastControl.value !== undefined) video.currentTime = lastControl.value; break;
+            case 'play': video.play(); setViewerSyncPlaying(true); break;
+            case 'pause': video.pause(); setViewerSyncPlaying(false); break;
+            case 'seek':
+                if (lastControl.value !== undefined) {
+                    video.currentTime = lastControl.value;
+                    setViewerSyncTime(lastControl.value);
+                }
+                break;
             case 'speed': if (lastControl.value !== undefined) video.playbackRate = lastControl.value; break;
         }
     }, [lastControl]);
+
+    // Host: periodically sync playback time to GunDB for late joiners / position correction
+    useEffect(() => {
+        if (!isHost || view !== 'room') return;
+        const interval = setInterval(() => {
+            const video = document.querySelector('.wp-video-player video') as HTMLVideoElement;
+            if (video && !video.paused) {
+                syncPlayback(video.currentTime, true);
+            }
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [isHost, view, syncPlayback]);
 
     // Countdown timer
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -317,6 +383,8 @@ const WatchParty: React.FC = () => {
     const handleStartParty = () => {
         const scheduledStart = Date.now() + countdown * 1000;
         createRoom(selectedVideo.id, selectedVideo.title, selectedVideo.poster || '', scheduledStart);
+        // Store the direct stream URL for demo videos
+        setCurrentStreamUrl(selectedVideo.streamUrl);
         setView('room');
         window.history.pushState({}, '', `/watch-party?room=${currentRoomId}`);
     };
@@ -600,6 +668,16 @@ const WatchParty: React.FC = () => {
                             participants={participants}
                             onTimeUpdate={(time) => { }}
                             onPaymentRequired={(videoId) => navigate(`/player/${videoId}?mode=stream`)}
+                            onPlayStateChange={(playing, time) => {
+                                // Host: broadcast play/pause/seek to all peers via WS
+                                sendControl(playing ? 'play' : 'pause');
+                                if (time !== undefined) sendControl('seek', time);
+                                // Also persist to GunDB for late joiners
+                                syncPlayback(time, playing);
+                            }}
+                            syncToTime={viewerSyncTime}
+                            syncIsPlaying={viewerSyncPlaying}
+                            streamUrl={currentStreamUrl}
                         />
                     )}
 

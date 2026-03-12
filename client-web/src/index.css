@@ -571,3 +571,136 @@ body {
     pointer-events: none;
     z-index: 0;
 }
+
+/* ========== GLOBAL MOBILE RESPONSIVE ========== */
+
+/* Safe area insets (notch phones) */
+@supports (padding: env(safe-area-inset-top)) {
+    body {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+}
+
+/* Touch-optimized targets (min 44px) */
+@media (hover: none) and (pointer: coarse) {
+
+    button,
+    a,
+    .clickable,
+    [role="button"] {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .sidebar-nav-item {
+        padding: 14px 16px;
+        font-size: 15px;
+    }
+
+    input,
+    select,
+    textarea {
+        font-size: 16px !important;
+        /* prevents iOS zoom */
+    }
+}
+
+/* Mobile: < 480px */
+@media (max-width: 480px) {
+    :root {
+        --sidebar-width: 0px;
+        --topbar-height: 56px;
+    }
+
+    .glass-card {
+        border-radius: 8px;
+    }
+
+    .content-card:hover {
+        transform: none;
+    }
+
+    .video-card:hover {
+        transform: none;
+    }
+
+    .book-item {
+        width: 100px;
+        height: 160px;
+    }
+
+    .book-item:hover {
+        transform: translateY(-10px) scale(1.02);
+    }
+}
+
+/* Tablet: 481-768px */
+@media (min-width: 481px) and (max-width: 768px) {
+    :root {
+        --sidebar-width: 72px;
+    }
+}
+
+/* Desktop: 769px+ — sidebar shows full */
+@media (min-width: 769px) {
+    :root {
+        --sidebar-width: 256px;
+    }
+}
+
+/* Wide screens */
+@media (min-width: 1280px) {
+    :root {
+        --sidebar-width: 280px;
+    }
+}
+
+/* Landscape on mobile */
+@media (orientation: landscape) and (max-height: 500px) {
+    :root {
+        --topbar-height: 48px;
+    }
+
+    .hero-glow,
+    .hero-glow-purple {
+        display: none;
+    }
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .content-card:hover {
+        transform: none;
+    }
+
+    .video-card:hover {
+        transform: none;
+    }
+
+    .record-card:hover {
+        transform: none;
+    }
+
+    .book-item:hover {
+        transform: none;
+    }
+}
+
+/* Mobile bottom nav spacing */
+@media (max-width: 768px) {
+    .main-content-area {
+        padding-bottom: 80px;
+    }
+}

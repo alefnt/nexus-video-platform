@@ -19,6 +19,7 @@ import { ccc } from "@ckb-ccc/connector-react";
 import "./index.css";
 import "./i18n";
 import { initWebVitals } from "./lib/monitoring";
+import { initAnalytics } from "./lib/analytics";
 
 import React, { useEffect } from "react";
 import { createRoot } from "react-dom/client";
@@ -220,6 +221,7 @@ const PageLoader = () => (
 );
 
 const WalletBindPrompt = React.lazy(() => import("./components/WalletBindPrompt"));
+const OnboardingTour = React.lazy(() => import("./components/OnboardingTour"));
 
 /**
  * Root layout — minimal shell with progress bar, SW handler, route tracker.
@@ -248,6 +250,10 @@ function RootLayout() {
       {/* Global persistent music mini-player */}
       <React.Suspense fallback={null}>
         <GlobalMiniPlayer />
+      </React.Suspense>
+      {/* Onboarding tour for first-time users */}
+      <React.Suspense fallback={null}>
+        <OnboardingTour />
       </React.Suspense>
     </>
   );
@@ -377,6 +383,7 @@ async function tryDevAutoLogin() {
 (async () => {
   try { await tryDevAutoLogin(); } catch { }
   initWebVitals();
+  initAnalytics();
 
   const container = document.getElementById("root")!;
   // Reuse existing root during Vite HMR to avoid "createRoot on same container" warning

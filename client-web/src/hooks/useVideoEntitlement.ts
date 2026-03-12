@@ -71,7 +71,7 @@ export function useVideoEntitlement(videoId: string, userId: string): VideoEntit
                 creatorId: string;
                 priceMode?: 'free' | 'buy_once' | 'stream' | 'both';
             }
-            const meta = await apiClient.get<VideoMetaResponse>(`/metadata/video/${videoId}`);
+            const meta = await apiClient.get<VideoMetaResponse>(`/metadata/${videoId}`);
 
             if (!meta) {
                 setState(prev => ({ ...prev, isLoading: false, requiresPayment: false }));

@@ -26,6 +26,7 @@ import { registerTracingPlugin } from "@video-platform/shared/monitoring/tracing
 import { registerRequestLogging, createLogger } from "@video-platform/shared/monitoring/logger";
 import { startSettlementWorker, enqueueStreamSettle, enqueueFiberSettle } from './settlementWorker';
 import { getQueueStats, QUEUE_NAMES } from '@video-platform/shared/queue';
+import { postPaymentSplitHook, loadSplitContractsFromDB } from '@video-platform/shared/web3/postPaymentSplitHook';
 
 const logger = createLogger("payment");
 
@@ -479,6 +480,121 @@ app.post("/payment/ckb/purchase_intent", async (req, reply) => {
   });
 });
 
+// ============== CKB On-Chain Verification ==============
+
+/**
+ * Verify a CKB transaction on-chain via RPC.
+ * 
+ * Checks:
+ * 1. Transaction exists on chain
+ * 2. Transaction status is "committed" (confirmed in a block)
+ * 3. At least `expectedShannons` were sent to `depositAddress`
+ * 
+ * Returns { verified, confirmations, totalDeposited, status, error? }
+ */
+async function verifyCkbTransaction(
+  txHash: string,
+  depositAddress: string,
+  expectedShannons: string
+): Promise<{
+  verified: boolean;
+  status: string;
+  confirmations: number;
+  totalDeposited: bigint;
+  error?: string;
+}> {
+  const rpcUrl = process.env.CKB_NODE_URL || "https://testnet.ckb.dev/rpc";
+
+  // 1. Get transaction by hash
+  const txResp = await fetch(rpcUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: 1, jsonrpc: "2.0",
+      method: "get_transaction",
+      params: [txHash],
+    }),
+  });
+  const txResult: any = await txResp.json();
+
+  if (txResult.error) {
+    return { verified: false, status: "rpc_error", confirmations: 0, totalDeposited: 0n, error: txResult.error.message };
+  }
+
+  const txData = txResult.result;
+  if (!txData || !txData.transaction) {
+    return { verified: false, status: "not_found", confirmations: 0, totalDeposited: 0n, error: "Transaction not found on chain" };
+  }
+
+  // 2. Check transaction status
+  const txStatus = txData.tx_status?.status || "unknown";
+  if (txStatus !== "committed") {
+    return { verified: false, status: txStatus, confirmations: 0, totalDeposited: 0n, error: `Transaction status is "${txStatus}", not committed` };
+  }
+
+  // 3. Get block number for confirmation count
+  let confirmations = 0;
+  const blockHash = txData.tx_status?.block_hash;
+  if (blockHash) {
+    try {
+      const [headerResp, tipResp] = await Promise.all([
+        fetch(rpcUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: 2, jsonrpc: "2.0", method: "get_header", params: [blockHash] }),
+        }),
+        fetch(rpcUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: 3, jsonrpc: "2.0", method: "get_tip_header", params: [] }),
+        }),
+      ]);
+      const headerResult: any = await headerResp.json();
+      const tipResult: any = await tipResp.json();
+      const blockNumber = BigInt(headerResult.result?.number || "0x0");
+      const tipNumber = BigInt(tipResult.result?.number || "0x0");
+      confirmations = Number(tipNumber - blockNumber);
+    } catch { /* confirmations remain 0 */ }
+  }
+
+  // 4. Verify deposit amount — sum all outputs sent to the deposit address
+  //    CKB outputs use lock script args to identify the recipient.
+  //    We convert the deposit address to its lock script for comparison.
+  let totalDeposited = 0n;
+  const outputs = txData.transaction.outputs || [];
+  const outputsData = txData.transaction.outputs_data || [];
+
+  // Parse deposit address to lock script using lumos helpers
+  let depositLockArgs = "";
+  try {
+    const depositScript = helpers.addressToScript(depositAddress);
+    depositLockArgs = depositScript.args.toLowerCase();
+  } catch {
+    // If address parsing fails, skip amount verification
+    // This can happen with non-standard addresses
+    logger.warn({ depositAddress }, "Could not parse deposit address to lock script, skipping amount verification");
+    return { verified: true, status: "committed", confirmations, totalDeposited: 0n };
+  }
+
+  for (const output of outputs) {
+    const outputArgs = (output.lock?.args || "").toLowerCase();
+    if (outputArgs === depositLockArgs) {
+      totalDeposited += BigInt(output.capacity || "0x0");
+    }
+  }
+
+  // 5. Verify the deposit meets the expected amount
+  const expected = BigInt(expectedShannons);
+  if (totalDeposited < expected) {
+    return {
+      verified: false, status: "committed", confirmations, totalDeposited,
+      error: `Insufficient deposit: received ${totalDeposited} shannons, expected ${expected} shannons`,
+    };
+  }
+
+  return { verified: true, status: "committed", confirmations, totalDeposited };
+}
+
 // 7. CKB Transaction Confirmation (Callback/Manual)
 app.post("/payment/ckb/confirm_tx", async (req, reply) => {
   const body: any = req.body || {};
@@ -486,6 +602,11 @@ app.post("/payment/ckb/confirm_tx", async (req, reply) => {
   const txHash: string = String(body?.txHash || "");
 
   if (!orderId || !txHash) return reply.status(400).send({ error: "Missing orderId or txHash" });
+
+  // Basic txHash format validation (0x + 64 hex chars)
+  if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+    return reply.status(400).send({ error: "Invalid txHash format", code: "invalid_tx_hash" });
+  }
 
   try {
     const intent = await prisma.buyingIntent.findUnique({ where: { id: orderId } });
@@ -500,8 +621,88 @@ app.post("/payment/ckb/confirm_tx", async (req, reply) => {
       return reply.status(400).send({ error: "Intent expired" });
     }
 
-    // In a real scenario, verification of txHash on-chain happens here
+    // Prevent re-using the same txHash for multiple intents
+    const existingWithTx = await prisma.buyingIntent.findFirst({
+      where: { txHash, status: "confirmed", id: { not: orderId } },
+    });
+    if (existingWithTx) {
+      return reply.status(400).send({ error: "This transaction has already been used for another purchase", code: "tx_already_used" });
+    }
 
+    // ── On-chain verification ──
+    const verification = await verifyCkbTransaction(
+      txHash,
+      intent.depositAddress,
+      intent.expectedAmountShannons,
+    );
+
+    if (!verification.verified) {
+      logger.warn({
+        orderId, txHash,
+        status: verification.status,
+        error: verification.error,
+        deposited: verification.totalDeposited.toString(),
+      }, "CKB tx verification failed");
+
+      // Only mark as failed if the tx is committed but amount is insufficient
+      // Do NOT mark as failed if tx is still pending/proposed — those are retryable
+      const retryableStatuses = ["pending", "proposed", "unknown", "not_found"];
+      const isRetryable = retryableStatuses.includes(verification.status);
+
+      if (verification.status === "committed") {
+        // Genuinely failed: committed but insufficient amount
+        await prisma.buyingIntent.update({
+          where: { id: orderId },
+          data: { status: "failed", txHash },
+        });
+      } else if (!isRetryable) {
+        // Non-retryable error (e.g., rejected)
+        await prisma.buyingIntent.update({
+          where: { id: orderId },
+          data: { status: "failed", txHash },
+        });
+      } else {
+        // Retryable: save txHash for future polling but keep status pending
+        await prisma.buyingIntent.update({
+          where: { id: orderId },
+          data: { txHash },
+        });
+      }
+
+      // For retryable states, return 202 (Accepted) so frontend can poll
+      if (isRetryable) {
+        return reply.status(202).send({
+          ok: false,
+          retryable: true,
+          message: "Transaction broadcast but not yet confirmed on-chain. Please retry shortly.",
+          code: "tx_pending",
+          orderId,
+          txHash,
+          details: {
+            txStatus: verification.status,
+          },
+        });
+      }
+
+      return reply.status(400).send({
+        error: verification.error || "Transaction verification failed",
+        code: "verification_failed",
+        details: {
+          txStatus: verification.status,
+          confirmations: verification.confirmations,
+          deposited: verification.totalDeposited.toString(),
+          expected: intent.expectedAmountShannons,
+        },
+      });
+    }
+
+    logger.info({
+      orderId, txHash,
+      confirmations: verification.confirmations,
+      deposited: verification.totalDeposited.toString(),
+    }, "CKB tx verified on-chain");
+
+    // ── Credit points atomically ──
     await prisma.$transaction([
       prisma.buyingIntent.update({
         where: { id: orderId },
@@ -516,7 +717,7 @@ app.post("/payment/ckb/confirm_tx", async (req, reply) => {
           userId: intent.userId,
           type: "buy",
           amount: Number(intent.pointsToCredit),
-          reason: `CKB Buy ${intent.expectedAmountCKB} CKB, Tx: ${txHash}`
+          reason: `CKB Buy ${intent.expectedAmountCKB} CKB, Tx: ${txHash}, Confirmations: ${verification.confirmations}`
         }
       })
     ]);
@@ -524,7 +725,15 @@ app.post("/payment/ckb/confirm_tx", async (req, reply) => {
     // Fetch updated balance
     const user = await prisma.user.findUnique({ where: { id: intent.userId } });
 
-    return reply.send({ ok: true, creditedPoints: intent.pointsToCredit, newBalance: user?.points });
+    return reply.send({
+      ok: true,
+      creditedPoints: intent.pointsToCredit,
+      newBalance: user?.points,
+      verification: {
+        confirmations: verification.confirmations,
+        deposited: verification.totalDeposited.toString(),
+      },
+    });
   } catch (err: any) {
     return reply.status(500).send({ error: err.message });
   }
@@ -1253,6 +1462,87 @@ app.post("/payment/stream/renew", async (req, reply) => {
     paymentHash: `mock_hash_${Date.now()}`,
     nextSegment: targetSegment,
     amount
+  });
+});
+
+// 16b. Stream Pause — stop billing clock
+app.post("/payment/stream/pause", async (req, reply) => {
+  const body = req.body as { sessionId: string; currentSegment?: number };
+  const userId = (req.user as RequestUser)?.sub;
+  if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+  const session = await prisma.streamSession.findUnique({ where: { sessionId: body.sessionId } });
+  if (!session) return reply.status(404).send({ error: "Session not found" });
+  if (session.userId !== userId) return reply.status(403).send({ error: "Forbidden" });
+
+  if (session.status !== 'active') {
+    return reply.send({ ok: true, status: session.status, message: "Session already paused or completed" });
+  }
+
+  // Mark session as paused — billing stops because tick endpoint checks status === 'active'
+  await prisma.streamSession.update({
+    where: { sessionId: body.sessionId },
+    data: {
+      status: 'paused',
+      pausedAt: new Date(),
+      lastTickAt: new Date(),
+    }
+  });
+
+  logger.info(`Stream session paused: ${body.sessionId}, used=${session.actualUsedSeconds}s, paid=${session.totalPaid}`);
+
+  return reply.send({
+    ok: true,
+    status: 'paused',
+    totalPaid: Number(session.totalPaid),
+    actualUsedSeconds: session.actualUsedSeconds,
+  });
+});
+
+// 16c. Stream Resume — restart billing from where user left off
+app.post("/payment/stream/resume", async (req, reply) => {
+  const body = req.body as { sessionId: string };
+  const userId = (req.user as RequestUser)?.sub;
+  if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+  const session = await prisma.streamSession.findUnique({ where: { sessionId: body.sessionId } });
+  if (!session) return reply.status(404).send({ error: "Session not found" });
+  if (session.userId !== userId) return reply.status(403).send({ error: "Forbidden" });
+
+  if (session.status === 'completed') {
+    return reply.status(400).send({ error: "Session already completed", code: "session_completed" });
+  }
+
+  // Check balance before resuming
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const balance = Number(user?.points || 0);
+  const pricePerSecond = Number(session.pricePerMinute) / 60;
+
+  if (balance <= 0) {
+    return reply.status(400).send({ error: "Insufficient balance to resume", code: "insufficient_balance", balance: 0 });
+  }
+
+  // Reactivate session — next tick will bill from actualUsedSeconds (no re-charge)
+  await prisma.streamSession.update({
+    where: { sessionId: body.sessionId },
+    data: {
+      status: 'active',
+      pausedAt: null,
+      lastTickAt: new Date(),
+    }
+  });
+
+  const estimatedRemainingSeconds = pricePerSecond > 0 ? Math.floor(balance / pricePerSecond) : 99999;
+
+  logger.info(`Stream session resumed: ${body.sessionId}, from=${session.actualUsedSeconds}s, balance=${balance}`);
+
+  return reply.send({
+    ok: true,
+    status: 'active',
+    balance,
+    totalPaid: Number(session.totalPaid),
+    actualUsedSeconds: session.actualUsedSeconds,
+    estimatedRemainingSeconds,
   });
 });
 
@@ -2358,71 +2648,8 @@ app.get("/payment/fiber/status", async (_req, reply) => {
   }
 });
 
-// F2. Create a real Fiber invoice for content payment
-app.post("/payment/fiber/invoice", async (req, reply) => {
-  const userId = (req.user as RequestUser)?.sub;
-  if (!userId) return reply.status(401).send({ error: "Unauthorized" });
-
-  const body = req.body as {
-    contentId: string;
-    contentType?: string;
-    amount: string;
-    memo?: string;
-    expiry?: number;
-  };
-
-  if (!body.contentId || !body.amount) {
-    return reply.status(400).send({ error: "contentId and amount required" });
-  }
-
-  try {
-    // Try real Fiber first
-    if (fiberClient.isConfigured()) {
-      const invoice = await fiberClient.createInvoice({
-        amount: body.amount,
-        memo: body.memo || `Nexus: ${body.contentType || 'content'} ${body.contentId}`,
-        expiry: body.expiry || 300,
-      });
-
-      // Record in database
-      await prisma.pointsTransaction.create({
-        data: {
-          userId,
-          type: "fiber_invoice_created",
-          amount: 0,
-          reason: `Fiber invoice for ${body.contentType || 'content'} ${body.contentId} | hash: ${invoice.paymentHash}`,
-        },
-      });
-
-      return reply.send({
-        ok: true,
-        backend: "fiber",
-        paymentHash: invoice.paymentHash,
-        paymentRequest: invoice.paymentRequest,
-        amount: invoice.amount,
-        currency: invoice.currency,
-        expiry: invoice.expiry,
-      });
-    }
-
-    // Fallback: create a points-based "invoice" (for demo/dev)
-    const mockHash = `pts_${Date.now()}_${body.contentId.slice(0, 8)}`;
-    return reply.send({
-      ok: true,
-      backend: "points",
-      paymentHash: mockHash,
-      paymentRequest: null,
-      amount: body.amount,
-      currency: "PTS",
-      expiry: 300,
-      message: "Fiber not available. Use Points to pay.",
-    });
-  } catch (err: any) {
-    return reply.status(500).send({ error: `Invoice creation failed: ${err.message}` });
-  }
-});
-
 // F3. Send payment via Fiber (or fallback to Points deduction)
+
 app.post("/payment/fiber/pay", async (req, reply) => {
   const userId = (req.user as RequestUser)?.sub;
   if (!userId) return reply.status(401).send({ error: "Unauthorized" });
@@ -2443,6 +2670,18 @@ app.post("/payment/fiber/pay", async (req, reply) => {
     try {
       const newBalance = await updateUserPoints(userId, -amount, "fiber_fallback_pay",
         `Points payment for content ${body.contentId || 'unknown'}`);
+
+      // RGB++ Auto-Split: fire-and-forget revenue distribution
+      if (body.contentId) {
+        postPaymentSplitHook({
+          paymentHash: body.paymentHash || `pts_${Date.now()}`,
+          amount,
+          contentId: body.contentId,
+          payerId: userId,
+          backend: 'points',
+        }).catch(err => console.error('[SplitHook] points split error:', err?.message));
+      }
+
       return reply.send({
         ok: true,
         backend: "points",
@@ -2472,6 +2711,17 @@ app.post("/payment/fiber/pay", async (req, reply) => {
           reason: `Fiber payment | hash: ${result.paymentHash} | preimage: ${result.preimage || 'n/a'}`,
         },
       });
+
+      // RGB++ Auto-Split: distribute revenue to content participants
+      if (body.contentId) {
+        postPaymentSplitHook({
+          paymentHash: result.paymentHash,
+          amount: parseInt(body.amount || "0", 10),
+          contentId: body.contentId,
+          payerId: userId,
+          backend: 'fiber',
+        }).catch(err => console.error('[SplitHook] async error:', err?.message));
+      }
     }
 
     return reply.send({
@@ -2616,6 +2866,17 @@ setInterval(async () => {
           });
           txHash = result.paymentHash || `fiber_${Date.now()}_${task.id.slice(0, 6)}`;
           logger.info({ msg: "Fiber payout succeeded", taskId: task.id, txHash });
+
+          // RGB++ Auto-Split: distribute payout revenue if linked to content
+          if ((task as any).contentId) {
+            postPaymentSplitHook({
+              paymentHash: txHash,
+              amount: task.amount,
+              contentId: (task as any).contentId,
+              payerId: (task as any).userId || 'system',
+              backend: 'fiber',
+            }).catch(err => console.error('[SplitHook] payout split error:', err?.message));
+          }
         } else {
           // Mock fallback for development
           txHash = `0xmock_fiber_${Date.now()}_${task.id.slice(0, 6)}`;

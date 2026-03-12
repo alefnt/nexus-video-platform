@@ -21,6 +21,10 @@ interface WatchPartyVideoProps {
     participants: Participant[];
     onTimeUpdate?: (time: number) => void;
     onPaymentRequired?: (videoId: string) => void;
+    onPlayStateChange?: (isPlaying: boolean, currentTime: number) => void;
+    syncToTime?: number | null;
+    syncIsPlaying?: boolean | null;
+    streamUrl?: string; // Direct HLS/MP4 URL (for demo videos)
 }
 
 export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
@@ -29,7 +33,11 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
     isHost,
     participants,
     onTimeUpdate,
-    onPaymentRequired
+    onPaymentRequired,
+    onPlayStateChange,
+    syncToTime,
+    syncIsPlaying,
+    streamUrl: directStreamUrl,
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const playerRef = useRef<any>(null);
@@ -38,47 +46,69 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
     const [purchasing, setPurchasing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Get video entitlement status
-    const entitlement = useVideoEntitlement(roomState?.videoId || '', userId);
+    // Get video entitlement status (skip for demo videos with direct URL)
+    const entitlement = useVideoEntitlement(
+        directStreamUrl ? '' : (roomState?.videoId || ''),  // empty string skips the check
+        userId
+    );
 
     // Destructure for cleaner access
-    const { isLoading, hasFullAccess, isCreator, requiresPayment, streamPurchase, videoMeta } = entitlement;
+    const { isLoading: entitlementLoading, hasFullAccess, isCreator, requiresPayment, streamPurchase, videoMeta } = entitlement;
+    // For demo videos with direct URL, skip entitlement loading
+    const isLoading = directStreamUrl ? false : entitlementLoading;
+
+    // Resolve video stream URL
+    const resolveVideoUrl = async (): Promise<string | null> => {
+        // 1. Direct stream URL (demo videos)
+        if (directStreamUrl) return directStreamUrl;
+
+        // 2. From metadata API (real platform videos)
+        try {
+            const jwt = sessionStorage.getItem('vp.jwt') || localStorage.getItem('jwt');
+            if (jwt) client.setJWT(jwt);
+            const meta = await client.get<any>(`/metadata/${roomState?.videoId}`);
+            const url = meta?.cdnUrl || meta?.cfPlaybackHls || meta?.videoUrl;
+            if (url) return url;
+        } catch (e) {
+            console.warn('[WatchParty] Metadata fetch failed:', e);
+        }
+
+        // 3. videoMeta from entitlement hook
+        if ((videoMeta as any)?.cdnUrl) return (videoMeta as any).cdnUrl;
+
+        return null;
+    };
 
     // Initialize video player
     useEffect(() => {
         if (!videoRef.current || !roomState?.videoId || isLoading) return;
 
-        // Don't initialize if payment required and no access
-        if (requiresPayment && !hasFullAccess) {
+        // Don't initialize if payment required and no access (but skip for demo videos with direct URLs)
+        if (!directStreamUrl && requiresPayment && !hasFullAccess) {
             return;
         }
 
         const initPlayer = async () => {
             try {
-                const jwt = sessionStorage.getItem('vp.jwt') || localStorage.getItem('jwt');
-                if (jwt) client.setJWT(jwt);
-
-                // Get video stream URL
-                interface StreamResponse {
-                    url?: string;
-                    streamUrl?: string;
-                }
-                const streamData = await client.get<StreamResponse>(`/content/stream/${roomState.videoId}`);
-                const videoUrl = streamData?.url || streamData?.streamUrl;
+                const videoUrl = await resolveVideoUrl();
 
                 if (!videoUrl) {
                     setError('无法获取视频地址');
                     return;
                 }
 
+                // Determine source type
+                const isHLS = videoUrl.includes('.m3u8');
+                const sourceType = isHLS ? 'application/x-mpegURL' : 'video/mp4';
+
                 // Initialize video.js
-                if (!playerRef.current) {
-                    playerRef.current = videojs(videoRef.current, {
-                        controls: !isHost, // Host controls sync, viewers just watch
+                if (!playerRef.current && videoRef.current) {
+                    playerRef.current = videojs(videoRef.current!, {
+                        controls: true,
                         autoplay: false,
                         preload: 'auto',
                         fluid: true,
-                        sources: [{ src: videoUrl, type: 'application/x-mpegURL' }]
+                        sources: [{ src: videoUrl, type: sourceType }]
                     });
 
                     // Sync time updates
@@ -87,8 +117,8 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
                             onTimeUpdate(playerRef.current.currentTime());
                         }
                     });
-                } else {
-                    playerRef.current.src({ src: videoUrl, type: 'application/x-mpegURL' });
+                } else if (playerRef.current) {
+                    playerRef.current.src({ src: videoUrl, type: sourceType });
                 }
 
                 // If resuming from stream payment, seek to paid position
@@ -98,10 +128,23 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
 
                 // Auto-play if room is playing
                 if (roomState.status === 'playing') {
-                    playerRef.current.play();
+                    playerRef.current.play().catch(() => {});
                     if (roomState.currentTime) {
                         playerRef.current.currentTime(roomState.currentTime);
                     }
+                }
+
+                // Host: broadcast play/pause events + periodic time sync
+                if (isHost && onPlayStateChange) {
+                    playerRef.current.on('play', () => {
+                        onPlayStateChange(true, playerRef.current.currentTime());
+                    });
+                    playerRef.current.on('pause', () => {
+                        onPlayStateChange(false, playerRef.current.currentTime());
+                    });
+                    playerRef.current.on('seeked', () => {
+                        onPlayStateChange(!playerRef.current.paused(), playerRef.current.currentTime());
+                    });
                 }
             } catch (err: any) {
                 console.error('Failed to init video player:', err);
@@ -117,7 +160,22 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
                 playerRef.current = null;
             }
         };
-    }, [roomState?.videoId, roomState?.status, isLoading, hasFullAccess, requiresPayment, isHost, streamPurchase]);
+    }, [roomState?.videoId, isLoading, hasFullAccess, requiresPayment, isHost, streamPurchase]);
+
+    // Viewer: React to external sync signals (play/pause/seek from host via WS)
+    useEffect(() => {
+        if (isHost || !playerRef.current) return;
+
+        if (syncIsPlaying === true && playerRef.current.paused()) {
+            playerRef.current.play().catch(() => {});
+        } else if (syncIsPlaying === false && !playerRef.current.paused()) {
+            playerRef.current.pause();
+        }
+
+        if (syncToTime != null && Math.abs(playerRef.current.currentTime() - syncToTime) > 2) {
+            playerRef.current.currentTime(syncToTime);
+        }
+    }, [syncToTime, syncIsPlaying, isHost]);
 
     // Handle payment
     const handlePayment = async (type: 'stream' | 'points' | 'group') => {

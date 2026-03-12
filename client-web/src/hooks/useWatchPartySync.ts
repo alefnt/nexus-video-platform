@@ -71,11 +71,13 @@ export function useWatchPartySync({ roomId, userId, userName, isHost = false }: 
                 if (!window.Gun) {
                     const GunModule = await import('gun');
                     gunRef.current = (GunModule.default || GunModule)({
+                        peers: ['https://gun-manhattan.herokuapp.com/gun'],
                         localStorage: true,
                         radisk: true
                     });
                 } else {
                     gunRef.current = window.Gun({
+                        peers: ['https://gun-manhattan.herokuapp.com/gun'],
                         localStorage: true,
                         radisk: true
                     });
@@ -155,6 +157,7 @@ export function useWatchPartySync({ roomId, userId, userName, isHost = false }: 
                 id: userId,
                 name: userName,
                 isHost,
+                joinedAt: Date.now(),
                 lastSeen: Date.now()
             });
         }, 10000);
@@ -229,6 +232,18 @@ export function useWatchPartySync({ roomId, userId, userName, isHost = false }: 
         gunRef.current.get(`watchparty/${roomId}`).get('messages').set(message);
     }, [roomId, userId, userName]);
 
+    // Sync playback state to GunDB (host calls this periodically)
+    const syncPlayback = useCallback((currentTime: number, isPlaying: boolean) => {
+        if (!gunRef.current || !isHost) return;
+
+        gunRef.current.get(`watchparty/${roomId}`).get('state').put({
+            isPlaying,
+            currentTime,
+            updatedAt: Date.now(),
+            status: isPlaying ? 'playing' : 'waiting'
+        });
+    }, [roomId, isHost]);
+
     return {
         roomState,
         participants,
@@ -237,6 +252,7 @@ export function useWatchPartySync({ roomId, userId, userName, isHost = false }: 
         createRoom,
         updatePlayback,
         startPlayback,
-        sendMessage
+        sendMessage,
+        syncPlayback
     };
 }

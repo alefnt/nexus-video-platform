@@ -65,6 +65,7 @@ export function useWebRTCParty({
     const [remoteCursors, setRemoteCursors] = useState<RemoteCursor[]>([]);
     const [lastControl, setLastControl] = useState<ControlAction | null>(null);
     const [isScreenSharing, setIsScreenSharing] = useState(false);
+    const [roomFull, setRoomFull] = useState(false);
 
     const wsRef = useRef<WebSocket | null>(null);
     const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -190,6 +191,29 @@ export function useWebRTCParty({
                         lastSeen: Date.now(),
                     }];
                 });
+                break;
+
+            case 'wp:playback_sync':
+                // Server sends current playback position when we join
+                // Treat it as a seek + play/pause control signal
+                setLastControl({
+                    fromUserId: '__server__',
+                    action: 'seek',
+                    value: msg.currentTime || 0,
+                    timestamp: msg.updatedAt || Date.now(),
+                });
+                // Then set play/pause
+                setTimeout(() => {
+                    setLastControl({
+                        fromUserId: '__server__',
+                        action: msg.isPlaying ? 'play' : 'pause',
+                        timestamp: Date.now(),
+                    });
+                }, 100);
+                break;
+
+            case 'wp:room_full':
+                setRoomFull(true);
                 break;
         }
     }, [isHost]);
@@ -366,6 +390,7 @@ export function useWebRTCParty({
         remoteCursors,
         lastControl,
         isScreenSharing,
+        roomFull,
         startScreenShare,
         stopScreenShare,
         sendControl,
