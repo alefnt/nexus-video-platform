@@ -65,6 +65,9 @@ export function useWebRTCParty({
     const [remoteCursors, setRemoteCursors] = useState<RemoteCursor[]>([]);
     const [lastControl, setLastControl] = useState<ControlAction | null>(null);
     const [lastSync, setLastSync] = useState<{ currentTime: number; isPlaying: boolean; timestamp: number } | null>(null);
+    const [chatMessages, setChatMessages] = useState<{ fromUserId: string; userName: string; content: string; msgType: string; timestamp: number }[]>([]);
+    const [roomInfo, setRoomInfo] = useState<{ videoId?: string; videoTitle?: string; paymentModel?: string } | null>(null);
+    const [reactions, setReactions] = useState<{ fromUserId: string; userName: string; emoji: string; amount: number; timestamp: number }[]>([]);
     const [isScreenSharing, setIsScreenSharing] = useState(false);
 
     const wsRef = useRef<WebSocket | null>(null);
@@ -129,18 +132,73 @@ export function useWebRTCParty({
     // ── Handle Signaling Messages ──
     const handleSignalingMessage = useCallback((msg: any) => {
         switch (msg.type) {
+            case 'wp:sync':
+                setLastSync({
+                    currentTime: msg.currentTime,
+                    isPlaying: msg.isPlaying,
+                    timestamp: msg.timestamp,
+                });
+                break;
+
+            case 'wp:chat':
+                setChatMessages(prev => {
+                    const newMsg = {
+                        fromUserId: msg.fromUserId,
+                        userName: msg.userName,
+                        content: msg.content,
+                        msgType: msg.msgType || 'chat',
+                        timestamp: msg.timestamp,
+                    };
+                    setLastChat(newMsg);
+                    return [...prev.slice(-99), newMsg];
+                });
+                break;
+
+            case 'wp:room_info':
+                setRoomInfo({
+                    videoId: msg.videoId,
+                    videoTitle: msg.videoTitle,
+                    paymentModel: msg.paymentModel,
+                });
+                break;
+
             case 'wp:room_state':
                 setPeers(msg.peers.map((p: any) => ({
                     userId: p.userId,
+                    userName: p.userName,
                     isHost: p.isHost,
                 })));
+                // Room state also includes video metadata for joiners
+                if (msg.videoId) {
+                    setRoomInfo({
+                        videoId: msg.videoId,
+                        videoTitle: msg.videoTitle,
+                        paymentModel: msg.paymentModel,
+                    });
+                }
                 break;
 
             case 'wp:peer_joined':
                 setPeers(prev => {
+                    // Replace entire peer list from server (authoritative)
+                    if (msg.peers && Array.isArray(msg.peers)) {
+                        return msg.peers.map((p: any) => ({
+                            userId: p.userId,
+                            userName: p.userName,
+                            isHost: p.isHost,
+                        }));
+                    }
                     if (prev.some(p => p.userId === msg.userId)) return prev;
-                    return [...prev, { userId: msg.userId, isHost: msg.isHost }];
+                    return [...prev, { userId: msg.userId, userName: msg.userName, isHost: msg.isHost }];
                 });
+                // System message for join
+                setChatMessages(prev => [...prev, {
+                    fromUserId: 'system',
+                    userName: 'System',
+                    content: `${msg.userName || msg.userId} joined the room`,
+                    msgType: 'system',
+                    timestamp: Date.now(),
+                }]);
                 // If we are host and sharing, initiate offer to new peer
                 if (isHost && localStreamRef.current) {
                     createOffer(msg.userId);
@@ -149,13 +207,20 @@ export function useWebRTCParty({
 
             case 'wp:peer_left':
                 setPeers(prev => prev.filter(p => p.userId !== msg.userId));
-                const pc = peerConnectionsRef.current.get(msg.userId);
-                if (pc) { pc.close(); peerConnectionsRef.current.delete(msg.userId); }
+                const pcLeft = peerConnectionsRef.current.get(msg.userId);
+                if (pcLeft) { pcLeft.close(); peerConnectionsRef.current.delete(msg.userId); }
                 setRemoteStreams(prev => {
                     const next = new Map(prev);
                     next.delete(msg.userId);
                     return next;
                 });
+                setChatMessages(prev => [...prev, {
+                    fromUserId: 'system',
+                    userName: 'System',
+                    content: `${msg.userName || msg.userId} left the room`,
+                    msgType: 'system',
+                    timestamp: Date.now(),
+                }]);
                 break;
 
             case 'wp:offer':
@@ -175,14 +240,6 @@ export function useWebRTCParty({
                     fromUserId: msg.fromUserId,
                     action: msg.action,
                     value: msg.value,
-                    timestamp: msg.timestamp,
-                });
-                break;
-
-            case 'wp:sync':
-                setLastSync({
-                    currentTime: msg.currentTime,
-                    isPlaying: msg.isPlaying,
                     timestamp: msg.timestamp,
                 });
                 break;
@@ -369,6 +426,57 @@ export function useWebRTCParty({
         }));
     }, [roomId]);
 
+    // ── Send Chat Message ──
+    const sendChat = useCallback((content: string, msgType: 'chat' | 'danmaku' | 'system' = 'chat') => {
+        if (!content.trim()) return;
+        // Add locally immediately for instant feedback
+        setChatMessages(prev => [...prev.slice(-99), {
+            fromUserId: userId,
+            userName,
+            content,
+            msgType,
+            timestamp: Date.now(),
+        }]);
+        // Send via WS
+        wsRef.current?.send(JSON.stringify({
+            type: 'wp:chat',
+            roomId,
+            userName,
+            content,
+            msgType,
+        }));
+    }, [roomId, userId, userName]);
+
+    // ── Send Room Info (Host shares video metadata) ──
+    const sendRoomInfo = useCallback((videoId: string, videoTitle: string, paymentModel?: string) => {
+        wsRef.current?.send(JSON.stringify({
+            type: 'wp:room_info',
+            roomId,
+            videoId,
+            videoTitle,
+            paymentModel,
+        }));
+    }, [roomId]);
+
+    // ── Send Reaction/Emoji ──
+    const sendReaction = useCallback((emoji: string, amount: number = 0) => {
+        // Add locally immediately
+        setReactions(prev => [...prev.slice(-49), {
+            fromUserId: userId,
+            userName,
+            emoji,
+            amount,
+            timestamp: Date.now(),
+        }]);
+        wsRef.current?.send(JSON.stringify({
+            type: 'wp:reaction',
+            roomId,
+            userName,
+            emoji,
+            amount,
+        }));
+    }, [roomId, userId, userName]);
+
     // ── Clean up stale cursors ──
     useEffect(() => {
         const interval = setInterval(() => {
@@ -385,11 +493,17 @@ export function useWebRTCParty({
         remoteCursors,
         lastControl,
         lastSync,
+        chatMessages,
+        roomInfo,
+        reactions,
         isScreenSharing,
         startScreenShare,
         stopScreenShare,
         sendControl,
         sendSync,
+        sendChat,
+        sendRoomInfo,
+        sendReaction,
         sendCursor,
     };
 }

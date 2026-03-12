@@ -105,8 +105,10 @@ app.get('/health', async () => ({
 app.get('/metrics', async () => register.metrics());
 
 // ============== Watch Party WebRTC 信令房间管理 ==============
-interface WpMember { userId: string; socket: WebSocket; isHost: boolean; }
+interface WpMember { userId: string; userName: string; socket: WebSocket; isHost: boolean; }
+interface WpRoomMeta { videoId?: string; videoTitle?: string; paymentModel?: string; }
 const wpRooms = new Map<string, Map<string, WpMember>>(); // roomId → Map<userId, WpMember>
+const wpRoomMeta = new Map<string, WpRoomMeta>(); // roomId → room metadata
 
 function wpBroadcast(roomId: string, message: any, excludeUserId?: string) {
     const room = wpRooms.get(roomId);
@@ -194,7 +196,7 @@ app.register(async function (fastify) {
                 if (msg.type === 'wp:join' && msg.roomId && userId) {
                     if (!wpRooms.has(msg.roomId)) wpRooms.set(msg.roomId, new Map());
                     const room = wpRooms.get(msg.roomId)!;
-                    room.set(userId, { userId, socket, isHost: !!msg.isHost });
+                    room.set(userId, { userId, userName: msg.userName || userId, socket, isHost: !!msg.isHost });
 
                     // Notify existing peers about new member
                     wpBroadcast(msg.roomId, {
@@ -202,16 +204,20 @@ app.register(async function (fastify) {
                         userId,
                         userName: msg.userName || userId,
                         isHost: !!msg.isHost,
-                        peers: Array.from(room.keys()),
+                        peers: Array.from(room.entries()).map(([id, m]) => ({
+                            userId: id, userName: m.userName, isHost: m.isHost,
+                        })),
                     }, userId);
 
-                    // Send current room members to the new joiner
+                    // Send current room members + room metadata to the new joiner
+                    const meta = wpRoomMeta.get(msg.roomId);
                     socket.send(JSON.stringify({
                         type: 'wp:room_state',
                         roomId: msg.roomId,
                         peers: Array.from(room.entries()).map(([id, m]) => ({
-                            userId: id, isHost: m.isHost,
+                            userId: id, userName: m.userName, isHost: m.isHost,
                         })),
+                        ...(meta || {}),
                     }));
 
                     messageCounter.inc({ type: 'wp_join' });
@@ -285,13 +291,62 @@ app.register(async function (fastify) {
                     return;
                 }
 
+                // Chat message — broadcast to all room members
+                if (msg.type === 'wp:chat' && msg.roomId && userId) {
+                    wpBroadcast(msg.roomId, {
+                        type: 'wp:chat',
+                        fromUserId: userId,
+                        userName: msg.userName || userId,
+                        content: msg.content,
+                        msgType: msg.msgType || 'chat', // 'chat' | 'danmaku' | 'system'
+                        timestamp: Date.now(),
+                    });
+                    messageCounter.inc({ type: 'wp_chat' });
+                    return;
+                }
+
+                // Room info update — host shares video metadata with room
+                if (msg.type === 'wp:room_info' && msg.roomId && userId) {
+                    wpRoomMeta.set(msg.roomId, {
+                        videoId: msg.videoId,
+                        videoTitle: msg.videoTitle,
+                        paymentModel: msg.paymentModel,
+                    });
+                    wpBroadcast(msg.roomId, {
+                        type: 'wp:room_info',
+                        fromUserId: userId,
+                        videoId: msg.videoId,
+                        videoTitle: msg.videoTitle,
+                        paymentModel: msg.paymentModel,
+                        timestamp: Date.now(),
+                    }, userId);
+                    return;
+                }
+
+                // Reaction/emoji — broadcast to all room members
+                if (msg.type === 'wp:reaction' && msg.roomId && userId) {
+                    wpBroadcast(msg.roomId, {
+                        type: 'wp:reaction',
+                        fromUserId: userId,
+                        userName: msg.userName || userId,
+                        emoji: msg.emoji,
+                        amount: msg.amount || 0,
+                        timestamp: Date.now(),
+                    });
+                    return;
+                }
+
                 // Leave Watch Party room
                 if (msg.type === 'wp:leave' && msg.roomId && userId) {
                     const room = wpRooms.get(msg.roomId);
                     if (room) {
+                        const member = room.get(userId);
                         room.delete(userId);
-                        wpBroadcast(msg.roomId, { type: 'wp:peer_left', userId });
-                        if (room.size === 0) wpRooms.delete(msg.roomId);
+                        wpBroadcast(msg.roomId, { type: 'wp:peer_left', userId, userName: member?.userName || userId });
+                        if (room.size === 0) {
+                            wpRooms.delete(msg.roomId);
+                            wpRoomMeta.delete(msg.roomId);
+                        }
                     }
                     return;
                 }

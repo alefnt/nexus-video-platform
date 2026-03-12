@@ -265,11 +265,17 @@ const WatchParty: React.FC = () => {
         remoteCursors,
         lastControl,
         lastSync,
+        chatMessages: wsChatMessages,
+        roomInfo: wsRoomInfo,
+        reactions: wsReactions,
         isScreenSharing,
         startScreenShare,
         stopScreenShare,
         sendControl,
         sendSync,
+        sendChat: wsSendChat,
+        sendRoomInfo: wsSendRoomInfo,
+        sendReaction: wsSendReaction,
         sendCursor,
     } = useWebRTCParty({
         roomId: currentRoomId,
@@ -294,6 +300,30 @@ const WatchParty: React.FC = () => {
             }
         }
     }, [remoteStreams]);
+
+    // Build effective roomState: GunDB is primary, WS roomInfo is fallback
+    // This ensures viewers get videoId even when GunDB peers are unreliable
+    const effectiveRoomState = useMemo(() => {
+        // GunDB roomState has everything — use it directly
+        if (roomState?.videoId) return roomState;
+        // WS roomInfo provides videoId/title as fallback
+        if (wsRoomInfo?.videoId) {
+            return {
+                id: currentRoomId,
+                hostId: '',
+                hostName: '',
+                videoId: wsRoomInfo.videoId,
+                videoTitle: wsRoomInfo.videoTitle || '',
+                scheduledStart: 0,
+                isPlaying: false,
+                currentTime: 0,
+                updatedAt: Date.now(),
+                status: 'waiting' as const,
+                paymentModel: (wsRoomInfo.paymentModel as any) || 'pay_your_own',
+            };
+        }
+        return roomState;
+    }, [roomState, wsRoomInfo, currentRoomId]);
 
     // Handle incoming control actions (WS real-time — play/pause/seek)
     useEffect(() => {
@@ -365,6 +395,8 @@ const WatchParty: React.FC = () => {
     const handleStartParty = () => {
         const scheduledStart = Date.now() + countdown * 1000;
         createRoom(selectedVideo.id, selectedVideo.title, selectedVideo.poster || '', scheduledStart, paymentModel);
+        // Also send room info via WS so joiners get videoId immediately
+        wsSendRoomInfo(selectedVideo.id, selectedVideo.title, paymentModel);
         setView('room');
         window.history.pushState({}, '', `/watch-party?room=${currentRoomId}`);
     };
@@ -387,6 +419,56 @@ const WatchParty: React.FC = () => {
         const secs = seconds % 60;
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
+
+    // Merge participants from GunDB + WS peers (deduplicated by userId)
+    const mergedParticipants = useMemo(() => {
+        const map = new Map<string, { id: string; name: string; isHost: boolean }>();
+        // WS peers are more reliable and have names
+        rtcPeers.forEach((p: any) => {
+            map.set(p.userId, { id: p.userId, name: p.userName || p.userId, isHost: !!p.isHost });
+        });
+        // GunDB participants as fallback
+        participants.forEach((p) => {
+            if (!map.has(p.id)) {
+                map.set(p.id, { id: p.id, name: p.name, isHost: p.isHost });
+            }
+        });
+        // Always include self
+        if (!map.has(userId)) {
+            map.set(userId, { id: userId, name: userName, isHost });
+        }
+        return Array.from(map.values());
+    }, [rtcPeers, participants, userId, userName, isHost]);
+
+    // Merge chat messages from GunDB + WS (deduplicated, sorted by timestamp)
+    const allChatMessages = useMemo(() => {
+        const seen = new Set<string>();
+        const all: ChatMessage[] = [];
+        // WS messages (more reliable for real-time)
+        wsChatMessages.forEach((m) => {
+            const key = `${m.fromUserId}-${m.timestamp}-${m.content.substring(0, 20)}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                all.push({
+                    id: key,
+                    senderId: m.fromUserId,
+                    senderName: m.userName,
+                    content: m.content,
+                    timestamp: m.timestamp,
+                    type: m.msgType as any || 'chat',
+                });
+            }
+        });
+        // GunDB messages as additional source
+        messages.forEach((m) => {
+            const key = `${m.senderId}-${m.timestamp}-${m.content.substring(0, 20)}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                all.push(m);
+            }
+        });
+        return all.sort((a, b) => a.timestamp - b.timestamp).slice(-100);
+    }, [wsChatMessages, messages]);
 
     // Lobby View
     if (view === 'lobby') {
@@ -634,7 +716,7 @@ const WatchParty: React.FC = () => {
                         <h1 className="text-xl font-bold text-white tracking-widest flex items-center gap-3">
                             <span className="text-nexusCyan">WATCH PARTY</span>
                             <span className="w-px h-4 bg-white/20"></span>
-                            <span className="text-gray-400 text-sm font-normal">{roomState?.videoTitle || 'Loading...'}</span>
+                            <span className="text-gray-400 text-sm font-normal">{effectiveRoomState?.videoTitle || 'Loading...'}</span>
                         </h1>
                     </div>
                     <div className="flex items-center gap-3">
@@ -643,7 +725,7 @@ const WatchParty: React.FC = () => {
                             <Wifi size={12} /> {rtcConnected ? 'WebRTC' : 'Connecting'}
                         </div>
                         <div className="bg-white/5 px-4 py-1.5 rounded-full flex items-center gap-2 text-sm font-bold text-white border border-white/10">
-                            <Users size={14} className="text-nexusCyan" /> {Math.max(participants.length, rtcPeers.length)} SYNCED
+                            <Users size={14} className="text-nexusCyan" /> {mergedParticipants.length} SYNCED
                         </div>
                         <button className="bg-nexusPurple text-white px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-2 hover:bg-purple-500 transition-colors shadow-[0_0_15px_rgba(168,85,247,0.4)]" onClick={copyInviteLink}>
                             {copied ? <Check size={14} /> : <Share2 size={14} />} INVITE
@@ -672,7 +754,7 @@ const WatchParty: React.FC = () => {
                         />
                     ) : (
                         <WatchPartyVideo
-                            roomState={roomState}
+                            roomState={effectiveRoomState}
                             userId={userId}
                             isHost={isHost}
                             participants={participants}
@@ -807,7 +889,10 @@ const WatchParty: React.FC = () => {
                         {['👍', '😂', '😮', '🔥', '❤️'].map((emoji) => (
                             <button
                                 key={emoji}
-                                onClick={() => sendCursor(50, 50, emoji)}
+                                onClick={() => {
+                                    wsSendReaction(emoji);
+                                    sendCursor(50, 50, emoji);
+                                }}
                                 className="text-lg hover:scale-150 transition-transform p-1"
                             >
                                 {emoji}
@@ -817,7 +902,7 @@ const WatchParty: React.FC = () => {
                 </div>
 
                 {/* Host Controls: Start Playback */}
-                {isHost && roomState?.status === 'waiting' && (
+                {isHost && effectiveRoomState?.status === 'waiting' && (
                     <div className="mt-6 flex justify-center">
                         <button className="bg-gradient-to-r from-nexusCyan to-nexusPurple text-white font-black text-lg px-12 py-4 rounded-xl shadow-[0_0_30px_rgba(34,211,238,0.4)] hover:shadow-[0_0_50px_rgba(168,85,247,0.6)] hover:scale-[1.02] transform transition-all flex items-center justify-center gap-3 relative z-10 uppercase tracking-widest" onClick={startPlayback}>
                             <Play size={20} fill="currentColor" /> INITIATE PLAYBACK NOW
@@ -830,10 +915,10 @@ const WatchParty: React.FC = () => {
             <aside className="hidden lg:flex w-[350px] flex-shrink-0 bg-[#0A0A14]/80 backdrop-blur-xl flex-col h-full border-l border-white/5 shadow-2xl relative z-20">
                 <div className="flex flex-col h-1/3 border-b border-white/5 p-4 overflow-hidden">
                     <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-nexusCyan animate-pulse"></span> NETWORK NODES ({participants.length})
+                        <span className="w-2 h-2 rounded-full bg-nexusCyan animate-pulse"></span> NETWORK NODES ({mergedParticipants.length})
                     </h3>
                     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
-                        {participants.map((p) => (
+                        {mergedParticipants.map((p) => (
                             <div key={p.id} className="flex items-center gap-3 bg-white/5 p-2 rounded-lg border border-white/5">
                                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-nexusCyan to-nexusPurple flex items-center justify-center text-white font-bold text-xs relative">
                                     {p.name.charAt(0).toUpperCase()}
@@ -844,8 +929,8 @@ const WatchParty: React.FC = () => {
                                         {p.name} {p.id === userId && <span className="text-[10px] text-nexusCyan bg-nexusCyan/20 px-1.5 rounded-sm">YOU</span>}
                                     </div>
                                     <div className="text-[10px] text-gray-500 flex items-center gap-1">
-                                        <div className={`w-1.5 h-1.5 rounded-full ${Date.now() - p.lastSeen < 30000 ? 'bg-nexusGreen' : 'bg-red-500'}`}></div>
-                                        {Date.now() - p.lastSeen < 30000 ? 'SYNCED' : 'OFFLINE'}
+                                        <div className="w-1.5 h-1.5 rounded-full bg-nexusGreen"></div>
+                                        SYNCED
                                     </div>
                                 </div>
                             </div>
@@ -853,7 +938,7 @@ const WatchParty: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex-1 flex flex-col min-h-0">
-                    <ChatPanel messages={messages} onSend={(c, t) => sendMessage(c, t)} currentUserId={userId} />
+                    <ChatPanel messages={allChatMessages} onSend={(c, t) => wsSendChat(c, t)} currentUserId={userId} />
                 </div>
             </aside>
         </div>
