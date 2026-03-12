@@ -46,6 +46,28 @@ import { randomBytes } from "crypto";
 
 export function registerAuthRoutes(app: FastifyInstance) {
 
+    // ============== User Profile ==============
+    app.get("/auth/profile", async (req, reply) => {
+        try { await req.jwtVerify(); } catch { return reply.status(401).send({ error: "Unauthorized", code: "unauthorized" }); }
+        const claims = (req.user || {}) as any;
+        const userId = claims?.sub;
+        if (!userId) return reply.status(401).send({ error: "Invalid token", code: "bad_token" });
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) return reply.status(404).send({ error: "User not found", code: "user_not_found" });
+        return reply.send({
+            id: user.id,
+            address: user.address || "",
+            did: user.did || "",
+            nickname: user.nickname || "",
+            avatar: user.avatar || "",
+            email: user.email || "",
+            phone: user.phone || "",
+            role: user.role || "viewer",
+            points: Number(user.points || 0),
+            nostrPubkey: user.nostrPubkey || "",
+        });
+    });
+
     // ============== JoyID Nonce ==============
     app.get("/auth/joyid/nonce", {
         config: { rateLimit: { max: 10, timeWindow: "1 minute" } },

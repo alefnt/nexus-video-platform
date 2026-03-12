@@ -764,6 +764,48 @@ app.post("/content/:id/cooldown", async (req, reply) => {
   }
 });
 
+// ─── My Content: Return user's owned content (videos/music/articles) ───
+app.get("/content/my", async (req, reply) => {
+  try {
+    const userId = (req.user as any)?.sub;
+    if (!userId) return reply.status(401).send({ error: "Unauthorized", code: "unauthorized" });
+    const query = req.query as { type?: string; limit?: string };
+    const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
+    const type = query.type || "video";
+
+    if (type === "audio" || type === "music") {
+      const items = await prisma.music.findMany({
+        where: { creatorId: userId },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        select: { id: true, title: true, artist: true, createdAt: true, sporeId: true },
+      });
+      return reply.send({ items });
+    }
+
+    if (type === "article") {
+      const items = await prisma.article.findMany({
+        where: { creatorId: userId },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        select: { id: true, title: true, createdAt: true, sporeId: true },
+      });
+      return reply.send({ items });
+    }
+
+    // Default: video
+    const items = await prisma.video.findMany({
+      where: { creatorId: userId },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: { id: true, title: true, createdAt: true, sporeId: true },
+    });
+    return reply.send({ items });
+  } catch (err: any) {
+    return reply.status(500).send({ error: err?.message || "Query error", code: "content_query_error" });
+  }
+});
+
 // ─── PUBLISH PIPELINE: Upload → Metadata → NFT → Royalty (One-Click) ───
 app.post("/content/publish", async (req, reply) => {
   const startTime = Date.now();

@@ -168,6 +168,21 @@ app.get("/payment/points/balance", async (req, reply) => {
   });
 });
 
+// 1.0b Transaction History (dedicated endpoint for CreatorDashboard)
+app.get("/payment/tx/history", async (req, reply) => {
+  const userId = (req.user as RequestUser)?.sub;
+  if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+  const limit = Math.min(Number((req.query as any)?.limit) || 20, 100);
+  const transactions = await prisma.pointsTransaction.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    take: limit
+  });
+
+  return reply.send({ transactions, history: transactions });
+});
+
 // 1.1 Get Points Ledger (Dedicated)
 app.get("/payment/points/ledger/me", async (req, reply) => {
   const userId = (req.user as RequestUser)?.sub;

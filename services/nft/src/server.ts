@@ -486,6 +486,18 @@ app.get("/nft/collection/trending", async (req, reply) => {
 
 // ============== 用户 NFT 查询 ==============
 
+// Alias: /nft/ownership/list (used by CreatorDashboard)
+app.get("/nft/ownership/list", async (req, reply) => {
+    try {
+        const user = req.user as any;
+        const userAddress = user?.ckb || "";
+        const nfts = await sporeClient.getSporesByOwner(userAddress);
+        return reply.send({ nfts, total: nfts.length });
+    } catch (err: any) {
+        return reply.send({ nfts: [], total: 0 });
+    }
+});
+
 app.get("/nft/my", async (req, reply) => {
     try {
         const user = req.user as any;

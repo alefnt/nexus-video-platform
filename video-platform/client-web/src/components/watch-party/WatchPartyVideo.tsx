@@ -49,7 +49,9 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
         if (!videoRef.current || !roomState?.videoId || isLoading) return;
 
         // Don't initialize if payment required and no access
-        if (requiresPayment && !hasFullAccess) {
+        // Exception: host_treats mode — viewers skip payment
+        const isHostTreats = roomState.paymentModel === 'host_treats';
+        if (requiresPayment && !hasFullAccess && !isHostTreats) {
             return;
         }
 
@@ -63,32 +65,60 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
                     url?: string;
                     streamUrl?: string;
                 }
-                const streamData = await client.get<StreamResponse>(`/content/stream/${roomState.videoId}`);
-                const videoUrl = streamData?.url || streamData?.streamUrl;
+
+                let videoUrl: string | undefined;
+                try {
+                    const streamData = await client.get<StreamResponse>(`/content/stream/${roomState.videoId}`);
+                    videoUrl = streamData?.url || streamData?.streamUrl;
+                } catch {
+                    // Fallback: try HLS path directly
+                    videoUrl = `http://localhost:8092/content/hls/${roomState.videoId}/index.m3u8`;
+                }
+
+                if (!videoUrl) {
+                    // Try samples.json for local video
+                    try {
+                        const resp = await fetch('/videos/samples.json');
+                        if (resp.ok) {
+                            const arr = await resp.json();
+                            const hit = (Array.isArray(arr) ? arr : []).find((v: any) => String(v?.id) === String(roomState.videoId));
+                            if (hit?.cdnUrl) videoUrl = hit.cdnUrl;
+                        }
+                    } catch { }
+                }
 
                 if (!videoUrl) {
                     setError('无法获取视频地址');
                     return;
                 }
 
+                // Determine source type
+                const isHLS = videoUrl.includes('.m3u8') || videoUrl.includes('videodelivery.net');
+                const sourceType = isHLS ? 'application/x-mpegURL' : 'video/mp4';
+
                 // Initialize video.js
                 if (!playerRef.current) {
                     playerRef.current = videojs(videoRef.current, {
-                        controls: !isHost, // Host controls sync, viewers just watch
+                        controls: true,
                         autoplay: false,
                         preload: 'auto',
                         fluid: true,
-                        sources: [{ src: videoUrl, type: 'application/x-mpegURL' }]
+                        sources: [{ src: videoUrl, type: sourceType }]
                     });
 
-                    // Sync time updates
+                    // Sync time updates (host reports position) — throttle to every 3s
+                    let lastReportTime = 0;
                     playerRef.current.on('timeupdate', () => {
                         if (isHost && onTimeUpdate) {
-                            onTimeUpdate(playerRef.current.currentTime());
+                            const now = Date.now();
+                            if (now - lastReportTime > 3000) {
+                                lastReportTime = now;
+                                onTimeUpdate(playerRef.current.currentTime());
+                            }
                         }
                     });
                 } else {
-                    playerRef.current.src({ src: videoUrl, type: 'application/x-mpegURL' });
+                    playerRef.current.src({ src: videoUrl, type: sourceType });
                 }
 
                 // If resuming from stream payment, seek to paid position
@@ -162,6 +192,27 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
         }
     };
 
+    // Viewer sync: follow host's play/pause/seek state from GunDB
+    useEffect(() => {
+        if (isHost || !playerRef.current || !roomState) return;
+
+        const player = playerRef.current;
+        // Sync play/pause state
+        if (roomState.isPlaying && player.paused()) {
+            player.play().catch(() => { });
+        } else if (!roomState.isPlaying && !player.paused()) {
+            player.pause();
+        }
+        // Sync position if drift > 3 seconds
+        if (roomState.currentTime > 0) {
+            const localTime = player.currentTime() || 0;
+            const drift = Math.abs(localTime - roomState.currentTime);
+            if (drift > 3) {
+                player.currentTime(roomState.currentTime);
+            }
+        }
+    }, [isHost, roomState?.isPlaying, roomState?.currentTime, roomState?.updatedAt]);
+
     // Render loading state
     if (isLoading) {
         return (
@@ -175,7 +226,9 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
     }
 
     // Render payment required state
-    if (requiresPayment && !hasFullAccess) {
+    // Skip payment gate if host_treats mode
+    const isHostTreats = roomState?.paymentModel === 'host_treats';
+    if (requiresPayment && !hasFullAccess && !isHostTreats) {
         const groupPrice = participants.length > 1 && videoMeta
             ? calculateGroupPurchasePrice(videoMeta.pointsPrice, participants.length)
             : null;

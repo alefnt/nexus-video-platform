@@ -92,7 +92,9 @@ export function registerJWTHook(app: FastifyInstance) {
     app.addHook("onRequest", async (req, reply) => {
         if (req.method === "OPTIONS") return;
         if (req.method === "GET" && (req.url.startsWith("/metadata/") || req.url.startsWith("/content/hls/") || req.url.startsWith("/user/"))) return;
-        if (req.url.startsWith("/health") || req.url.startsWith("/metrics") || req.url.startsWith("/auth/") || req.url.startsWith("/admin/")) return;
+        if (req.url.startsWith("/health") || req.url.startsWith("/metrics") || req.url.startsWith("/admin/")) return;
+        // Skip JWT for auth routes EXCEPT /auth/profile which needs authentication
+        if (req.url.startsWith("/auth/") && !req.url.startsWith("/auth/profile")) return;
         try {
             await req.jwtVerify();
         } catch {

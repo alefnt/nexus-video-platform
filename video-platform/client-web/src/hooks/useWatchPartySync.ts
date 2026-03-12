@@ -29,6 +29,7 @@ export interface RoomState {
     currentTime: number;
     updatedAt: number;
     status: 'waiting' | 'playing' | 'ended';
+    paymentModel?: 'host_treats' | 'pay_your_own';
 }
 
 export interface Participant {
@@ -56,6 +57,12 @@ interface UseWatchPartySyncOptions {
     isHost?: boolean;
 }
 
+// Public GunDB relay peers for cross-browser sync
+const GUN_RELAY_PEERS = [
+    'https://gun-manhattan.herokuapp.com/gun',
+    'https://gun-us.herokuapp.com/gun',
+];
+
 export function useWatchPartySync({ roomId, userId, userName, isHost = false }: UseWatchPartySyncOptions) {
     const [roomState, setRoomState] = useState<RoomState | null>(null);
     const [participants, setParticipants] = useState<Participant[]>([]);
@@ -63,19 +70,22 @@ export function useWatchPartySync({ roomId, userId, userName, isHost = false }: 
     const [isConnected, setIsConnected] = useState(false);
     const gunRef = useRef<any>(null);
     const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
+    const joinedAtRef = useRef<number>(Date.now());
 
-    // Initialize GunDB
+    // Initialize GunDB with relay peers
     useEffect(() => {
         const initGun = async () => {
             try {
                 if (!window.Gun) {
                     const GunModule = await import('gun');
                     gunRef.current = (GunModule.default || GunModule)({
+                        peers: GUN_RELAY_PEERS,
                         localStorage: true,
                         radisk: true
                     });
                 } else {
                     gunRef.current = window.Gun({
+                        peers: GUN_RELAY_PEERS,
                         localStorage: true,
                         radisk: true
                     });
@@ -83,6 +93,16 @@ export function useWatchPartySync({ roomId, userId, userName, isHost = false }: 
                 setIsConnected(true);
             } catch (e) {
                 console.error('GunDB initialization failed:', e);
+                // Fallback: try without peers (local only)
+                try {
+                    if (!window.Gun) {
+                        const GunModule = await import('gun');
+                        gunRef.current = (GunModule.default || GunModule)({ localStorage: true });
+                    } else {
+                        gunRef.current = window.Gun({ localStorage: true });
+                    }
+                    setIsConnected(true);
+                } catch { }
             }
         };
 
@@ -130,13 +150,13 @@ export function useWatchPartySync({ roomId, userId, userName, isHost = false }: 
             }
         });
 
-        // Join room - register as participant
+        // Join room - register as participant (with joinedAt preserved)
         const joinRoom = () => {
             const participant: Participant = {
                 id: userId,
                 name: userName,
                 isHost,
-                joinedAt: Date.now(),
+                joinedAt: joinedAtRef.current,
                 lastSeen: Date.now()
             };
             roomNode.get('participants').get(userId).put(participant);
@@ -149,12 +169,13 @@ export function useWatchPartySync({ roomId, userId, userName, isHost = false }: 
 
         joinRoom();
 
-        // Heartbeat to show online status
+        // Heartbeat to show online status (includes joinedAt to prevent data loss)
         heartbeatRef.current = setInterval(() => {
             roomNode.get('participants').get(userId).put({
                 id: userId,
                 name: userName,
                 isHost,
+                joinedAt: joinedAtRef.current,
                 lastSeen: Date.now()
             });
         }, 10000);
@@ -167,7 +188,13 @@ export function useWatchPartySync({ roomId, userId, userName, isHost = false }: 
     }, [roomId, userId, userName, isHost]);
 
     // Create room (host only)
-    const createRoom = useCallback((videoId: string, videoTitle: string, videoPoster: string, scheduledStart: number) => {
+    const createRoom = useCallback((
+        videoId: string,
+        videoTitle: string,
+        videoPoster: string,
+        scheduledStart: number,
+        paymentModel: 'host_treats' | 'pay_your_own' = 'pay_your_own'
+    ) => {
         if (!gunRef.current || !isHost) return;
 
         const state: RoomState = {
@@ -181,13 +208,14 @@ export function useWatchPartySync({ roomId, userId, userName, isHost = false }: 
             isPlaying: false,
             currentTime: 0,
             updatedAt: Date.now(),
-            status: 'waiting'
+            status: 'waiting',
+            paymentModel
         };
 
         gunRef.current.get(`watchparty/${roomId}`).get('state').put(state);
     }, [roomId, userId, userName, isHost]);
 
-    // Update playback state (host only)
+    // Update playback state (host syncs to GunDB so viewers can follow)
     const updatePlayback = useCallback((isPlaying: boolean, currentTime: number) => {
         if (!gunRef.current || !isHost) return;
 

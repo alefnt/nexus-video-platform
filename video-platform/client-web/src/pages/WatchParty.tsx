@@ -193,7 +193,7 @@ const WatchParty: React.FC = () => {
     const userId = useMemo(() => generateUserId(), []);
     const userName = useMemo(() => getUserName(), []);
 
-    // Video library: load from API, fallback to demos
+    // Video library: load from API, fallback to samples.json then demos
     const [videoLibrary, setVideoLibrary] = useState<{ id: string; title: string; poster: string }[]>(DEMO_VIDEOS);
     const [videosLoading, setVideosLoading] = useState(true);
 
@@ -201,21 +201,36 @@ const WatchParty: React.FC = () => {
         const jwt = sessionStorage.getItem('vp.jwt');
         const client = getApiClient();
         if (jwt) client.setJWT(jwt);
-        client.get<{ videos?: any[] }>('/metadata/videos?limit=50')
-            .then(res => {
-                const vids = (res?.videos || [])
+
+        // Try API first, then samples.json, then DEMO_VIDEOS
+        const loadVideos = async () => {
+            let vids: { id: string; title: string; poster: string }[] = [];
+            // 1) Try metadata API
+            try {
+                const res = await client.get<{ videos?: any[] }>('/metadata/videos?limit=50');
+                vids = (res?.videos || [])
                     .filter((v: any) => v.id && v.title)
-                    .map((v: any) => ({
-                        id: v.id,
-                        title: v.title || 'Untitled',
-                        poster: v.coverUrl || v.thumbnail || '',
-                    }));
-                if (vids.length > 0) {
-                    setVideoLibrary([...vids, ...DEMO_VIDEOS]);
+                    .map((v: any) => ({ id: v.id, title: v.title || 'Untitled', poster: v.coverUrl || v.thumbnail || '' }));
+            } catch { }
+            // 2) Also load samples.json for local demo videos
+            try {
+                const resp = await fetch('/videos/samples.json');
+                if (resp.ok) {
+                    const arr = await resp.json();
+                    const sampleVids = (Array.isArray(arr) ? arr : []).filter((v: any) => v.id && v.title)
+                        .map((v: any) => ({ id: v.id, title: v.title, poster: v.coverUrl || v.thumbnail || '' }));
+                    // Merge without duplicates
+                    const existingIds = new Set(vids.map(v => v.id));
+                    sampleVids.forEach((v: any) => { if (!existingIds.has(v.id)) vids.push(v); });
                 }
-            })
-            .catch(() => { })
-            .finally(() => setVideosLoading(false));
+            } catch { }
+            // 3) Always append demo videos
+            const existingIds = new Set(vids.map(v => v.id));
+            DEMO_VIDEOS.forEach(v => { if (!existingIds.has(v.id)) vids.push(v); });
+            if (vids.length > 0) setVideoLibrary(vids);
+            setVideosLoading(false);
+        };
+        loadVideos();
     }, []);
 
     // UI state
@@ -223,6 +238,7 @@ const WatchParty: React.FC = () => {
     const [selectedVideo, setSelectedVideo] = useState(DEMO_VIDEOS[0]);
     const [countdown, setCountdown] = useState(60);
     const [copied, setCopied] = useState(false);
+    const [paymentModel, setPaymentModel] = useState<'host_treats' | 'pay_your_own'>('pay_your_own');
 
     // Watch party sync (GunDB)
     const {
@@ -231,6 +247,7 @@ const WatchParty: React.FC = () => {
         messages,
         isConnected,
         createRoom,
+        updatePlayback,
         startPlayback,
         sendMessage
     } = useWatchPartySync({
@@ -316,7 +333,7 @@ const WatchParty: React.FC = () => {
 
     const handleStartParty = () => {
         const scheduledStart = Date.now() + countdown * 1000;
-        createRoom(selectedVideo.id, selectedVideo.title, selectedVideo.poster || '', scheduledStart);
+        createRoom(selectedVideo.id, selectedVideo.title, selectedVideo.poster || '', scheduledStart, paymentModel);
         setView('room');
         window.history.pushState({}, '', `/watch-party?room=${currentRoomId}`);
     };
@@ -503,6 +520,36 @@ const WatchParty: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* Payment Model Selection */}
+                    <div className="flex flex-col gap-4">
+                        <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                            Payment Model
+                        </h3>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                className={`p-4 rounded-xl border transition-all text-left ${paymentModel === 'host_treats'
+                                    ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+                                    : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/10'}`}
+                                onClick={() => setPaymentModel('host_treats')}
+                            >
+                                <div className="text-lg mb-1">🎁</div>
+                                <div className="text-sm font-bold text-white">Host Treats</div>
+                                <div className="text-[11px] text-gray-400 mt-1">房主为全员买单</div>
+                            </button>
+                            <button
+                                className={`p-4 rounded-xl border transition-all text-left ${paymentModel === 'pay_your_own'
+                                    ? 'bg-blue-500/10 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
+                                    : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/10'}`}
+                                onClick={() => setPaymentModel('pay_your_own')}
+                            >
+                                <div className="text-lg mb-1">💳</div>
+                                <div className="text-sm font-bold text-white">Pay Your Own</div>
+                                <div className="text-[11px] text-gray-400 mt-1">每位观众自行付费</div>
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="flex flex-col gap-4">
                         <h3 className="text-sm font-bold text-nexusPurple uppercase tracking-widest flex items-center gap-2"><Clock size={16} /> Countdown Timer</h3>
                         <div className="flex flex-wrap gap-3">
@@ -598,7 +645,12 @@ const WatchParty: React.FC = () => {
                             userId={userId}
                             isHost={isHost}
                             participants={participants}
-                            onTimeUpdate={(time) => { }}
+                            onTimeUpdate={(time) => {
+                                // Host syncs playback position to GunDB every call
+                                if (isHost) {
+                                    updatePlayback(true, time);
+                                }
+                            }}
                             onPaymentRequired={(videoId) => navigate(`/player/${videoId}?mode=stream`)}
                         />
                     )}
@@ -688,8 +740,15 @@ const WatchParty: React.FC = () => {
                         <button
                             onClick={() => {
                                 const v = document.querySelector('.wp-video-player video') as HTMLVideoElement;
-                                if (v?.paused) { v.play(); sendControl('play'); }
-                                else { v?.pause(); sendControl('pause'); }
+                                if (v?.paused) {
+                                    v.play();
+                                    sendControl('play');
+                                    updatePlayback(true, v.currentTime || 0);
+                                } else {
+                                    v?.pause();
+                                    sendControl('pause');
+                                    updatePlayback(false, v?.currentTime || 0);
+                                }
                             }}
                             className="p-3 rounded-xl bg-nexusPurple/20 text-nexusPurple border border-nexusPurple/30 hover:bg-nexusPurple/30 transition-all"
                         >

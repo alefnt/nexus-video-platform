@@ -596,16 +596,55 @@ export default function VideoPlayer() {
         </div>
 
         {/* Right Side: Status and Session Info */}
-        <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-4 py-1.5 px-4 rounded-full border border-[#22d3ee]/30 bg-[#22d3ee]/5">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400 uppercase tracking-wider font-bold">Status</span>
-              <span className="text-[#22d3ee] font-bold font-mono text-sm border-r border-white/10 pr-4">{status}</span>
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3 py-2 px-5 rounded-full border border-[#22d3ee]/20 bg-gradient-to-r from-[#22d3ee]/5 to-[#a855f7]/5">
+            {/* Status indicator */}
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-[#22d3ee] animate-pulse flex-shrink-0" />
+              <span
+                className="text-[#22d3ee] font-semibold text-sm truncate"
+                style={{ maxWidth: '280px' }}
+                title={status}
+              >
+                {status}
+              </span>
             </div>
+            {/* Divider */}
+            <span className="w-px h-5 bg-white/10 flex-shrink-0" />
+            {/* Price info */}
             {meta && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400 uppercase tracking-wider font-bold">Price</span>
-                <span className="text-yellow-400 font-bold font-mono text-sm">{meta.priceUSDI} <span className="text-[10px] text-yellow-600">USDC</span></span>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {(() => {
+                  const usdcPrice = parseFloat(String(meta.priceUSDI || '0'));
+                  const pointsPrice = Number((meta as any)?.pointsPrice || (meta as any)?.buyOncePrice || 0);
+                  const streamPrice = Number((meta as any)?.streamPricePerMinute || 0);
+                  const priceMode = (meta as any)?.priceMode || 'free';
+                  if (priceMode === 'stream' || streamPrice > 0) {
+                    return (
+                      <>
+                        <span className="text-yellow-400 font-bold text-sm">{streamPrice.toFixed(1)}</span>
+                        <span className="text-[10px] text-yellow-600 font-semibold">PTS/MIN</span>
+                      </>
+                    );
+                  }
+                  if (pointsPrice > 0) {
+                    return (
+                      <>
+                        <span className="text-yellow-400 font-bold text-sm">{pointsPrice}</span>
+                        <span className="text-[10px] text-yellow-600 font-semibold">PTS</span>
+                      </>
+                    );
+                  }
+                  if (usdcPrice > 0) {
+                    return (
+                      <>
+                        <span className="text-yellow-400 font-bold text-sm">{usdcPrice}</span>
+                        <span className="text-[10px] text-yellow-600 font-semibold">USDC</span>
+                      </>
+                    );
+                  }
+                  return <span className="text-emerald-400 font-bold text-sm">FREE</span>;
+                })()}
               </div>
             )}
           </div>
