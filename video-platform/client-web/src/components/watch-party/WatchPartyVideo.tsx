@@ -20,6 +20,7 @@ interface WatchPartyVideoProps {
     isHost: boolean;
     participants: Participant[];
     onTimeUpdate?: (time: number) => void;
+    onPlayStateChange?: (isPlaying: boolean, currentTime: number) => void;
     onPaymentRequired?: (videoId: string) => void;
 }
 
@@ -29,6 +30,7 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
     isHost,
     participants,
     onTimeUpdate,
+    onPlayStateChange,
     onPaymentRequired
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -117,6 +119,16 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
                             }
                         }
                     });
+
+                    // Host play/pause events — notify parent for WS broadcast
+                    if (isHost && onPlayStateChange) {
+                        playerRef.current.on('play', () => {
+                            onPlayStateChange(true, playerRef.current.currentTime());
+                        });
+                        playerRef.current.on('pause', () => {
+                            onPlayStateChange(false, playerRef.current.currentTime());
+                        });
+                    }
                 } else {
                     playerRef.current.src({ src: videoUrl, type: sourceType });
                 }

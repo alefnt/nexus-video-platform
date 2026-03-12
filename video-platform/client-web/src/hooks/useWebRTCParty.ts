@@ -64,6 +64,7 @@ export function useWebRTCParty({
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
     const [remoteCursors, setRemoteCursors] = useState<RemoteCursor[]>([]);
     const [lastControl, setLastControl] = useState<ControlAction | null>(null);
+    const [lastSync, setLastSync] = useState<{ currentTime: number; isPlaying: boolean; timestamp: number } | null>(null);
     const [isScreenSharing, setIsScreenSharing] = useState(false);
 
     const wsRef = useRef<WebSocket | null>(null);
@@ -174,6 +175,14 @@ export function useWebRTCParty({
                     fromUserId: msg.fromUserId,
                     action: msg.action,
                     value: msg.value,
+                    timestamp: msg.timestamp,
+                });
+                break;
+
+            case 'wp:sync':
+                setLastSync({
+                    currentTime: msg.currentTime,
+                    isPlaying: msg.isPlaying,
                     timestamp: msg.timestamp,
                 });
                 break;
@@ -350,6 +359,16 @@ export function useWebRTCParty({
         }));
     }, [roomId, userName]);
 
+    // ── Send Sync (Host → all viewers, periodic position broadcast) ──
+    const sendSync = useCallback((currentTime: number, isPlaying: boolean) => {
+        wsRef.current?.send(JSON.stringify({
+            type: 'wp:sync',
+            roomId,
+            currentTime,
+            isPlaying,
+        }));
+    }, [roomId]);
+
     // ── Clean up stale cursors ──
     useEffect(() => {
         const interval = setInterval(() => {
@@ -365,10 +384,12 @@ export function useWebRTCParty({
         remoteStreams,
         remoteCursors,
         lastControl,
+        lastSync,
         isScreenSharing,
         startScreenShare,
         stopScreenShare,
         sendControl,
+        sendSync,
         sendCursor,
     };
 }

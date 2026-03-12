@@ -261,6 +261,18 @@ app.register(async function (fastify) {
                     return;
                 }
 
+                // Host periodic position sync — broadcast current playback time to all viewers
+                if (msg.type === 'wp:sync' && msg.roomId && userId) {
+                    wpBroadcast(msg.roomId, {
+                        type: 'wp:sync',
+                        fromUserId: userId,
+                        currentTime: msg.currentTime,
+                        isPlaying: msg.isPlaying,
+                        timestamp: Date.now(),
+                    }, userId);
+                    return;
+                }
+
                 // Remote cursor / reactions — broadcast to all peers
                 if (msg.type === 'wp:cursor' && msg.roomId && userId) {
                     wpBroadcast(msg.roomId, {

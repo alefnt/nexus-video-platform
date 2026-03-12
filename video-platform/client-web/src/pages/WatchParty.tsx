@@ -257,7 +257,6 @@ const WatchParty: React.FC = () => {
         isHost
     });
 
-    // WebRTC Party (screen share + collaborative control)
     const {
         connected: rtcConnected,
         peers: rtcPeers,
@@ -265,10 +264,12 @@ const WatchParty: React.FC = () => {
         remoteStreams,
         remoteCursors,
         lastControl,
+        lastSync,
         isScreenSharing,
         startScreenShare,
         stopScreenShare,
         sendControl,
+        sendSync,
         sendCursor,
     } = useWebRTCParty({
         roomId: currentRoomId,
@@ -294,19 +295,49 @@ const WatchParty: React.FC = () => {
         }
     }, [remoteStreams]);
 
-    // Handle incoming control actions
+    // Handle incoming control actions (WS real-time — play/pause/seek)
     useEffect(() => {
         if (!lastControl) return;
         // Apply control action to local video player
         const video = document.querySelector('.wp-video-player video') as HTMLVideoElement;
         if (!video) return;
         switch (lastControl.action) {
-            case 'play': video.play(); break;
+            case 'play': video.play().catch(() => {}); break;
             case 'pause': video.pause(); break;
             case 'seek': if (lastControl.value !== undefined) video.currentTime = lastControl.value; break;
             case 'speed': if (lastControl.value !== undefined) video.playbackRate = lastControl.value; break;
         }
     }, [lastControl]);
+
+    // Host: periodic position sync broadcast via WS (every 3 seconds)
+    useEffect(() => {
+        if (!isHost || view !== 'room') return;
+        const interval = setInterval(() => {
+            const video = document.querySelector('.wp-video-player video') as HTMLVideoElement;
+            if (video) {
+                sendSync(video.currentTime, !video.paused);
+            }
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [isHost, view, sendSync]);
+
+    // Viewer: position correction from host's wp:sync (drift > 2s → seek)
+    useEffect(() => {
+        if (isHost || !lastSync) return;
+        const video = document.querySelector('.wp-video-player video') as HTMLVideoElement;
+        if (!video) return;
+        // Sync play/pause state
+        if (lastSync.isPlaying && video.paused) {
+            video.play().catch(() => {});
+        } else if (!lastSync.isPlaying && !video.paused) {
+            video.pause();
+        }
+        // Correct position if drift > 2 seconds
+        const drift = Math.abs(video.currentTime - lastSync.currentTime);
+        if (drift > 2) {
+            video.currentTime = lastSync.currentTime;
+        }
+    }, [isHost, lastSync]);
 
     // Countdown timer
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -649,6 +680,14 @@ const WatchParty: React.FC = () => {
                                 // Host syncs playback position to GunDB every call
                                 if (isHost) {
                                     updatePlayback(true, time);
+                                }
+                            }}
+                            onPlayStateChange={(playing, time) => {
+                                // Host video.js play/pause → broadcast via WS + GunDB dual-write
+                                if (isHost) {
+                                    sendControl(playing ? 'play' : 'pause', time);
+                                    updatePlayback(playing, time);
+                                    sendSync(time, playing);
                                 }
                             }}
                             onPaymentRequired={(videoId) => navigate(`/player/${videoId}?mode=stream`)}
