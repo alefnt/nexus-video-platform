@@ -220,6 +220,17 @@ app.register(async function (fastify) {
                         ...(meta || {}),
                     }));
 
+                    // If room is already playing, immediately sync the new joiner's position
+                    if (meta?.isPlaying && meta.currentTime !== undefined) {
+                        socket.send(JSON.stringify({
+                            type: 'wp:sync',
+                            fromUserId: 'server',
+                            currentTime: meta.currentTime,
+                            isPlaying: true,
+                            timestamp: Date.now(),
+                        }));
+                    }
+
                     messageCounter.inc({ type: 'wp_join' });
                     return;
                 }
@@ -326,20 +337,28 @@ app.register(async function (fastify) {
 
                 // Room info update — host shares video metadata with room
                 if (msg.type === 'wp:room_info' && msg.roomId && userId) {
+                    // Preserve existing playback state if meta already exists
+                    const existing = wpRoomMeta.get(msg.roomId);
                     wpRoomMeta.set(msg.roomId, {
                         videoId: msg.videoId,
                         videoTitle: msg.videoTitle,
                         paymentModel: msg.paymentModel,
-                        isPlaying: false,
-                        status: 'waiting',
-                        currentTime: 0,
+                        // Preserve playback state from ongoing session, only default to waiting if brand new
+                        isPlaying: existing?.isPlaying ?? false,
+                        status: existing?.status ?? 'waiting',
+                        currentTime: existing?.currentTime ?? 0,
                     });
+                    // Broadcast full room info including playback state
+                    const updatedMeta = wpRoomMeta.get(msg.roomId)!;
                     wpBroadcast(msg.roomId, {
                         type: 'wp:room_info',
                         fromUserId: userId,
-                        videoId: msg.videoId,
-                        videoTitle: msg.videoTitle,
-                        paymentModel: msg.paymentModel,
+                        videoId: updatedMeta.videoId,
+                        videoTitle: updatedMeta.videoTitle,
+                        paymentModel: updatedMeta.paymentModel,
+                        isPlaying: updatedMeta.isPlaying,
+                        status: updatedMeta.status,
+                        currentTime: updatedMeta.currentTime,
                         timestamp: Date.now(),
                     }, userId);
                     return;
