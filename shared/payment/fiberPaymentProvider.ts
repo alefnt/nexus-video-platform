@@ -4,14 +4,14 @@
  * 
  * All payments go through real Fiber Network payment channels.
  * Requires:
- *   - Fiber mainnet running and configured
- *   - JoyID wallet with Fiber channel signing support
- *   - Platform running a Fiber Hub node
+ *   - Fiber testnet/mainnet node running (fnn)
+ *   - FIBER_RPC_URL environment variable set
+ *   - Open channel with sufficient balance
  * 
  * How it works:
  *   - Buy Once: Creates Fiber invoice → user pays via channel → instant settlement
  *   - Stream Pay: Off-chain channel state updates (auto-signed, 0 gas, ~20ms)
- *   - Balance: Channel capacity (locked CKB/USDI in the user's channel)
+ *   - Balance: Channel capacity (locked CKB in the user's channel)
  */
 
 import type {
@@ -25,7 +25,14 @@ import type {
     StreamEndResult,
 } from './paymentProvider.js';
 
-import { getFiberRpcClient, createStreamInvoice, checkStreamPaymentStatus } from '../web3/fiber.js';
+import {
+    getFiberRpcClient,
+    createStreamInvoice,
+    checkStreamPaymentStatus,
+    ckbToHexShannon,
+    hexShannonToCkb,
+    TESTNET_PUBLIC_NODES,
+} from '../web3/fiber.js';
 
 export class FiberDirectPaymentProvider implements IPaymentProvider {
     readonly mode = 'fiber' as const;
@@ -44,17 +51,43 @@ export class FiberDirectPaymentProvider implements IPaymentProvider {
         }
 
         try {
-            // Step 1: Create invoice for the content price
+            // Check node status first
+            const status = await fiber.getStatus();
+            if (!status.ok) {
+                return { success: false, error: `Fiber node not reachable: ${status.error}` };
+            }
+
+            // Ensure we have a channel to a public testnet node
+            const channel = await fiber.ensureChannel({
+                peerPubkey: TESTNET_PUBLIC_NODES.node1.pubkey,
+                fundingAmountCkb: 500,
+            });
+
+            if (!channel) {
+                return {
+                    success: false,
+                    error: 'No ready channel. Channel may be opening — please retry in a few minutes.',
+                };
+            }
+
+            // Check channel has enough balance
+            const requiredShannon = BigInt(ckbToHexShannon(String(params.amount)));
+            const availableShannon = BigInt(channel.localBalance);
+            if (availableShannon < requiredShannon) {
+                return {
+                    success: false,
+                    error: `Insufficient channel balance: ${channel.localBalanceCkb.toFixed(2)} CKB available, ${params.amount} CKB needed`,
+                };
+            }
+
+            // Create invoice for the content price
             const invoice = await fiber.createInvoice({
                 amount: String(params.amount),
                 memo: `Buy video ${params.videoId}`,
-                currency: params.currency === 'USDI' ? 'USDI' : 'CKB',
                 expiry: 300, // 5 minutes
             });
 
-            // Step 2: Payment is made by the user's wallet (JoyID signs automatically)
-            // In production, the frontend would call fiber.sendPayment with the invoice
-            // Here we return the invoice for the frontend to process
+            // Return the invoice for the frontend to process payment
             return {
                 success: true,
                 paymentHash: invoice.paymentHash,
@@ -91,6 +124,7 @@ export class FiberDirectPaymentProvider implements IPaymentProvider {
 
             // Store payment hash for tracking
             (session as any).currentPaymentHash = invoice.paymentHash;
+            (session as any).currentInvoiceAddress = invoice.invoiceAddress;
         } catch (err: any) {
             // Non-fatal: session is active, invoices can be retried
             console.warn('[FiberStream] Initial invoice creation failed:', err?.message);
@@ -113,20 +147,18 @@ export class FiberDirectPaymentProvider implements IPaymentProvider {
         session.elapsedSeconds = elapsedSeconds;
         session.totalCharged += tickCharge;
 
-        // In real Fiber mode, this updates the channel state (off-chain, 0 gas)
-        // The Fiber hub node handles the state update automatically
-        // User's wallet auto-signs the new commitment transaction
-
         // Check if a new segment invoice is needed (every 30 seconds)
         if (elapsedSeconds % 30 === 0) {
             try {
                 const segmentNumber = Math.floor(elapsedSeconds / 30);
-                await createStreamInvoice({
+                const invoice = await createStreamInvoice({
                     videoId: session.videoId,
                     segmentNumber,
                     pricePerSecond: session.pricePerSecond,
                     segmentSeconds: 30,
                 });
+                (session as any).currentPaymentHash = invoice.paymentHash;
+                (session as any).currentInvoiceAddress = invoice.invoiceAddress;
             } catch (err: any) {
                 console.warn('[FiberStream] Segment invoice failed:', err?.message);
             }
@@ -149,9 +181,6 @@ export class FiberDirectPaymentProvider implements IPaymentProvider {
         session.status = 'completed';
         this.activeSessions.delete(sessionId);
 
-        // In real Fiber mode, the final channel state is already committed
-        // No additional settlement needed — the channel balance reflects the payments
-
         return {
             success: true,
             totalCharged: session.totalCharged,
@@ -168,13 +197,13 @@ export class FiberDirectPaymentProvider implements IPaymentProvider {
         }
 
         try {
-            // Get user's channel capacity from Fiber node
+            // Get total local balance across all channels
             const channels = await fiber.listChannels();
-            const totalBalance = channels.reduce((sum, ch) => {
-                return sum + Number(ch.localBalance || 0);
+            const totalBalanceCkb = channels.reduce((sum, ch) => {
+                return sum + ch.localBalanceCkb;
             }, 0);
 
-            return { balance: totalBalance, currency: 'CKB' };
+            return { balance: totalBalanceCkb, currency: 'CKB' };
         } catch {
             return { balance: 0, currency: 'CKB' };
         }
