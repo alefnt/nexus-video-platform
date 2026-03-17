@@ -5,6 +5,7 @@
  */
 
 import Fastify from 'fastify';
+import jwt from '@fastify/jwt';
 import { MeiliSearch } from 'meilisearch';
 import { PrismaClient } from '@video-platform/database';
 import { register, Counter } from 'prom-client';
@@ -18,6 +19,8 @@ const prisma = new PrismaClient();
 const PORT = Number(process.env.SEARCH_PORT || process.env.PORT) || 8101;
 const MEILI_URL = process.env.MEILISEARCH_URL || 'http://localhost:7700';
 const MEILI_KEY = process.env.MEILISEARCH_KEY || 'nexus-search-key-2026';
+const JWT_SECRET = process.env.JWT_SECRET || "";
+if (!JWT_SECRET || JWT_SECRET.length < 32) throw new Error("JWT_SECRET 未配置或长度不足");
 
 // ============== Meilisearch 客户端 ==============
 const meili = new MeiliSearch({
@@ -34,6 +37,18 @@ const searchCounter = new Counter({
 
 // ============== Security ==============
 await registerSecurityPlugins(app, { rateLimit: { max: 200, timeWindow: "1 minute" } });
+
+app.register(jwt, { secret: JWT_SECRET });
+
+// JWT Auth for write/sync endpoints only (search and trending are public)
+app.addHook("onRequest", async (req, reply) => {
+    if (req.url.startsWith("/health") || req.url.startsWith("/metrics")) return;
+    if (req.method === "GET") return; // search/trending/recommendations are public
+    try { await req.jwtVerify(); } catch {
+        const isInternal = req.headers['x-internal-service'] === 'true';
+        if (!isInternal) return reply.status(401).send({ error: "未授权", code: "unauthorized" });
+    }
+});
 
 // ============== 健康检查 ==============
 app.get('/health', async () => ({ status: 'ok', service: 'search', engine: 'meilisearch' }));

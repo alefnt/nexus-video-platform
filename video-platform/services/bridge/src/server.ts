@@ -517,23 +517,8 @@ app.get("/bridge/transfer/:id", async (req, reply) => {
                 }
                 // If 'pending' or unknown, keep current status
             } catch (rpcErr: any) {
-                app.log.warn({ err: rpcErr.message }, "CKB RPC unavailable for tx status check, using time-based fallback");
-                // Fallback: time-based estimation when RPC is not available
-                const elapsed = Date.now() - record.createdAt.getTime();
-                if (elapsed > 120000) {
-                    record = await prisma.bridgeTransfer.update({
-                        where: { id: record.id },
-                        data: {
-                            status: 'completed',
-                            bridgeTxHash: `0x${uuidv4().replace(/-/g, '')}`,
-                        },
-                    });
-                } else if (elapsed > 60000) {
-                    record = await prisma.bridgeTransfer.update({
-                        where: { id: record.id },
-                        data: { status: 'confirming' },
-                    });
-                }
+                app.log.warn({ err: rpcErr.message }, "CKB RPC unavailable for tx status check, keeping current status");
+                // Do NOT auto-complete — keep 'processing' until RPC confirms on-chain
             }
         }
 

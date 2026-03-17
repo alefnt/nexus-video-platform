@@ -9,6 +9,7 @@
  */
 
 import Fastify from "fastify";
+import jwt from "@fastify/jwt";
 import { PrismaClient } from "@prisma/client";
 import { register } from "prom-client";
 import { registerSecurityPlugins } from "@video-platform/shared/security/index";
@@ -16,9 +17,21 @@ import { registerSecurityPlugins } from "@video-platform/shared/security/index";
 const prisma = new PrismaClient();
 const PORT = parseInt(process.env.PORT || "8106");
 const app = Fastify({ logger: true });
+const JWT_SECRET = process.env.JWT_SECRET || "";
+if (!JWT_SECRET || JWT_SECRET.length < 32) throw new Error("JWT_SECRET 未配置或长度不足");
 
 // Apply security (Helmet + CORS + rate limiting)
 registerSecurityPlugins(app, { rateLimit: { max: 100, timeWindow: "1 minute" } });
+
+app.register(jwt, { secret: JWT_SECRET });
+
+// JWT Auth hook
+app.addHook("onRequest", async (req, reply) => {
+    if (req.url.startsWith("/health") || req.url.startsWith("/metrics")) return;
+    try { await req.jwtVerify(); } catch {
+        return reply.status(401).send({ error: "未授权", code: "unauthorized" });
+    }
+});
 
 interface CollabProject {
     id: string;

@@ -6,6 +6,7 @@
  */
 
 import Fastify from 'fastify';
+import jwt from '@fastify/jwt';
 import { PrismaClient } from '@video-platform/database';
 import { register, Counter, Histogram } from 'prom-client';
 import { registerSecurityPlugins } from "@video-platform/shared/security/index";
@@ -15,6 +16,8 @@ const prisma = new PrismaClient();
 
 // ============== 环境变量 ==============
 const PORT = Number(process.env.MODERATION_PORT || process.env.PORT) || 8102;
+const JWT_SECRET = process.env.JWT_SECRET || "";
+if (!JWT_SECRET || JWT_SECRET.length < 32) throw new Error("JWT_SECRET 未配置或长度不足");
 
 // ============== NSFW.js 模型 (延迟加载) ==============
 let nsfwModel: any = null;
@@ -49,6 +52,31 @@ const moderationDuration = new Histogram({
 
 // ============== Security ==============
 await registerSecurityPlugins(app, { rateLimit: { max: 100, timeWindow: "1 minute" } });
+
+app.register(jwt, { secret: JWT_SECRET });
+
+// JWT Auth hook (internal services can use x-internal-service header)
+app.addHook("onRequest", async (req, reply) => {
+    if (req.url.startsWith("/health") || req.url.startsWith("/metrics")) return;
+    try { await req.jwtVerify(); } catch {
+        const isInternal = req.headers['x-internal-service'] === 'true';
+        if (!isInternal) return reply.status(401).send({ error: "未授权", code: "unauthorized" });
+    }
+});
+
+// SSRF protection: validate URLs are not internal
+function isUrlSafe(url: string): boolean {
+    try {
+        const parsed = new URL(url);
+        const hostname = parsed.hostname.toLowerCase();
+        // Block private/internal IPs and localhost
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0') return false;
+        if (hostname.startsWith('10.') || hostname.startsWith('192.168.') || hostname.startsWith('172.')) return false;
+        if (hostname === '169.254.169.254') return false; // AWS metadata
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+        return true;
+    } catch { return false; }
+}
 
 // ============== 健康检查 ==============
 app.get('/health', async () => ({
@@ -102,6 +130,11 @@ app.post('/moderation/image', async (req, reply) => {
 
         if (!body.imageUrl && !body.imageBase64) {
             return reply.status(400).send({ error: '需要 imageUrl 或 imageBase64' });
+        }
+
+        // SSRF Protection: validate imageUrl
+        if (body.imageUrl && !isUrlSafe(body.imageUrl)) {
+            return reply.status(400).send({ error: '不允许的 URL (内网地址被禁止)', code: 'ssrf_blocked' });
         }
 
         let result: ModerationResult;

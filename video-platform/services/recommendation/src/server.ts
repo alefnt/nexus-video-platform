@@ -13,6 +13,7 @@
  */
 
 import Fastify from "fastify";
+import jwt from "@fastify/jwt";
 import { PrismaClient } from "@prisma/client";
 import { register } from "prom-client";
 import { registerSecurityPlugins } from "@video-platform/shared/security/index";
@@ -21,9 +22,25 @@ const prisma = new PrismaClient();
 const PORT = parseInt(process.env.PORT || "8105");
 
 const app = Fastify({ logger: true });
+const JWT_SECRET = process.env.JWT_SECRET || "";
+if (!JWT_SECRET || JWT_SECRET.length < 32) throw new Error("JWT_SECRET 未配置或长度不足");
 
 // Apply security (Helmet + CORS + rate limiting)
 registerSecurityPlugins(app, { rateLimit: { max: 200, timeWindow: "1 minute" } });
+
+app.register(jwt, { secret: JWT_SECRET });
+
+// JWT Auth hook - read endpoints (feed/trending/similar) are public, write endpoints need auth
+app.addHook("onRequest", async (req, reply) => {
+    if (req.url.startsWith("/health") || req.url.startsWith("/metrics")) return;
+    // Public read endpoints
+    if (req.method === "GET") return;
+    // Write endpoints require JWT
+    try { await req.jwtVerify(); } catch {
+        const isInternal = req.headers['x-internal-service'] === 'true';
+        if (!isInternal) return reply.status(401).send({ error: "未授权", code: "unauthorized" });
+    }
+});
 
 /** 推荐列表中各来源的比例 */
 const FEED_COMPOSITION = {

@@ -5,6 +5,7 @@
  */
 
 import Fastify from 'fastify';
+import jwt from '@fastify/jwt';
 import { PrismaClient } from '@video-platform/database';
 import { Livepeer } from 'livepeer';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
@@ -17,6 +18,8 @@ const prisma = new PrismaClient();
 // ============== 环境变量 ==============
 const PORT = Number(process.env.TRANSCODE_PORT || process.env.PORT) || 8100;
 const LIVEPEER_API_KEY = process.env.LIVEPEER_API_KEY || '';
+const JWT_SECRET = process.env.JWT_SECRET || "";
+if (!JWT_SECRET || JWT_SECRET.length < 32) throw new Error("JWT_SECRET 未配置或长度不足");
 
 // MinIO 配置 (开源 S3 替代)
 const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT || 'http://localhost:9000';
@@ -57,6 +60,21 @@ const transcodeDuration = new Histogram({
 
 // ============== Security ==============
 await registerSecurityPlugins(app, { rateLimit: { max: 30, timeWindow: "1 minute" } });
+
+app.register(jwt, { secret: JWT_SECRET });
+
+// JWT Auth hook (webhook uses signature, not JWT)
+app.addHook("onRequest", async (req, reply) => {
+    if (req.url.startsWith("/health") || req.url.startsWith("/metrics")) return;
+    // Webhook uses Livepeer signature verification instead of JWT
+    if (req.url.startsWith("/transcode/webhook")) return;
+    // Status endpoint is read-only, allow without auth for internal polling
+    if (req.url.startsWith("/transcode/status/")) return;
+    try { await req.jwtVerify(); } catch {
+        const isInternal = req.headers['x-internal-service'] === 'true';
+        if (!isInternal) return reply.status(401).send({ error: "未授权", code: "unauthorized" });
+    }
+});
 
 // ============== 健康检查 ==============
 app.get('/health', async () => ({

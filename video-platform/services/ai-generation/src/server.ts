@@ -201,8 +201,12 @@ app.addHook("onRequest", async (req, reply) => {
 
 // ── CORS ──────────────────────────────────────────
 
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || "http://localhost:5173,http://localhost:3000").split(",");
 app.addHook("onRequest", async (req, reply) => {
-    reply.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+    const origin = req.headers.origin || "";
+    if (ALLOWED_ORIGINS.includes(origin)) {
+        reply.header("Access-Control-Allow-Origin", origin);
+    }
     reply.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
     reply.header("Access-Control-Allow-Headers", "authorization,content-type,x-csrf-token");
     if (req.method === "OPTIONS") { reply.status(204).send(); return; }

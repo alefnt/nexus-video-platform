@@ -578,11 +578,18 @@ app.post("/governance/proposal/vote", async (req, reply) => {
  * 执行提案
  */
 app.post("/governance/proposal/execute", async (req, reply) => {
+    const user = req.user as any;
+    const userId = user?.sub || "";
     const body = req.body as { proposalId: string };
 
     const proposal = await prisma.proposal.findUnique({ where: { id: body.proposalId } });
     if (!proposal) {
         return reply.status(404).send({ error: "提案不存在", code: "not_found" });
+    }
+
+    // Only the proposer can execute their own passed proposals
+    if (proposal.proposerId !== userId) {
+        return reply.status(403).send({ error: "只有提案人可以执行", code: "forbidden" });
     }
 
     if (proposal.status !== "passed") {
