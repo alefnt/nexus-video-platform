@@ -326,6 +326,12 @@ const WatchParty: React.FC = () => {
     // Build effective roomState: GunDB is primary, WS roomInfo is fallback
     // This ensures viewers get videoId even when GunDB peers are unreliable
     const effectiveRoomState = useMemo(() => {
+        console.log('[WP-DEBUG] effectiveRoomState recompute:', {
+            gunVideoId: roomState?.videoId,
+            wsVideoId: wsRoomInfo?.videoId,
+            wsRoomInfo,
+            isHost,
+        });
         // GunDB roomState has everything — use it directly
         if (roomState?.videoId) return roomState;
         // WS roomInfo provides videoId/title as fallback
@@ -344,6 +350,7 @@ const WatchParty: React.FC = () => {
                 paymentModel: (wsRoomInfo.paymentModel as any) || 'pay_your_own',
             };
         }
+        console.warn('[WP-DEBUG] effectiveRoomState: NO videoId from either source');
         return roomState;
     }, [roomState, wsRoomInfo, currentRoomId]);
 
@@ -490,6 +497,45 @@ const WatchParty: React.FC = () => {
             }
         }
     }, [rtcPeers.length]);
+
+    // ── HOST: Handle server's request_info (re-push room metadata on demand) ──
+    useEffect(() => {
+        if (!isHost || view !== 'room') return;
+        const handler = (e: Event) => {
+            const vid = effectiveRoomState?.videoId || selectedVideo?.id;
+            const title = effectiveRoomState?.videoTitle || selectedVideo?.title;
+            console.log('[WP-DEBUG] Host handling wp:resend_room_info, vid=', vid);
+            if (vid) {
+                wsSendRoomInfo(vid, title || '', paymentModel);
+                const video = document.querySelector('.wp-video-player video') as HTMLVideoElement;
+                if (video) {
+                    sendSync(video.currentTime, !video.paused);
+                }
+            }
+        };
+        window.addEventListener('wp:resend_room_info', handler);
+        return () => window.removeEventListener('wp:resend_room_info', handler);
+    }, [isHost, view, effectiveRoomState?.videoId, selectedVideo?.id, wsSendRoomInfo, sendSync, paymentModel]);
+
+    // ── GUEST: Auto-retry requesting room info if no videoId ──
+    // Polls every 2s for up to 10s when connected but missing videoId
+    useEffect(() => {
+        if (isHost || view !== 'room' || !rtcConnected) return;
+        if (effectiveRoomState?.videoId) return; // Already have it
+        let attempts = 0;
+        const maxAttempts = 5;
+        const timer = setInterval(() => {
+            attempts++;
+            console.log(`[WP-DEBUG] Guest auto-retry #${attempts}: requesting room info`);
+            // Send wp:request_info to server
+            const ws = (window as any).__wpWsRef;
+            if (ws && ws.readyState === 1) {
+                ws.send(JSON.stringify({ type: 'wp:request_info', roomId: currentRoomId }));
+            }
+            if (attempts >= maxAttempts) clearInterval(timer);
+        }, 2000);
+        return () => clearInterval(timer);
+    }, [isHost, view, rtcConnected, effectiveRoomState?.videoId, currentRoomId]);
 
     const handleJoinRoom = (roomId: string) => {
         const cleanId = extractRoomId(roomId);

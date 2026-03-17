@@ -98,11 +98,14 @@ export function useWebRTCParty({
 
             ws.onopen = () => {
                 reconnectAttemptRef.current = 0; // Reset backoff on success
+                console.log('[WP-DEBUG] WS connected, sending auth + join', { roomId, userId, isHost: isHostRef.current });
                 // Authenticate
                 ws.send(JSON.stringify({ type: 'auth', userId }));
                 // Join Watch Party room — capture isHost at join time via ref
                 ws.send(JSON.stringify({ type: 'wp:join', roomId, userId, userName, isHost: isHostRef.current }));
                 setConnected(true);
+                // Expose WS for guest retry mechanism
+                (window as any).__wpWsRef = ws;
             };
 
             ws.onmessage = (event) => {
@@ -178,6 +181,7 @@ export function useWebRTCParty({
                 break;
 
             case 'wp:room_info':
+                console.log('[WP-DEBUG] Received wp:room_info', { videoId: msg.videoId, videoTitle: msg.videoTitle, isPlaying: msg.isPlaying });
                 setRoomInfo({
                     videoId: msg.videoId,
                     videoTitle: msg.videoTitle,
@@ -189,6 +193,7 @@ export function useWebRTCParty({
                 break;
 
             case 'wp:room_state':
+                console.log('[WP-DEBUG] Received wp:room_state', { videoId: msg.videoId, videoTitle: msg.videoTitle, peers: msg.peers?.length, isPlaying: msg.isPlaying });
                 setPeers(msg.peers.map((p: any) => ({
                     userId: p.userId,
                     userName: p.userName,
@@ -196,6 +201,7 @@ export function useWebRTCParty({
                 })));
                 // Room state also includes video metadata for joiners
                 if (msg.videoId) {
+                    console.log('[WP-DEBUG] wp:room_state has videoId, setting roomInfo');
                     setRoomInfo({
                         videoId: msg.videoId,
                         videoTitle: msg.videoTitle,
@@ -204,6 +210,8 @@ export function useWebRTCParty({
                         status: msg.status,
                         currentTime: msg.currentTime,
                     });
+                } else {
+                    console.warn('[WP-DEBUG] wp:room_state has NO videoId — meta not stored on server');
                 }
                 break;
 
@@ -285,6 +293,13 @@ export function useWebRTCParty({
                         lastSeen: Date.now(),
                     }];
                 });
+                break;
+
+            case 'wp:request_info':
+                // Server is asking host to re-send room info
+                // Dispatch a custom event so WatchParty.tsx can handle it
+                console.log('[WP-DEBUG] Received wp:request_info, dispatching re-send event');
+                window.dispatchEvent(new CustomEvent('wp:resend_room_info', { detail: { roomId: msg.roomId, requestedBy: msg.requestedBy } }));
                 break;
         }
     }, [isHost]);

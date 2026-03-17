@@ -231,6 +231,19 @@ app.register(async function (fastify) {
                         }));
                     }
 
+                    // If meta has no videoId and this joiner is NOT the host,
+                    // ask the host to re-send room_info so we can relay it
+                    if (!meta?.videoId && !msg.isHost) {
+                        const host = Array.from(room.values()).find(m => m.isHost);
+                        if (host && host.socket.readyState === 1) {
+                            host.socket.send(JSON.stringify({
+                                type: 'wp:request_info',
+                                roomId: msg.roomId,
+                                requestedBy: userId,
+                            }));
+                        }
+                    }
+
                     messageCounter.inc({ type: 'wp_join' });
                     return;
                 }
@@ -361,6 +374,33 @@ app.register(async function (fastify) {
                         currentTime: updatedMeta.currentTime,
                         timestamp: Date.now(),
                     }, userId);
+                    return;
+                }
+
+                // Request room info — guest asks server for metadata (retry mechanism)
+                if (msg.type === 'wp:request_info' && msg.roomId && userId) {
+                    const room = wpRooms.get(msg.roomId);
+                    if (!room) return;
+                    // If server already has meta, send it directly to requester
+                    const existingMeta = wpRoomMeta.get(msg.roomId);
+                    if (existingMeta?.videoId) {
+                        socket.send(JSON.stringify({
+                            type: 'wp:room_info',
+                            fromUserId: 'server',
+                            ...existingMeta,
+                            timestamp: Date.now(),
+                        }));
+                        return;
+                    }
+                    // Otherwise ask the host to push it
+                    const host = Array.from(room.values()).find(m => m.isHost);
+                    if (host && host.socket.readyState === 1) {
+                        host.socket.send(JSON.stringify({
+                            type: 'wp:request_info',
+                            roomId: msg.roomId,
+                            requestedBy: userId,
+                        }));
+                    }
                     return;
                 }
 
