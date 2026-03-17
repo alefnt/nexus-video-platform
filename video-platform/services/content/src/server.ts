@@ -448,14 +448,8 @@ app.post("/content/upload", async (req, reply) => {
       }).catch(() => { });
     }
 
-    const record: EncryptedVideoRecord = {
-      videoId: body.videoId,
-      encryptionKeyHash: keyHash,
-      sha256: sha,
-    };
-
-    // Final response
-    const resp: UploadResponse = { record };
+    // Final response (use type-agnostic fields — record was only used for video path above)
+    const resp: UploadResponse = { record: { videoId: body.videoId, encryptionKeyHash: keyHash, sha256: sha } };
     return reply.send(resp);
 
   } catch (err: any) {

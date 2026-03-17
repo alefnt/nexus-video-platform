@@ -10,6 +10,7 @@
  */
 
 import Fastify from "fastify";
+import jwt from "@fastify/jwt";
 import { PrismaClient } from "@video-platform/database";
 import { registerSecurityPlugins } from "@video-platform/shared/security/index";
 import { register } from "@video-platform/shared/monitoring";
@@ -18,11 +19,34 @@ const app = Fastify({ logger: true });
 const prisma = new PrismaClient();
 
 const PORT = parseInt(process.env.ENGAGEMENT_PORT || "8104");
+const JWT_SECRET = process.env.JWT_SECRET || "";
+if (!JWT_SECRET || JWT_SECRET.length < 32) throw new Error("JWT_SECRET 未配置或长度不足");
 
 // Security: Helmet, CORS, Rate Limiting, TraceId
 await registerSecurityPlugins(app, {
     rateLimit: { max: 100, timeWindow: "1 minute" },
 });
+
+app.register(jwt, { secret: JWT_SECRET });
+
+// JWT Auth hook: authenticate all non-public endpoints
+app.addHook("onRequest", async (req, reply) => {
+    if (req.url.startsWith("/health") || req.url.startsWith("/metrics")) return;
+    try {
+        await req.jwtVerify();
+    } catch {
+        // Allow body.userId fallback for internal service-to-service calls
+        const isInternalCall = req.headers['x-internal-service'] === 'true';
+        if (!isInternalCall) {
+            return reply.status(401).send({ error: "Unauthorized", code: "unauthorized" });
+        }
+    }
+});
+
+// Helper: get authenticated userId (prefer JWT, fallback to body for internal calls)
+function getAuthUserId(req: any): string | null {
+    return (req.user as any)?.sub || (req.body as any)?.userId || (req.query as any)?.userId || null;
+}
 
 // ============== 常量配置 ==============
 

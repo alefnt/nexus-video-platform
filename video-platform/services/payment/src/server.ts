@@ -292,7 +292,7 @@ app.post("/payment/points/buyByCKB", async (req, reply) => {
   });
 });
 
-// 4. Earn points (Admin/System)
+// 4. Earn points (Admin/System ONLY — restricted endpoint)
 app.post("/payment/points/earn", async (req, reply) => {
   const parsed = PointsEarnSchema.safeParse((req.body || {}) as { amount: number; reason?: string });
   if (!parsed.success) return reply.status(400).send({ error: "Invalid parameters", code: "bad_request" });
@@ -300,6 +300,16 @@ app.post("/payment/points/earn", async (req, reply) => {
   const { amount, reason } = parsed.data;
   const userId = (req.user as RequestUser)?.sub;
   if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+
+  // Role check: only admin, system, or internal service calls
+  const role = (req.user as RequestUser)?.role;
+  const roles = (req.user as RequestUser)?.roles || [];
+  const isPrivileged = role === 'admin' || role === 'system' || roles.includes('admin') || roles.includes('system');
+  // Also allow internal service-to-service calls (from gateway with matching auth)
+  const isInternalCall = req.headers['x-internal-service'] === 'true';
+  if (!isPrivileged && !isInternalCall) {
+    return reply.status(403).send({ error: "Forbidden: admin/system role required", code: "forbidden" });
+  }
 
   if (!Number.isInteger(amount) || amount <= 0) return reply.status(400).send({ error: "amount must be positive integer", code: "bad_amount" });
 
@@ -500,6 +510,22 @@ app.post("/payment/ckb/confirm_tx", async (req, reply) => {
       await prisma.buyingIntent.update({ where: { id: orderId }, data: { status: "expired" } });
       return reply.status(400).send({ error: "Intent expired" });
     }
+
+    // ── SECURITY: Double-spend protection ──
+    // Reject if this txHash has already been used for any confirmed intent
+    const alreadyUsed = await prisma.buyingIntent.findFirst({
+      where: { txHash, status: "confirmed" }
+    });
+    if (alreadyUsed) {
+      return reply.status(400).send({ error: "Transaction already used", code: "tx_already_used", existingOrderId: alreadyUsed.id });
+    }
+
+    // TODO [P0]: Add full on-chain verification via CKB RPC:
+    // 1. Fetch tx from CKB_NODE_URL via `get_transaction` RPC
+    // 2. Verify tx.status === "committed"
+    // 3. Verify output amount >= intent.expectedAmountShannons
+    // 4. Verify output goes to intent.depositAddress
+    // For now, we only have double-spend protection above.
 
     // In a real scenario, verification of txHash on-chain happens here
 

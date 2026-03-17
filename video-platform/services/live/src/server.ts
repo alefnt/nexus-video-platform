@@ -665,6 +665,17 @@ app.post("/live/room/end-beacon", { preHandler: [] }, async (req, reply) => {
             return reply.status(400).send({ error: "缺少 roomId", code: "bad_request" });
         }
 
+        // Verify creator identity via token (sendBeacon can't send headers)
+        if (!body.creatorToken) {
+            return reply.status(401).send({ error: "缺少 creatorToken", code: "unauthorized" });
+        }
+        let tokenPayload: any;
+        try {
+            tokenPayload = app.jwt.verify(body.creatorToken);
+        } catch {
+            return reply.status(401).send({ error: "无效的 creatorToken", code: "invalid_token" });
+        }
+
         const room = await prisma.liveRoom.findUnique({
             where: { id: body.roomId },
             include: { creator: true }
@@ -672,6 +683,11 @@ app.post("/live/room/end-beacon", { preHandler: [] }, async (req, reply) => {
 
         if (!room) {
             return reply.status(404).send({ error: "直播间不存在", code: "not_found" });
+        }
+
+        // Verify the token belongs to the room creator
+        if (tokenPayload.sub !== room.creatorId) {
+            return reply.status(403).send({ error: "无权结束此直播间", code: "forbidden" });
         }
 
         // 只有正在直播的房间才能结束
