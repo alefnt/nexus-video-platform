@@ -66,7 +66,7 @@ export function useWebRTCParty({
     const [lastControl, setLastControl] = useState<ControlAction | null>(null);
     const [lastSync, setLastSync] = useState<{ currentTime: number; isPlaying: boolean; timestamp: number } | null>(null);
     const [chatMessages, setChatMessages] = useState<{ fromUserId: string; userName: string; content: string; msgType: string; timestamp: number }[]>([]);
-    const [roomInfo, setRoomInfo] = useState<{ videoId?: string; videoTitle?: string; paymentModel?: string } | null>(null);
+    const [roomInfo, setRoomInfo] = useState<{ videoId?: string; videoTitle?: string; paymentModel?: string; isPlaying?: boolean; status?: string; currentTime?: number } | null>(null);
     const [reactions, setReactions] = useState<{ fromUserId: string; userName: string; emoji: string; amount: number; timestamp: number }[]>([]);
     const [isScreenSharing, setIsScreenSharing] = useState(false);
 
@@ -81,6 +81,10 @@ export function useWebRTCParty({
         return `${protocol}//${host}:8103/ws`;
     })();
 
+    // Use ref for isHost to avoid tearing down WS when isHost changes
+    const isHostRef = useRef(isHost);
+    isHostRef.current = isHost;
+
     // ── WebSocket Connection ──
     useEffect(() => {
         if (!roomId || !userId) return;
@@ -91,8 +95,8 @@ export function useWebRTCParty({
         ws.onopen = () => {
             // Authenticate
             ws.send(JSON.stringify({ type: 'auth', userId }));
-            // Join Watch Party room
-            ws.send(JSON.stringify({ type: 'wp:join', roomId, userId, userName, isHost }));
+            // Join Watch Party room — capture isHost at join time via ref
+            ws.send(JSON.stringify({ type: 'wp:join', roomId, userId, userName, isHost: isHostRef.current }));
             setConnected(true);
         };
 
@@ -120,14 +124,18 @@ export function useWebRTCParty({
         };
 
         return () => {
-            ws.send(JSON.stringify({ type: 'wp:leave', roomId }));
+            try {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'wp:leave', roomId }));
+                }
+            } catch { /* socket already closed */ }
             ws.close();
             // Cleanup peer connections
             peerConnectionsRef.current.forEach((pc) => pc.close());
             peerConnectionsRef.current.clear();
             localStreamRef.current?.getTracks().forEach(t => t.stop());
         };
-    }, [roomId, userId, userName, isHost, wsUrl]);
+    }, [roomId, userId, wsUrl]);
 
     // ── Handle Signaling Messages ──
     const handleSignalingMessage = useCallback((msg: any) => {
@@ -149,7 +157,6 @@ export function useWebRTCParty({
                         msgType: msg.msgType || 'chat',
                         timestamp: msg.timestamp,
                     };
-                    setLastChat(newMsg);
                     return [...prev.slice(-99), newMsg];
                 });
                 break;
@@ -159,6 +166,9 @@ export function useWebRTCParty({
                     videoId: msg.videoId,
                     videoTitle: msg.videoTitle,
                     paymentModel: msg.paymentModel,
+                    isPlaying: msg.isPlaying,
+                    status: msg.status,
+                    currentTime: msg.currentTime,
                 });
                 break;
 
@@ -174,6 +184,9 @@ export function useWebRTCParty({
                         videoId: msg.videoId,
                         videoTitle: msg.videoTitle,
                         paymentModel: msg.paymentModel,
+                        isPlaying: msg.isPlaying,
+                        status: msg.status,
+                        currentTime: msg.currentTime,
                     });
                 }
                 break;

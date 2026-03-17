@@ -16,6 +16,7 @@ import { useWatchPartySync } from '../hooks/useWatchPartySync';
 import type { ChatMessage, Participant } from '../hooks/useWatchPartySync';
 import { useWebRTCParty } from '../hooks/useWebRTCParty';
 import type { RemoteCursor } from '../hooks/useWebRTCParty';
+import { useAuthStore } from '../stores';
 import { WatchPartyVideo } from '../components/watch-party/WatchPartyVideo';
 import { getApiClient } from '../lib/apiClient';
 import '../styles/WatchParty.css';
@@ -26,8 +27,26 @@ const Scene3D = lazy(() => import('../components/watch-party/scene/Scene3D').cat
 // Generate random room ID
 const generateRoomId = () => Math.random().toString(36).substring(2, 10);
 
-// Generate random user ID
-const generateUserId = () => {
+// Extract room ID from a full URL or plain ID
+// e.g. "http://localhost:5173/watch-party?room=abc123" → "abc123"
+// e.g. "abc123" → "abc123"
+const extractRoomId = (input: string): string => {
+    const trimmed = input.trim();
+    try {
+        const url = new URL(trimmed);
+        const roomParam = url.searchParams.get('room');
+        if (roomParam) return extractRoomId(roomParam); // recursive for double-encoded
+        return trimmed;
+    } catch {
+        // Not a URL, check for embedded room= pattern
+        const match = trimmed.match(/[?&]room=([^&]+)/);
+        if (match) return match[1];
+        return trimmed;
+    }
+};
+
+// Generate fallback user ID (if not logged in)
+const generateFallbackUserId = () => {
     const stored = sessionStorage.getItem('wp-user-id');
     if (stored) return stored;
     const id = Math.random().toString(36).substring(2, 12);
@@ -35,23 +54,14 @@ const generateUserId = () => {
     return id;
 };
 
-// Get user name
-const getUserName = () => {
-    const userRaw = sessionStorage.getItem('vp.user');
-    if (userRaw) {
-        try {
-            const user = JSON.parse(userRaw);
-            return user.name || user.username || 'Anonymous';
-        } catch { }
-    }
-    return `观众${Math.floor(Math.random() * 1000)}`;
-};
-
 // Fallback demo videos (shown when API returns empty)
+// SVG data URIs for demo video posters (no btoa — use encodeURIComponent for Unicode safety)
+const makePoster = (c1: string, c2: string, label: string) =>
+    `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/></linearGradient></defs><rect fill="url(#g)" width="320" height="180"/><text x="160" y="85" fill="white" font-size="16" font-family="Arial" font-weight="bold" text-anchor="middle" dominant-baseline="middle">${label}</text></svg>`)}`;
 const DEMO_VIDEOS = [
-    { id: 'sample-bbb-720p', title: 'Big Buck Bunny', poster: '' },
-    { id: 'sintel-hls', title: 'Sintel (HLS)', poster: '' },
-    { id: 'elephants-dream', title: 'Elephants Dream', poster: '' },
+    { id: 'sample-bbb-720p', title: 'Big Buck Bunny', poster: makePoster('#22d3ee', '#a855f7', 'Big Buck Bunny') },
+    { id: 'sintel-hls', title: 'Sintel (HLS)', poster: makePoster('#f97316', '#ec4899', 'Sintel') },
+    { id: 'elephants-dream', title: 'Elephants Dream', poster: makePoster('#10b981', '#3b82f6', 'Elephants Dream') },
 ];
 
 // Simple Chat Component (inline)
@@ -186,12 +196,13 @@ const WatchParty: React.FC = () => {
 
     // Room state
     const roomIdFromUrl = searchParams.get('room');
-    const [currentRoomId, setCurrentRoomId] = useState(roomIdFromUrl || '');
+    const [currentRoomId, setCurrentRoomId] = useState(roomIdFromUrl ? extractRoomId(roomIdFromUrl) : '');
     const [isHost, setIsHost] = useState(!roomIdFromUrl);
 
-    // User info
-    const userId = useMemo(() => generateUserId(), []);
-    const userName = useMemo(() => getUserName(), []);
+    // User info — prefer real logged-in user, fallback to random ID
+    const authUser = useAuthStore(s => s.user);
+    const userId = useMemo(() => authUser?.id || generateFallbackUserId(), [authUser?.id]);
+    const userName = useMemo(() => authUser?.nickname || authUser?.bitDomain || `观众${userId.slice(0, 4)}`, [authUser, userId]);
 
     // Video library: load from API, fallback to samples.json then demos
     const [videoLibrary, setVideoLibrary] = useState<{ id: string; title: string; poster: string }[]>(DEMO_VIDEOS);
@@ -239,6 +250,7 @@ const WatchParty: React.FC = () => {
     const [countdown, setCountdown] = useState(60);
     const [copied, setCopied] = useState(false);
     const [paymentModel, setPaymentModel] = useState<'host_treats' | 'pay_your_own'>('pay_your_own');
+    const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 
     // Watch party sync (GunDB)
     const {
@@ -284,6 +296,16 @@ const WatchParty: React.FC = () => {
         isHost,
     });
 
+    // ── Reconcile isHost from WS server's peer list (authoritative) ──
+    // If server says we're NOT host but local state thinks we are, fix it
+    useEffect(() => {
+        if (!rtcPeers || rtcPeers.length === 0) return;
+        const myPeer = rtcPeers.find(p => p.userId === userId);
+        if (myPeer && myPeer.isHost !== isHost) {
+            setIsHost(myPeer.isHost);
+        }
+    }, [rtcPeers, userId]);
+
     // n.eko-inspired control model: one controller at a time
     const [controllerId, setControllerId] = useState<string | null>(null);
     const [controlRequests, setControlRequests] = useState<string[]>([]);
@@ -315,10 +337,10 @@ const WatchParty: React.FC = () => {
                 videoId: wsRoomInfo.videoId,
                 videoTitle: wsRoomInfo.videoTitle || '',
                 scheduledStart: 0,
-                isPlaying: false,
-                currentTime: 0,
+                isPlaying: wsRoomInfo.isPlaying ?? true,
+                currentTime: wsRoomInfo.currentTime ?? 0,
                 updatedAt: Date.now(),
-                status: 'waiting' as const,
+                status: (wsRoomInfo.status as 'waiting' | 'playing' | 'ended') || 'playing',
                 paymentModel: (wsRoomInfo.paymentModel as any) || 'pay_your_own',
             };
         }
@@ -369,6 +391,44 @@ const WatchParty: React.FC = () => {
         }
     }, [isHost, lastSync]);
 
+    // ── GUEST: When initial lastSync arrives, update room state for immediate video play ──
+    // This handles the case where the guest joins while the host is already playing
+    useEffect(() => {
+        if (isHost || !lastSync) return;
+        if (lastSync.isPlaying && effectiveRoomState?.status === 'waiting') {
+            // Host is already playing, force local playback
+            const video = document.querySelector('.wp-video-player video') as HTMLVideoElement;
+            if (video) {
+                video.currentTime = lastSync.currentTime;
+                video.play().catch(() => {});
+            }
+        }
+    }, [lastSync, isHost]);
+
+    // Track video play/pause state via DOM events for UI button sync
+    useEffect(() => {
+        if (view !== 'room') return;
+        let videoEl: HTMLVideoElement | null = null;
+        const onPlay = () => setIsVideoPlaying(true);
+        const onPause = () => setIsVideoPlaying(false);
+        // Small delay to ensure video element is mounted by video.js
+        const timer = setTimeout(() => {
+            videoEl = document.querySelector('.wp-video-player video') as HTMLVideoElement;
+            if (!videoEl) return;
+            videoEl.addEventListener('play', onPlay);
+            videoEl.addEventListener('pause', onPause);
+            // Sync initial state
+            setIsVideoPlaying(!videoEl.paused);
+        }, 500);
+        return () => {
+            clearTimeout(timer);
+            if (videoEl) {
+                videoEl.removeEventListener('play', onPlay);
+                videoEl.removeEventListener('pause', onPause);
+            }
+        };
+    }, [view, effectiveRoomState?.videoId]);
+
     // Countdown timer
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
@@ -395,17 +455,48 @@ const WatchParty: React.FC = () => {
     const handleStartParty = () => {
         const scheduledStart = Date.now() + countdown * 1000;
         createRoom(selectedVideo.id, selectedVideo.title, selectedVideo.poster || '', scheduledStart, paymentModel);
-        // Also send room info via WS so joiners get videoId immediately
+        // Try sending room info immediately (may fail if WS not ready yet)
         wsSendRoomInfo(selectedVideo.id, selectedVideo.title, paymentModel);
         setView('room');
         window.history.pushState({}, '', `/watch-party?room=${currentRoomId}`);
     };
 
+    // ── HOST: Reliably ensure server has room info ──
+    // Re-send room info when WS connection is (re)established
+    // This handles the race condition where handleStartParty sends before WS is ready
+    useEffect(() => {
+        if (!isHost || view !== 'room' || !rtcConnected) return;
+        // effectiveRoomState may come from GunDB or a previous WS send
+        const vid = effectiveRoomState?.videoId || selectedVideo?.id;
+        const title = effectiveRoomState?.videoTitle || selectedVideo?.title;
+        if (vid) {
+            wsSendRoomInfo(vid, title || '', paymentModel);
+        }
+    }, [isHost, view, rtcConnected]);
+
+    // ── HOST: Re-send room info when a new peer joins ──
+    // So the server always has fresh metadata for future joiners
+    useEffect(() => {
+        if (!isHost || view !== 'room' || !rtcConnected) return;
+        if (rtcPeers.length <= 1) return; // only self
+        const vid = effectiveRoomState?.videoId || selectedVideo?.id;
+        const title = effectiveRoomState?.videoTitle || selectedVideo?.title;
+        if (vid) {
+            wsSendRoomInfo(vid, title || '', paymentModel);
+            // Also send current playback state so server has latest
+            const video = document.querySelector('.wp-video-player video') as HTMLVideoElement;
+            if (video) {
+                sendSync(video.currentTime, !video.paused);
+            }
+        }
+    }, [rtcPeers.length]);
+
     const handleJoinRoom = (roomId: string) => {
-        setCurrentRoomId(roomId);
+        const cleanId = extractRoomId(roomId);
+        setCurrentRoomId(cleanId);
         setIsHost(false);
         setView('room');
-        window.history.pushState({}, '', `/watch-party?room=${roomId}`);
+        window.history.pushState({}, '', `/watch-party?room=${cleanId}`);
     };
 
     const copyInviteLink = () => {
@@ -624,7 +715,11 @@ const WatchParty: React.FC = () => {
                                     <div className="w-full aspect-video bg-gray-900 flex items-center justify-center relative text-white/50 overflow-hidden">
                                         {video.poster ? (
                                             <img src={video.poster} alt={video.title} className="w-full h-full object-cover absolute inset-0" />
-                                        ) : null}
+                                        ) : (
+                                            <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
+                                                <span className="text-sm text-gray-400 font-bold px-2 text-center">{video.title}</span>
+                                            </div>
+                                        )}
                                         <Play size={24} className={`relative z-10 ${selectedVideo.id === video.id ? 'text-nexusCyan' : ''}`} />
                                     </div>
                                     <div className="p-3 text-sm font-bold text-white truncate">{video.title}</div>
@@ -727,6 +822,10 @@ const WatchParty: React.FC = () => {
                         <div className="bg-white/5 px-4 py-1.5 rounded-full flex items-center gap-2 text-sm font-bold text-white border border-white/10">
                             <Users size={14} className="text-nexusCyan" /> {mergedParticipants.length} SYNCED
                         </div>
+                        {/* Payment Model Badge */}
+                        <div className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold border ${effectiveRoomState?.paymentModel === 'host_treats' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-blue-500/10 text-blue-400 border-blue-500/30'}`}>
+                            {effectiveRoomState?.paymentModel === 'host_treats' ? '🎁 Host Treats' : '💳 Pay Your Own'}
+                        </div>
                         <button className="bg-nexusPurple text-white px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-2 hover:bg-purple-500 transition-colors shadow-[0_0_15px_rgba(168,85,247,0.4)]" onClick={copyInviteLink}>
                             {copied ? <Check size={14} /> : <Share2 size={14} />} INVITE
                         </button>
@@ -744,36 +843,40 @@ const WatchParty: React.FC = () => {
                         );
                     }}
                 >
-                    {/* WebRTC Remote Stream (when available) */}
-                    {remoteStreams.size > 0 && !isHost ? (
-                        <video
-                            ref={remoteVideoRef}
-                            autoPlay
-                            playsInline
-                            className="w-full h-full object-contain bg-black"
-                        />
-                    ) : (
-                        <WatchPartyVideo
-                            roomState={effectiveRoomState}
-                            userId={userId}
-                            isHost={isHost}
-                            participants={participants}
-                            onTimeUpdate={(time) => {
-                                // Host syncs playback position to GunDB every call
-                                if (isHost) {
-                                    updatePlayback(true, time);
-                                }
-                            }}
-                            onPlayStateChange={(playing, time) => {
-                                // Host video.js play/pause → broadcast via WS + GunDB dual-write
-                                if (isHost) {
-                                    sendControl(playing ? 'play' : 'pause', time);
-                                    updatePlayback(playing, time);
-                                    sendSync(time, playing);
-                                }
-                            }}
-                            onPaymentRequired={(videoId) => navigate(`/player/${videoId}?mode=stream`)}
-                        />
+                    {/* Always render WatchPartyVideo — both host and joiners use it */}
+                    <WatchPartyVideo
+                        roomState={effectiveRoomState}
+                        userId={userId}
+                        isHost={isHost}
+                        participants={participants}
+                        onTimeUpdate={(time) => {
+                            if (isHost) {
+                                updatePlayback(true, time);
+                            }
+                        }}
+                        onPlayStateChange={(playing, time) => {
+                            if (isHost) {
+                                sendControl(playing ? 'play' : 'pause', time);
+                                updatePlayback(playing, time);
+                                sendSync(time, playing);
+                            }
+                        }}
+                        onPaymentRequired={(videoId) => navigate(`/player/${videoId}?mode=stream`)}
+                    />
+
+                    {/* WebRTC Remote Screen Share overlay (when host shares screen) */}
+                    {remoteStreams.size > 0 && !isHost && (
+                        <div className="absolute inset-0 z-20 bg-black">
+                            <video
+                                ref={remoteVideoRef}
+                                autoPlay
+                                playsInline
+                                className="w-full h-full object-contain bg-black"
+                            />
+                            <div className="absolute top-2 left-2 bg-[#22d3ee]/80 text-black text-[10px] font-bold px-2 py-0.5 rounded z-30">
+                                📡 SCREEN SHARE
+                            </div>
+                        </div>
                     )}
 
                     {/* Host Local Preview (PiP when sharing) */}
@@ -873,7 +976,7 @@ const WatchParty: React.FC = () => {
                             }}
                             className="p-3 rounded-xl bg-nexusPurple/20 text-nexusPurple border border-nexusPurple/30 hover:bg-nexusPurple/30 transition-all"
                         >
-                            <Play size={18} />
+                            {isVideoPlaying ? <Pause size={18} /> : <Play size={18} />}
                         </button>
                         <button
                             onClick={() => sendControl('seek', (document.querySelector('.wp-video-player video') as HTMLVideoElement)?.currentTime + 10)}
@@ -904,7 +1007,12 @@ const WatchParty: React.FC = () => {
                 {/* Host Controls: Start Playback */}
                 {isHost && effectiveRoomState?.status === 'waiting' && (
                     <div className="mt-6 flex justify-center">
-                        <button className="bg-gradient-to-r from-nexusCyan to-nexusPurple text-white font-black text-lg px-12 py-4 rounded-xl shadow-[0_0_30px_rgba(34,211,238,0.4)] hover:shadow-[0_0_50px_rgba(168,85,247,0.6)] hover:scale-[1.02] transform transition-all flex items-center justify-center gap-3 relative z-10 uppercase tracking-widest" onClick={startPlayback}>
+                        <button className="bg-gradient-to-r from-nexusCyan to-nexusPurple text-white font-black text-lg px-12 py-4 rounded-xl shadow-[0_0_30px_rgba(34,211,238,0.4)] hover:shadow-[0_0_50px_rgba(168,85,247,0.6)] hover:scale-[1.02] transform transition-all flex items-center justify-center gap-3 relative z-10 uppercase tracking-widest" onClick={() => {
+                        startPlayback();
+                        // Also sync via WS so server + all peers get the state
+                        sendSync(0, true);
+                        sendControl('play');
+                    }}>
                             <Play size={20} fill="currentColor" /> INITIATE PLAYBACK NOW
                         </button>
                     </div>

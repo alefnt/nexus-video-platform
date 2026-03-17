@@ -106,7 +106,7 @@ app.get('/metrics', async () => register.metrics());
 
 // ============== Watch Party WebRTC 信令房间管理 ==============
 interface WpMember { userId: string; userName: string; socket: WebSocket; isHost: boolean; }
-interface WpRoomMeta { videoId?: string; videoTitle?: string; paymentModel?: string; }
+interface WpRoomMeta { videoId?: string; videoTitle?: string; paymentModel?: string; isPlaying?: boolean; status?: string; currentTime?: number; }
 const wpRooms = new Map<string, Map<string, WpMember>>(); // roomId → Map<userId, WpMember>
 const wpRoomMeta = new Map<string, WpRoomMeta>(); // roomId → room metadata
 
@@ -263,6 +263,18 @@ app.register(async function (fastify) {
                         value: msg.value,      // seek time or speed value
                         timestamp: Date.now(),
                     }, userId);
+                    // Update room metadata on play/pause/seek controls
+                    const ctrlMeta = wpRoomMeta.get(msg.roomId);
+                    if (ctrlMeta) {
+                        if (msg.action === 'play') {
+                            ctrlMeta.isPlaying = true;
+                            ctrlMeta.status = 'playing';
+                        } else if (msg.action === 'pause') {
+                            ctrlMeta.isPlaying = false;
+                        } else if (msg.action === 'seek' && typeof msg.value === 'number') {
+                            ctrlMeta.currentTime = msg.value;
+                        }
+                    }
                     messageCounter.inc({ type: 'wp_control' });
                     return;
                 }
@@ -276,6 +288,13 @@ app.register(async function (fastify) {
                         isPlaying: msg.isPlaying,
                         timestamp: Date.now(),
                     }, userId);
+                    // Update room metadata with latest playback state
+                    const syncMeta = wpRoomMeta.get(msg.roomId);
+                    if (syncMeta) {
+                        syncMeta.isPlaying = msg.isPlaying;
+                        syncMeta.currentTime = msg.currentTime;
+                        if (msg.isPlaying) syncMeta.status = 'playing';
+                    }
                     return;
                 }
 
@@ -311,6 +330,9 @@ app.register(async function (fastify) {
                         videoId: msg.videoId,
                         videoTitle: msg.videoTitle,
                         paymentModel: msg.paymentModel,
+                        isPlaying: false,
+                        status: 'waiting',
+                        currentTime: 0,
                     });
                     wpBroadcast(msg.roomId, {
                         type: 'wp:room_info',

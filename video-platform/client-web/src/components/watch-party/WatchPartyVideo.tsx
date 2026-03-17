@@ -1,7 +1,7 @@
 // FILE: /video-platform/client-web/src/components/watch-party/WatchPartyVideo.tsx
 /**
  * Watch Party 视频播放器组件
- * 
+ *
  * 负责：
  * - 检查视频权限（useVideoEntitlement）
  * - 初始化 video.js 播放器
@@ -30,6 +30,13 @@ function calculateGroupPurchasePrice(basePrice: number, groupSize: number) {
     };
 }
 
+// Known demo video CDN URLs — always available
+const DEMO_URLS: Record<string, string> = {
+    'sample-bbb-720p': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    'sintel-hls': 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8',
+    'elephants-dream': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+};
+
 interface WatchPartyVideoProps {
     roomState: RoomState | null;
     userId: string;
@@ -51,168 +58,209 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const playerRef = useRef<any>(null);
-    const initAttemptRef = useRef(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [paymentType, setPaymentType] = useState<'stream' | 'points' | 'group'>('points');
     const [purchasing, setPurchasing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [playerReady, setPlayerReady] = useState(false);
+    const [initStatus, setInitStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+    const lastVideoIdRef = useRef<string | null>(null);
 
     // Get video entitlement status
-    const entitlement = useVideoEntitlement(roomState?.videoId || '', userId);
+    const videoId = roomState?.videoId || '';
+    const entitlement = useVideoEntitlement(videoId, userId);
     const { isLoading, hasFullAccess, requiresPayment, streamPurchase, videoMeta } = entitlement;
 
     // Determine if payment is needed
     const isHostTreats = roomState?.paymentModel === 'host_treats';
     const needsPayment = requiresPayment && !hasFullAccess && !isHostTreats;
 
-    // Initialize video.js player — called after DOM is ready
-    const initPlayer = useCallback(async () => {
-        if (!videoRef.current || !roomState?.videoId || playerRef.current || initAttemptRef.current) return;
-        initAttemptRef.current = true;
+    // ─── Resolve video URL ───
+    const resolveVideoUrl = useCallback(async (vid: string): Promise<string | null> => {
+        const jwt = sessionStorage.getItem('vp.jwt') || localStorage.getItem('jwt');
+        if (jwt) client.setJWT(jwt);
 
+        // 1) Try content stream API
         try {
-            const jwt = sessionStorage.getItem('vp.jwt') || localStorage.getItem('jwt');
-            if (jwt) client.setJWT(jwt);
+            const streamData = await client.get<{ url?: string; streamUrl?: string }>(`/content/stream/${vid}`);
+            const u = streamData?.url || streamData?.streamUrl;
+            if (u) return u;
+        } catch { }
 
-            // Try multiple sources to find a playable URL
-            let videoUrl: string | undefined;
+        // 2) Try direct HLS path
+        try {
+            const hlsUrl = `http://localhost:8092/content/hls/${vid}/index.m3u8`;
+            const probe = await fetch(hlsUrl, { method: 'HEAD' });
+            if (probe.ok) return hlsUrl;
+        } catch { }
 
-            // 1) Try content stream API
-            try {
-                const streamData = await client.get<{ url?: string; streamUrl?: string }>(`/content/stream/${roomState.videoId}`);
-                videoUrl = streamData?.url || streamData?.streamUrl;
-            } catch { }
-
-            // 2) Try direct HLS path
-            if (!videoUrl) {
-                const hlsUrl = `http://localhost:8092/content/hls/${roomState.videoId}/index.m3u8`;
-                try {
-                    const probe = await fetch(hlsUrl, { method: 'HEAD' });
-                    if (probe.ok) videoUrl = hlsUrl;
-                } catch { }
+        // 3) Try samples.json
+        try {
+            const resp = await fetch('/videos/samples.json');
+            if (resp.ok) {
+                const arr = await resp.json();
+                const hit = (Array.isArray(arr) ? arr : []).find((v: any) => String(v?.id) === String(vid));
+                if (hit?.cdnUrl) return hit.cdnUrl;
+                if (hit?.hlsUrl) return hit.hlsUrl;
             }
+        } catch { }
 
-            // 3) Try samples.json for demo/local videos
-            if (!videoUrl) {
-                try {
-                    const resp = await fetch('/videos/samples.json');
-                    if (resp.ok) {
-                        const arr = await resp.json();
-                        const hit = (Array.isArray(arr) ? arr : []).find((v: any) => String(v?.id) === String(roomState.videoId));
-                        if (hit?.cdnUrl) videoUrl = hit.cdnUrl;
-                        if (hit?.hlsUrl) videoUrl = hit.hlsUrl;
-                    }
-                } catch { }
-            }
+        // 4) Fallback: known demo video CDN URLs
+        if (DEMO_URLS[vid]) return DEMO_URLS[vid];
 
-            // 4) Fallback: known demo video CDN URLs
-            if (!videoUrl) {
-                const demoUrls: Record<string, string> = {
-                    'sample-bbb-720p': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-                    'sintel-hls': 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8',
-                    'elephants-dream': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-                };
-                videoUrl = demoUrls[roomState.videoId];
-            }
-
-            if (!videoUrl) {
-                setError('无法获取视频地址');
-                initAttemptRef.current = false;
-                return;
-            }
-
-            // Determine source type
-            const isHLS = videoUrl.includes('.m3u8') || videoUrl.includes('videodelivery.net');
-            const sourceType = isHLS ? 'application/x-mpegURL' : 'video/mp4';
-
-            // Initialize video.js — videoRef.current is guaranteed non-null here
-            const player = videojs(videoRef.current!, {
-                controls: true,
-                autoplay: false,
-                preload: 'auto',
-                fluid: true,
-                sources: [{ src: videoUrl, type: sourceType }]
-            });
-
-            playerRef.current = player;
-            setPlayerReady(true);
-
-            // Host: throttled time updates for GunDB sync
-            let lastReportTime = 0;
-            player.on('timeupdate', () => {
-                if (isHost && onTimeUpdate) {
-                    const now = Date.now();
-                    if (now - lastReportTime > 3000) {
-                        lastReportTime = now;
-                        onTimeUpdate(player.currentTime());
-                    }
-                }
-            });
-
-            // Host: play/pause events → WS broadcast
-            if (isHost && onPlayStateChange) {
-                player.on('play', () => {
-                    onPlayStateChange(true, player.currentTime());
-                });
-                player.on('pause', () => {
-                    onPlayStateChange(false, player.currentTime());
-                });
-            }
-
-            // Auto-play if room is already playing
-            if (roomState.status === 'playing') {
-                player.play().catch(() => {});
-                if (roomState.currentTime > 0) {
-                    player.currentTime(roomState.currentTime);
-                }
-            }
-
-            // Resume from stream purchase position
-            if (streamPurchase && streamPurchase.paidUntilSeconds > 0) {
-                player.currentTime(streamPurchase.paidUntilSeconds);
-            }
-
-        } catch (err: any) {
-            console.error('Watch Party video init failed:', err);
-            setError(err?.message || '视频加载失败');
-            initAttemptRef.current = false;
-        }
-    }, [roomState?.videoId, roomState?.status, roomState?.currentTime, isHost, onTimeUpdate, onPlayStateChange, streamPurchase]);
-
-    // Try to initialize player when video ref becomes available (after render)
-    useEffect(() => {
-        if (!isLoading && !needsPayment && videoRef.current && !playerRef.current) {
-            // Small delay to ensure DOM is fully mounted
-            const timer = setTimeout(() => initPlayer(), 100);
-            return () => clearTimeout(timer);
-        }
-    }, [isLoading, needsPayment, initPlayer]);
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            if (playerRef.current) {
-                playerRef.current.dispose();
-                playerRef.current = null;
-            }
-            initAttemptRef.current = false;
-        };
+        return null;
     }, []);
 
-    // Reset init attempt when video changes
+    // ─── Initialize / re-init player when videoId changes ───
     useEffect(() => {
-        initAttemptRef.current = false;
+        if (!videoId || !videoRef.current || isLoading || needsPayment) return;
+        // Already initialized for this videoId
+        if (lastVideoIdRef.current === videoId && playerRef.current) return;
+
+        // Dispose previous player if different video
         if (playerRef.current) {
-            playerRef.current.dispose();
+            try { playerRef.current.dispose(); } catch { }
             playerRef.current = null;
             setPlayerReady(false);
         }
-    }, [roomState?.videoId]);
+        lastVideoIdRef.current = videoId;
+        setInitStatus('loading');
+        setError(null);
+
+        let cancelled = false;
+        (async () => {
+            const videoUrl = await resolveVideoUrl(videoId);
+            if (cancelled) return;
+
+            if (!videoUrl) {
+                setError(`无法获取视频地址 (${videoId})`);
+                setInitStatus('error');
+                return;
+            }
+
+            if (!videoRef.current) {
+                setError('视频元素未就绪');
+                setInitStatus('error');
+                return;
+            }
+
+            const isHLS = videoUrl.includes('.m3u8');
+            const sourceType = isHLS ? 'application/x-mpegURL' : 'video/mp4';
+
+            try {
+                const player = videojs(videoRef.current, {
+                    controls: true,
+                    autoplay: false,
+                    preload: 'auto',
+                    fill: true, // fill parent container (NOT fluid which adds its own wrapper)
+                    sources: [{ src: videoUrl, type: sourceType }],
+                });
+
+                playerRef.current = player;
+
+                // Host: throttled time updates
+                let lastReportTime = 0;
+                player.on('timeupdate', () => {
+                    if (isHost && onTimeUpdate) {
+                        const now = Date.now();
+                        if (now - lastReportTime > 3000) {
+                            lastReportTime = now;
+                            onTimeUpdate(player.currentTime() || 0);
+                        }
+                    }
+                });
+
+                // Host: play/pause events → WS broadcast
+                if (isHost && onPlayStateChange) {
+                    player.on('play', () => onPlayStateChange(true, player.currentTime() || 0));
+                    player.on('pause', () => onPlayStateChange(false, player.currentTime() || 0));
+                }
+
+                // Wait for player to be ready
+                player.ready(() => {
+                    if (cancelled) return;
+                    setPlayerReady(true);
+                    setInitStatus('ready');
+
+                    // Auto-play if room is already playing
+                    if (roomState && roomState.status === 'playing') {
+                        player.play().catch(() => { });
+                        if ((roomState.currentTime || 0) > 0) {
+                            player.currentTime(roomState.currentTime);
+                        }
+                    }
+                });
+
+                // Resume from stream purchase position
+                if (streamPurchase && streamPurchase.paidUntilSeconds > 0) {
+                    player.one('loadeddata', () => {
+                        player.currentTime(streamPurchase.paidUntilSeconds);
+                    });
+                }
+            } catch (err: any) {
+                if (!cancelled) {
+                    console.error('Watch Party video init failed:', err);
+                    setError(err?.message || '视频加载失败');
+                    setInitStatus('error');
+                }
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [videoId, isLoading, needsPayment, resolveVideoUrl, isHost, onTimeUpdate, onPlayStateChange, roomState?.status, streamPurchase]);
+
+    // ─── Cleanup on unmount ───
+    useEffect(() => {
+        return () => {
+            if (playerRef.current) {
+                try { playerRef.current.dispose(); } catch { }
+                playerRef.current = null;
+            }
+        };
+    }, []);
+
+    // ─── Viewer sync: follow host's play/pause/seek from GunDB ───
+    useEffect(() => {
+        if (isHost || !playerRef.current || !playerReady || !roomState) return;
+        const player = playerRef.current;
+
+        // Sync play/pause
+        if (roomState.status === 'playing' || roomState.isPlaying) {
+            if (player.paused()) {
+                player.play().catch(() => { });
+            }
+        } else if (roomState.status === 'waiting' || (!roomState.isPlaying && roomState.status !== 'ended')) {
+            if (!player.paused()) {
+                player.pause();
+            }
+        }
+
+        // Sync position (correct drift > 3s)
+        if ((roomState.currentTime || 0) > 0) {
+            const localTime = player.currentTime() || 0;
+            const drift = Math.abs(localTime - roomState.currentTime);
+            if (drift > 3) {
+                player.currentTime(roomState.currentTime);
+            }
+        }
+    }, [isHost, playerReady, roomState?.isPlaying, roomState?.currentTime, roomState?.updatedAt, roomState?.status]);
+
+    // ─── When room transitions to 'playing', trigger play on the player ───
+    useEffect(() => {
+        if (!playerRef.current || !playerReady) return;
+        if (roomState?.status === 'playing') {
+            const player = playerRef.current;
+            if (player.paused()) {
+                player.play().catch(() => { });
+            }
+        }
+    }, [roomState?.status, playerReady]);
 
     // Payment handler
     const handlePayment = async (type: 'stream' | 'points' | 'group') => {
-        if (!roomState?.videoId || !videoMeta) return;
+        if (!videoId || !videoMeta) return;
         setPurchasing(true);
         setError(null);
 
@@ -223,11 +271,11 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
                     : videoMeta.pointsPrice;
 
                 await client.post('/payment/points/redeem', {
-                    videoId: roomState.videoId,
+                    videoId,
                     totalPoints: finalTotal
                 });
             } else {
-                onPaymentRequired?.(roomState.videoId);
+                onPaymentRequired?.(videoId);
             }
 
             setShowPaymentModal(false);
@@ -239,34 +287,27 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
         }
     };
 
-    // Viewer sync: follow host's play/pause/seek state from GunDB
-    useEffect(() => {
-        if (isHost || !playerRef.current || !roomState) return;
-
-        const player = playerRef.current;
-        if (roomState.isPlaying && player.paused()) {
-            player.play().catch(() => { });
-        } else if (!roomState.isPlaying && !player.paused()) {
-            player.pause();
-        }
-        if (roomState.currentTime > 0) {
-            const localTime = player.currentTime() || 0;
-            const drift = Math.abs(localTime - roomState.currentTime);
-            if (drift > 3) {
-                player.currentTime(roomState.currentTime);
-            }
-        }
-    }, [isHost, roomState?.isPlaying, roomState?.currentTime, roomState?.updatedAt]);
-
     // === RENDER ===
 
-    // Loading state
+    // No video selected yet (joiner waiting for roomState)
+    if (!videoId) {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-black/50">
+                <div className="text-center space-y-3 animate-pulse">
+                    <div className="w-10 h-10 border-2 border-t-[#22d3ee] border-white/20 rounded-full animate-spin mx-auto" />
+                    <span className="text-gray-400 text-sm">等待房主选择视频...</span>
+                </div>
+            </div>
+        );
+    }
+
+    // Loading entitlement check
     if (isLoading) {
         return (
-            <div className="wp-video-screen">
-                <div className="wp-video-loading">
-                    <div className="wp-spinner" />
-                    <span>加载中...</span>
+            <div className="w-full h-full flex items-center justify-center bg-black/50">
+                <div className="text-center space-y-3 animate-pulse">
+                    <div className="w-10 h-10 border-2 border-t-[#22d3ee] border-white/20 rounded-full animate-spin mx-auto" />
+                    <span className="text-gray-400 text-sm">加载中...</span>
                 </div>
             </div>
         );
@@ -279,69 +320,75 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
             : null;
 
         return (
-            <div className="wp-video-screen wp-video-locked">
-                <div className="wp-payment-prompt">
-                    <Lock size={48} className="wp-lock-icon" />
-                    <h3>此视频需要付费观看</h3>
-                    <p className="wp-video-title">{videoMeta?.title}</p>
+            <div className="w-full h-full flex items-center justify-center bg-black/80 backdrop-blur relative">
+                <div className="text-center space-y-4 max-w-md p-8">
+                    <Lock size={48} className="text-yellow-400 mx-auto" />
+                    <h3 className="text-xl font-bold text-white">此视频需要付费观看</h3>
+                    <p className="text-gray-400">{videoMeta?.title}</p>
 
                     {streamPurchase && (
-                        <div className="wp-stream-progress">
+                        <div className="flex items-center gap-2 text-sm text-blue-400 bg-blue-500/10 px-4 py-2 rounded-lg">
                             <AlertCircle size={16} />
                             <span>您已通过流支付购买了 {Math.floor(streamPurchase.paidUntilSeconds / 60)} 分钟</span>
                         </div>
                     )}
 
-                    <div className="wp-payment-options">
+                    <div className="space-y-2">
                         {videoMeta && videoMeta.pointsPrice > 0 && (
-                            <button className="wp-payment-btn wp-payment-points" onClick={() => { setPaymentType('points'); setShowPaymentModal(true); }}>
-                                <CreditCard size={20} />
-                                <span>积分购买</span>
-                                <span className="wp-price">{videoMeta.pointsPrice} 积分</span>
+                            <button className="w-full flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#22d3ee]/40 hover:bg-[#22d3ee]/5 transition-all text-left" onClick={() => { setPaymentType('points'); setShowPaymentModal(true); }}>
+                                <CreditCard size={20} className="text-[#22d3ee]" />
+                                <div className="flex-1">
+                                    <div className="font-bold text-white">积分购买</div>
+                                    <div className="text-xs text-gray-400">{videoMeta.pointsPrice} 积分</div>
+                                </div>
                             </button>
                         )}
 
                         {videoMeta && videoMeta.streamPricePerMinute > 0 && (
-                            <button className="wp-payment-btn wp-payment-stream" onClick={() => { setPaymentType('stream'); handlePayment('stream'); }}>
-                                <Zap size={20} />
-                                <span>流支付</span>
-                                <span className="wp-price">{videoMeta.streamPricePerMinute} 积分/分钟</span>
+                            <button className="w-full flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#a855f7]/40 hover:bg-[#a855f7]/5 transition-all text-left" onClick={() => { setPaymentType('stream'); handlePayment('stream'); }}>
+                                <Zap size={20} className="text-[#a855f7]" />
+                                <div className="flex-1">
+                                    <div className="font-bold text-white">流支付</div>
+                                    <div className="text-xs text-gray-400">{videoMeta.streamPricePerMinute} 积分/分钟</div>
+                                </div>
                             </button>
                         )}
 
                         {isHost && groupPrice && videoMeta && participants.length > 1 && (
-                            <button className="wp-payment-btn wp-payment-group" onClick={() => { setPaymentType('group'); setShowPaymentModal(true); }}>
-                                <span className="wp-group-badge">团购</span>
-                                <span>为全员购买</span>
-                                <div className="wp-group-info">
-                                    <span className="wp-original-price">{groupPrice.originalTotal} 积分</span>
-                                    <span className="wp-final-price">{groupPrice.finalTotal} 积分</span>
-                                    <span className="wp-discount">({Math.round((1 - groupPrice.discount) * 100)}% 折扣)</span>
+                            <button className="w-full flex items-center gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all text-left" onClick={() => { setPaymentType('group'); setShowPaymentModal(true); }}>
+                                <span className="text-lg">🎁</span>
+                                <div className="flex-1">
+                                    <div className="font-bold text-white">为全员购买 (团购)</div>
+                                    <div className="text-xs text-gray-400">
+                                        <span className="line-through">{groupPrice.originalTotal} 积分</span>
+                                        {' → '}<span className="text-emerald-400 font-bold">{groupPrice.finalTotal} 积分</span>
+                                        {' '}({Math.round((1 - groupPrice.discount) * 100)}% 折扣)
+                                    </div>
                                 </div>
                             </button>
                         )}
                     </div>
 
-                    {error && <p className="wp-error">{error}</p>}
+                    {error && <p className="text-red-400 text-sm">{error}</p>}
                 </div>
 
                 {showPaymentModal && (
-                    <div className="wp-modal-overlay" onClick={() => setShowPaymentModal(false)}>
-                        <div className="wp-modal" onClick={e => e.stopPropagation()}>
-                            <h3>确认{paymentType === 'group' ? '团购' : '购买'}</h3>
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowPaymentModal(false)}>
+                        <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 max-w-sm w-full space-y-4" onClick={e => e.stopPropagation()}>
+                            <h3 className="text-lg font-bold text-white">确认{paymentType === 'group' ? '团购' : '购买'}</h3>
                             {paymentType === 'points' && videoMeta && (
-                                <p>将花费 <strong>{videoMeta.pointsPrice} 积分</strong> 购买此视频</p>
+                                <p className="text-gray-300">将花费 <strong className="text-[#22d3ee]">{videoMeta.pointsPrice} 积分</strong> 购买此视频</p>
                             )}
                             {paymentType === 'group' && groupPrice && (
-                                <div className="wp-group-summary">
+                                <div className="space-y-1 text-sm text-gray-300">
                                     <p>为 {participants.length} 位观众购买</p>
                                     <p>原价: {groupPrice.originalTotal} 积分</p>
-                                    <p className="wp-discount-highlight">折扣价: {groupPrice.finalTotal} 积分</p>
+                                    <p className="text-emerald-400 font-bold">折扣价: {groupPrice.finalTotal} 积分</p>
                                 </div>
                             )}
-                            <div className="wp-modal-actions">
-                                <button className="wp-btn wp-btn-secondary" onClick={() => setShowPaymentModal(false)}>取消</button>
-                                <button className="wp-btn wp-btn-primary" onClick={() => handlePayment(paymentType)} disabled={purchasing}>
+                            <div className="flex gap-3 pt-2">
+                                <button className="flex-1 py-2 rounded-xl bg-white/10 text-gray-300 hover:bg-white/20 transition-all font-bold" onClick={() => setShowPaymentModal(false)}>取消</button>
+                                <button className="flex-1 py-2 rounded-xl bg-gradient-to-r from-[#22d3ee] to-[#a855f7] text-white font-bold hover:brightness-110 transition-all disabled:opacity-50" onClick={() => handlePayment(paymentType)} disabled={purchasing}>
                                     {purchasing ? '处理中...' : '确认支付'}
                                 </button>
                             </div>
@@ -352,29 +399,55 @@ export const WatchPartyVideo: React.FC<WatchPartyVideoProps> = ({
         );
     }
 
-    // Main video player view — video element is ALWAYS rendered here
+    // Main video player view — video element ALWAYS rendered
     return (
-        <div className="wp-video-screen wp-video-playing">
-            <div data-vjs-player className="wp-video-player">
+        <div className="w-full h-full relative bg-black">
+            <div data-vjs-player style={{ width: '100%', height: '100%' }}>
                 <video
                     ref={videoRef}
-                    className="video-js vjs-big-play-centered vjs-theme-city"
+                    className="video-js vjs-big-play-centered"
                     playsInline
+                    style={{ width: '100%', height: '100%' }}
                 />
             </div>
 
-            {/* Waiting overlay */}
-            {roomState?.status === 'waiting' && (
-                <div className="wp-sync-overlay">
-                    <Play size={48} />
-                    <span>等待开始...</span>
+            {/* Loading overlay */}
+            {initStatus === 'loading' && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
+                    <div className="text-center space-y-3 animate-pulse">
+                        <div className="w-10 h-10 border-2 border-t-[#22d3ee] border-white/20 rounded-full animate-spin mx-auto" />
+                        <span className="text-gray-400 text-sm">加载视频...</span>
+                    </div>
                 </div>
             )}
 
-            {error && (
-                <div className="wp-error-overlay">
-                    <AlertCircle size={24} />
-                    <span>{error}</span>
+            {/* Waiting overlay — only for viewers when room status is 'waiting' */}
+            {!isHost && roomState?.status === 'waiting' && initStatus === 'ready' && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
+                    <div className="text-center space-y-3">
+                        <Play size={48} className="text-[#22d3ee] mx-auto" />
+                        <span className="text-white font-bold text-lg">等待房主开始播放...</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Error overlay */}
+            {initStatus === 'error' && error && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
+                    <div className="text-center space-y-3">
+                        <AlertCircle size={32} className="text-red-400 mx-auto" />
+                        <span className="text-red-400 text-sm">{error}</span>
+                        <button
+                            className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 text-sm"
+                            onClick={() => {
+                                lastVideoIdRef.current = null; // allow retry
+                                setInitStatus('idle');
+                                setError(null);
+                            }}
+                        >
+                            重试
+                        </button>
+                    </div>
                 </div>
             )}
         </div>
