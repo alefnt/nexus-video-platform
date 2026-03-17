@@ -161,31 +161,28 @@ app.post("/live/tip", async (req, reply) => {
 
         const creatorEarnings = Math.floor(gift.price * LIVE_CREATOR_SHARE);
 
-        // Atomic transaction: deduct from sender, credit to creator
+        // Atomic transaction: deduct from sender, credit to creator (using atomic operators)
         const result = await prisma.$transaction(async (tx: any) => {
             const sender = await tx.user.findUnique({ where: { id: user.sub } });
             if (!sender) throw new Error("用户不存在");
             if (Number(sender.points) < gift.price) throw new Error("积分余额不足");
 
-            // Deduct from sender
-            await tx.user.update({ where: { id: user.sub }, data: { points: Number(sender.points) - gift.price } });
+            // Deduct from sender (atomic decrement)
+            const updatedSender = await tx.user.update({ where: { id: user.sub }, data: { points: { decrement: gift.price } } });
             await tx.pointsTransaction.create({
                 data: { userId: user.sub, type: "live_gift_send", amount: -gift.price, reason: `Live gift: ${gift.name} in room ${body.roomId}` }
             });
 
-            // Credit to creator
-            const creator = await tx.user.findUnique({ where: { id: room.creatorId } });
-            if (creator) {
-                await tx.user.update({ where: { id: room.creatorId }, data: { points: Number(creator.points) + creatorEarnings } });
-                await tx.pointsTransaction.create({
-                    data: { userId: room.creatorId, type: "live_gift_receive", amount: creatorEarnings, reason: `Live gift: ${gift.name} (${creatorEarnings}/${gift.price})` }
-                });
-            }
+            // Credit to creator (atomic increment)
+            await tx.user.update({ where: { id: room.creatorId }, data: { points: { increment: creatorEarnings } } });
+            await tx.pointsTransaction.create({
+                data: { userId: room.creatorId, type: "live_gift_receive", amount: creatorEarnings, reason: `Live gift: ${gift.name} (${creatorEarnings}/${gift.price})` }
+            });
 
             // Update room totalTips
             await tx.liveRoom.update({ where: { id: body.roomId }, data: { totalTips: { increment: gift.price } } });
 
-            return { senderName: sender.nickname || sender.username || "Anonymous", senderBalance: Number(sender.points) - gift.price };
+            return { senderName: sender.nickname || sender.username || "Anonymous", senderBalance: Number(updatedSender.points) };
         });
 
         // Broadcast gift via LiveKit DataChannel

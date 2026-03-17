@@ -46,13 +46,17 @@ await app.register(fastifySwaggerUi, { routePrefix: "/docs" });
 
 app.register(cors, {
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
-    const ok = origin.includes("localhost:5173") || origin.includes("127.0.0.1:5173") || origin.includes("localhost:5174") || origin.includes("127.0.0.1:5174");
+    if (!origin) return cb(null, true); // Allow non-browser (curl, Postman, server-to-server)
+    const allowedPatterns = ["localhost:5173", "127.0.0.1:5173", "localhost:5174", "127.0.0.1:5174", "localhost:3000", "127.0.0.1:3000"];
+    // Allow any configured CORS_ORIGINS env var (comma-separated)
+    const extraOrigins = (process.env.CORS_ORIGINS || "").split(",").filter(Boolean);
+    const allAllowed = [...allowedPatterns, ...extraOrigins];
+    const ok = allAllowed.some(p => origin.includes(p));
     if (ok) return cb(null, true);
-    cb(null, true);
+    cb(new Error(`Origin ${origin} not allowed by CORS`), false);
   },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "X-Request-Id"],
+  allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "X-Request-Id", "X-Internal-Service"],
 });
 
 app.register(jwt, { secret: JWT_SECRET });

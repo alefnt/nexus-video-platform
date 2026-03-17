@@ -420,8 +420,25 @@ app.post("/nft/collection/mint", async (req, reply) => {
         const meta = JSON.parse(collection.description || "{}");
         const videoTitle = meta.videoTitle || collection.name;
         const videoId = meta.videoId || "unknown";
+        const collectionPrice = Number(meta.price || 0);
 
-        // TODO: Payment logic here
+        // Payment: deduct buyer's points for the collection price
+        if (collectionPrice > 0) {
+            const buyer = await prisma.user.findUnique({ where: { id: user.sub } });
+            if (!buyer) {
+                return reply.status(404).send({ error: "用户不存在", code: "user_not_found" });
+            }
+            if (Number(buyer.points) < collectionPrice) {
+                return reply.status(400).send({ error: "积分不足", code: "insufficient_points", required: collectionPrice, current: Number(buyer.points) });
+            }
+
+            // Atomic: deduct buyer, credit creator
+            const creatorShare = Math.floor(collectionPrice * 0.9); // 90% to creator
+            await prisma.$transaction([
+                prisma.user.update({ where: { id: user.sub }, data: { points: { decrement: collectionPrice } } }),
+                prisma.user.update({ where: { id: collection.creatorId }, data: { points: { increment: creatorShare } } }),
+            ]);
+        }
 
         const editionNumber = collection.totalSupply + 1;
         const result = await sporeClient.mintLimitedEditionSpore(
@@ -620,8 +637,9 @@ app.post("/nft/marketplace/buy", async (req, reply) => {
             return reply.status(400).send({ error: "积分不足", code: "insufficient_points" });
         }
 
-        // 2. Execute transaction atomically
-        const [updatedBuyer, updatedSeller, updatedListing, transaction] = await prisma.$transaction([
+        // 2. Execute transaction atomically (including royalty payment)
+        const shouldPayRoyalty = listing.originalCreatorId && listing.originalCreatorId !== listing.sellerId && royaltyAmount > 0;
+        const txOps: any[] = [
             // Deduct from buyer
             prisma.user.update({
                 where: { id: user.sub },
@@ -651,17 +669,20 @@ app.post("/nft/marketplace/buy", async (req, reply) => {
                     sporeId: listing.sporeId,
                 }
             })
-        ]);
+        ];
 
-        // 3. Pay royalty to original creator (if different from seller)
-        if (listing.originalCreatorId && listing.originalCreatorId !== listing.sellerId && royaltyAmount > 0) {
-            await prisma.user.update({
-                where: { id: listing.originalCreatorId },
-                data: { points: { increment: royaltyAmount } }
-            }).catch(err => {
-                req.log.warn({ msg: "Royalty payment failed", originalCreator: listing.originalCreatorId, err: err?.message });
-            });
+        // 3. Include royalty payment in the same transaction
+        if (shouldPayRoyalty) {
+            txOps.push(
+                prisma.user.update({
+                    where: { id: listing.originalCreatorId! },
+                    data: { points: { increment: royaltyAmount } }
+                })
+            );
         }
+
+        const results = await prisma.$transaction(txOps);
+        const transaction = results[3]; // NFTTransaction is 4th op
 
         // 4. Transfer Spore NFT on-chain (async, non-blocking)
         const buyerAddress = buyer?.address || user?.ckb || "";

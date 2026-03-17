@@ -45,8 +45,22 @@ async function cacheSet(key: string, value: string, ttl = CACHE_TTL): Promise<vo
 
 async function cacheDel(pattern: string): Promise<void> {
   if (!redis) return;
-  const keys = await redis.keys(pattern);
-  if (keys.length > 0) await redis.del(...keys);
+  // Use SCAN instead of KEYS to avoid blocking Redis in production
+  if (!pattern.includes('*')) {
+    // Exact key — delete directly
+    await redis.del(pattern);
+    return;
+  }
+  const stream = redis.scanStream({ match: pattern, count: 100 });
+  const pipeline = redis.pipeline();
+  let count = 0;
+  for await (const keys of stream) {
+    for (const key of keys as string[]) {
+      pipeline.del(key);
+      count++;
+    }
+  }
+  if (count > 0) await pipeline.exec();
 }
 
 // ── SSE for danmaku ──

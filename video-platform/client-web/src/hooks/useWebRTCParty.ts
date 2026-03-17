@@ -86,50 +86,66 @@ export function useWebRTCParty({
     isHostRef.current = isHost;
 
     // ── WebSocket Connection ──
+    const reconnectAttemptRef = useRef(0);
+    const reconnectTimerRef = useRef<any>(null);
+
     useEffect(() => {
         if (!roomId || !userId) return;
 
-        const ws = new WebSocket(wsUrl);
-        wsRef.current = ws;
+        function connect() {
+            const ws = new WebSocket(wsUrl);
+            wsRef.current = ws;
 
-        ws.onopen = () => {
-            // Authenticate
-            ws.send(JSON.stringify({ type: 'auth', userId }));
-            // Join Watch Party room — capture isHost at join time via ref
-            ws.send(JSON.stringify({ type: 'wp:join', roomId, userId, userName, isHost: isHostRef.current }));
-            setConnected(true);
-        };
+            ws.onopen = () => {
+                reconnectAttemptRef.current = 0; // Reset backoff on success
+                // Authenticate
+                ws.send(JSON.stringify({ type: 'auth', userId }));
+                // Join Watch Party room — capture isHost at join time via ref
+                ws.send(JSON.stringify({ type: 'wp:join', roomId, userId, userName, isHost: isHostRef.current }));
+                setConnected(true);
+            };
 
-        ws.onmessage = (event) => {
-            try {
-                const msg = JSON.parse(event.data);
-                handleSignalingMessage(msg);
-            } catch (e) {
-                console.error('[WebRTC] Parse error:', e);
-            }
-        };
-
-        ws.onclose = () => {
-            setConnected(false);
-            // Attempt reconnect after 3 seconds
-            setTimeout(() => {
-                if (wsRef.current?.readyState === WebSocket.CLOSED) {
-                    console.log('[WebRTC] Reconnecting...');
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    handleSignalingMessage(msg);
+                } catch (e) {
+                    console.error('[WebRTC] Parse error:', e);
                 }
-            }, 3000);
-        };
+            };
 
-        ws.onerror = (e) => {
-            console.error('[WebRTC] WS error:', e);
-        };
+            ws.onclose = () => {
+                setConnected(false);
+                // Auto-reconnect with exponential backoff (3s, 6s, 12s... max 30s)
+                const attempt = reconnectAttemptRef.current;
+                const delay = Math.min(3000 * Math.pow(2, attempt), 30000);
+                reconnectAttemptRef.current = attempt + 1;
+                console.log(`[WebRTC] WS closed. Reconnecting in ${delay / 1000}s (attempt ${attempt + 1})...`);
+                reconnectTimerRef.current = setTimeout(() => {
+                    console.log('[WebRTC] Reconnecting...');
+                    connect();
+                }, delay);
+            };
+
+            ws.onerror = (e) => {
+                console.error('[WebRTC] WS error:', e);
+            };
+        }
+
+        connect();
 
         return () => {
-            try {
-                if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({ type: 'wp:leave', roomId }));
-                }
-            } catch { /* socket already closed */ }
-            ws.close();
+            if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+            const ws = wsRef.current;
+            if (ws) {
+                try {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: 'wp:leave', roomId }));
+                    }
+                } catch { /* socket already closed */ }
+                ws.onclose = null; // Prevent reconnect on intentional close
+                ws.close();
+            }
             // Cleanup peer connections
             peerConnectionsRef.current.forEach((pc) => pc.close());
             peerConnectionsRef.current.clear();

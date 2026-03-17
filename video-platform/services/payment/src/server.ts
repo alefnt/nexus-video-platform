@@ -333,7 +333,7 @@ app.post("/payment/points/redeem", async (req, reply) => {
       where: {
         userId,
         type: "redeem",
-        reason: { contains: String(videoId) },
+        reason: { equals: `Redeem video ${String(videoId)}` },
       },
     });
     if (existingPurchase) {

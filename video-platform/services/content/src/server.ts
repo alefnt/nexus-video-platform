@@ -44,6 +44,15 @@ app.get("/metrics", async () => monitoring.getMetrics());
 // 新增：幂等中间件（POST）
 const idemCache = new Map<string, { status: number; body: any; expiresAt: number; paramsHash: string }>();
 function hashParams(obj: any): string { try { return Buffer.from(JSON.stringify(obj || {})).toString("base64url"); } catch { return ""; } }
+
+// Periodic cleanup of expired idempotency entries to prevent memory leak
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of idemCache) {
+    if (now >= val.expiresAt) idemCache.delete(key);
+  }
+}, 60_000); // Every 60 seconds
+
 app.addHook("preHandler", async (req, reply) => {
   if (req.method !== "POST") return;
   const key = (req.headers["idempotency-key"] || req.headers["Idempotency-Key"] || "") as string;
