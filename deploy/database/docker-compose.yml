@@ -143,7 +143,7 @@ services:
 
   # ============== PgPool-II 负载均衡 (可选) ==============
   pgpool:
-    image: bitnami/pgpool:latest
+    image: soldevelo/pgpool:latest
     container_name: pgpool
     restart: always
     environment:
